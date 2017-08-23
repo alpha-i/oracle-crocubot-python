@@ -49,7 +49,7 @@ class TestTopology(unittest.TestCase):
     def test_get_cell_shape(self):
 
         cell_shape = self.topology.get_cell_shape(0)
-        assert cell_shape == [1 , 10]
+        assert cell_shape == [1, 10]
 
     def test_get_weight_shape(self):
 
