@@ -1,6 +1,9 @@
 # Defines the layout of the network
 # Used by oracle, crocubot_model, and crocubot_train
 
+import tensorflow as tf
+import alphai_crocubot_oracle.tensormaths as tm
+
 ACTIVATION_FN_LINEAR = "linear"
 ACTIVATION_FN_SELU = "selu"
 ACTIVATION_FN_RELU = "relu"
@@ -116,6 +119,21 @@ class Topology(object):
         bias_shape = [height, width]
 
         return bias_shape
+
+    def get_activation_function(self, layer_number):
+
+        function_name = self.layers[layer_number + 1]["activation_func"]
+
+        if function_name == 'linear':
+            return lambda x: x
+        elif function_name == 'selu':
+            return tm.selu
+        elif function_name == 'relu':
+            return tf.nn.relu
+        elif function_name == 'kelu':
+            return tm.kelu
+        else:
+            raise NotImplementedError
 
     def _build_layers(self, layer_heights, layer_widths, activation_functions):
         """

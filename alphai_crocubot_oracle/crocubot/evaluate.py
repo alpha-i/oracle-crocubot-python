@@ -2,14 +2,15 @@
 # Only used by oracle.py
 
 import logging
-import tensorflow as tf
+
 import numpy as np
+import tensorflow as tf
 
 # FIXME once time_series is updated, uncomment the below and delete the copy in this file
 # from alphai_time_series.calculator import make_diagonal_covariance_matrices
 
-import alphai_crocubot_oracle.crocubot_model as cr
 import alphai_crocubot_oracle.classifier as cl
+from alphai_crocubot_oracle.crocubot.model import CrocuBotModel, Estimator
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -24,13 +25,15 @@ def eval_neural_net(data, topology, save_file):
 
     logging.info("Evaluating with shape", data.shape)
 
+    model = CrocuBotModel(topology, FLAGS)
     try:
-        cr.initialise_parameters(topology)
+        model.build_layers_variables()
     except:
         logging.info('Variables already initialised')
 
     saver = tf.train.Saver()
-    y = cr.collate_multiple_passes(data, topology, number_of_passes=FLAGS.n_eval_passes)
+    estimator = Estimator(model, FLAGS)
+    y = estimator.collate_multiple_passes(data, FLAGS.n_eval_passes)
 
     with tf.Session() as sess:
         logging.info("Attempting to recover trained network:", save_file)

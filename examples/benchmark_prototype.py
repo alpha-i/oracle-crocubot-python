@@ -2,18 +2,18 @@
 # Acts as a useful test that training & inference still works!
 
 from timeit import default_timer as timer
+
+import alphai_time_series.performance_trials as pt
 import numpy as np
 import tensorflow as tf
 
-import alphai_crocubot_oracle.crocubot_train as crocubot
-import alphai_crocubot_oracle.crocubot_eval as eval
-import alphai_crocubot_oracle.topology as topo
 import alphai_crocubot_oracle.classifier as cl
-import alphai_crocubot_oracle.iotools as io
-import alphai_crocubot_oracle.crocubot_model as nt
-import alphai_time_series.performance_trials as pt
-
+import alphai_crocubot_oracle.crocubot.train as crocubot
+import alphai_crocubot_oracle.crocubot.evaluate as eval
+from alphai_crocubot_oracle.crocubot.model import CrocuBotModel
 import alphai_crocubot_oracle.flags as set_flags
+import alphai_crocubot_oracle.iotools as io
+import alphai_crocubot_oracle.topology as topo
 
 FLAGS = tf.app.flags.FLAGS
 DEFAULT_DATA_SOURCE = 'stochasticwalk'
@@ -34,11 +34,13 @@ def run_timed_performance_benchmark(data_source=DEFAULT_DATA_SOURCE, do_training
     bin_distribution = cl.make_template_distribution(training_labels, topology.n_classification_bins)
 
     start_time = timer()
+
     if do_training:
         crocubot.train(topology, data_source=data_source, bin_edges=bin_distribution["bin_edges"])
     else:
-        nt.reset()
-        nt.initialise_parameters(topology)
+        tf.reset_default_graph()
+        model = CrocuBotModel(topology)
+        model.build_layers_variables()
 
     mid_time = timer()
     train_time = mid_time - start_time

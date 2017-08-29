@@ -7,22 +7,23 @@
 
 import logging
 
-import pandas as pd
 import numpy as np
-
-import alphai_crocubot_oracle.crocubot_train as crocubot
-import alphai_crocubot_oracle.crocubot_eval as crocubot_eval
-import alphai_crocubot_oracle.classifier as cl
-import alphai_crocubot_oracle.flags as fl
-import alphai_crocubot_oracle.topology as tp
+import pandas as pd
+import tensorflow as tf
 
 from alphai_finance.data.transformation import FinancialDataTransformation
 
-from alphai_crocubot_oracle.covariance import estimate_covariance
+import alphai_crocubot_oracle.classifier as cl
+import alphai_crocubot_oracle.crocubot.train as crocubot
+import alphai_crocubot_oracle.crocubot.evaluate as crocubot_eval
+import alphai_crocubot_oracle.flags as fl
+import alphai_crocubot_oracle.topology as tp
 from alphai_crocubot_oracle.constants import DATETIME_FORMAT_COMPACT
+from alphai_crocubot_oracle.covariance import estimate_covariance
 from alphai_crocubot_oracle.helpers import TrainFileManager
 
 TRAIN_FILE_NAME_TEMPLATE = "{}_train_crocubot.hd5"
+FLAGS = tf.app.flags.FLAGS
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
@@ -144,7 +145,7 @@ class MvpOracle:
 
             train_path = self._train_file_manager.new_filename(execution_time)
             data_source = 'financial_stuff'
-            crocubot.train(self._topology, data_source, train_x, train_y, save_path=train_path)
+            crocubot.train(self._topology, data_source, FLAGS, train_x, train_y, save_path=train_path)
 
             self._current_train = train_path
             self._bin_distribution = bin_distribution

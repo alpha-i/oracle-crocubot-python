@@ -2,20 +2,20 @@
 # Used by oracle.py
 
 
-from timeit import default_timer as timer
 import logging
+from timeit import default_timer as timer
 
 import tensorflow as tf
 
-import alphai_crocubot_oracle.crocubot_model as cr
 import alphai_crocubot_oracle.bayesian_cost as cost
+from alphai_crocubot_oracle.crocubot.model import CrocuBotModel, Estimator
 import alphai_crocubot_oracle.iotools as io
 
 FLAGS = tf.app.flags.FLAGS
 PRINT_LOSS_INTERVAL = 20
 
 
-def train(topology, data_source, train_x=None, train_y=None, bin_edges=None, save_path=None):
+def train(topology, data_source, flags, train_x=None, train_y=None, bin_edges=None, save_path=None):
     """ Train network on either MNIST or time series data
 
     :param Topology topology:
@@ -24,8 +24,9 @@ def train(topology, data_source, train_x=None, train_y=None, bin_edges=None, sav
     """
 
     # Start from a clean graph
-    cr.reset()
-    cr.initialise_parameters(topology)
+    tf.reset_default_graph()
+    model = CrocuBotModel(topology, flags)
+    model.build_layers_variables()
 
     if train_x is None:
         use_data_loader = True
@@ -37,7 +38,7 @@ def train(topology, data_source, train_x=None, train_y=None, bin_edges=None, sav
     y = tf.placeholder(FLAGS.d_type)
     global_step = tf.Variable(0, trainable=False, name='global_step')
 
-    cost_operator = _set_cost_operator(x, y, topology)
+    cost_operator = _set_cost_operator(model, x, y)
     training_operator = tf.train.AdamOptimizer(FLAGS.learning_rate).minimize(cost_operator, global_step=global_step)
     model_initialiser = tf.global_variables_initializer()
 
@@ -77,7 +78,7 @@ def train(topology, data_source, train_x=None, train_y=None, bin_edges=None, sav
 
                 _, batch_loss = sess.run([training_operator, cost_operator], feed_dict={x: batch_x, y: batch_y})
                 epoch_loss += batch_loss
-                cr.increment_noise_seed()
+                model.increment_random_seed()
 
             time_epoch = timer() - start_time
             epoch_loss_list.append(epoch_loss)
@@ -91,12 +92,25 @@ def train(topology, data_source, train_x=None, train_y=None, bin_edges=None, sav
     return epoch_loss_list
 
 
-def _set_cost_operator(x, labels, topology):
+def _set_cost_operator(crocubot_model, x, labels):
+    """
+    Set the cost operator
 
-    cost_object = cost.BayesianCost(topology, FLAGS.double_gaussian_weights_prior, FLAGS.wide_prior_std,
-                                    FLAGS.narrow_prior_std, FLAGS.spike_slab_weighting)
+    :param CrocubotModel crocubot_model:
+    :param data x:
+    :param labels:
+    :return:
+    """
 
-    predictions = cr.average_multiple_passes(x, FLAGS.n_train_passes, topology)
+    cost_object = cost.BayesianCost(crocubot_model,
+                                    FLAGS.double_gaussian_weights_prior,
+                                    FLAGS.wide_prior_std,
+                                    FLAGS.narrow_prior_std,
+                                    FLAGS.spike_slab_weighting
+                                    )
+
+    estimator = Estimator(crocubot_model, FLAGS)
+    predictions = estimator.average_multiple_passes(x, FLAGS.n_train_passes)
 
     if FLAGS.cost_type == 'bayes':
         operator = cost_object.get_bayesian_cost(predictions, labels)
