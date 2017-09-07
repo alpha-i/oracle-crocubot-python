@@ -54,6 +54,7 @@ class Topology(object):
         self.n_features_per_series = n_features_per_series
         self.n_forecasts = n_forecasts
         self.n_classification_bins = n_classification_bins
+        self.n_parameters = self._calculate_number_of_parameters(layers)
 
     def _verify_layers(self, layers):
         """
@@ -76,6 +77,16 @@ class Topology(object):
 
             if not isinstance(layer["trainable"], bool):
                 raise ValueError('Layer {} trainable should be a boolean'.format(i))
+
+    def _calculate_number_of_parameters(self, layers):
+        """ Returns total number of connections, assuming layers are fully connected"""
+
+        n_parameters = 0
+        for i in range(self.n_layers):
+            j = i + 1
+            n_parameters += layers[i]["width"] * layers[i]["height"] * layers[j]["height"] * layers[j]["width"]
+
+        return n_parameters
 
     def get_cell_shape(self, layer_number):
         """

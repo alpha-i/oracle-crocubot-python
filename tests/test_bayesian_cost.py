@@ -14,8 +14,8 @@ class TestBayesianCost(tf.test.TestCase):
     def test_calc_log_q_prior(self):
 
         parameters = [
-            (1., 0., 1., -1.9866061),
-            (2., -1., -1., -33.169685)
+            (1., 0., 1., -1.4813652),
+            (2., -1., -1., -45.614418)
         ]
         parameters = np.array(parameters, dtype=np.float32)
         with self.test_session():

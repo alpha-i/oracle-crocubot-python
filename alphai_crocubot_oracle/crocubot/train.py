@@ -12,10 +12,14 @@ from alphai_crocubot_oracle.crocubot.model import CrocuBotModel, Estimator
 import alphai_crocubot_oracle.iotools as io
 
 FLAGS = tf.app.flags.FLAGS
-PRINT_LOSS_INTERVAL = 20
+PRINT_LOSS_INTERVAL = 1
+PRINT_SUMMARY_INTERVAL = 1
+
+def make_hparam_string(learning_rate, batch_size):
+    return "lr={}_bs={}".format(learning_rate, batch_size)
 
 
-def train(topology, data_source, flags, train_x=None, train_y=None, bin_edges=None, save_path=None):
+def train(topology, data_source, train_x=None, train_y=None, bin_edges=None, save_path=None, restore_path=None):
     """ Train network on either MNIST or time series data
 
     :param Topology topology:
@@ -23,24 +27,41 @@ def train(topology, data_source, flags, train_x=None, train_y=None, bin_edges=No
     :return: epoch_loss_list
     """
 
+    split_save_path = save_path.split("/")
+    run_id = split_save_path[-1]
+    hparam_string = make_hparam_string(FLAGS.learning_rate, FLAGS.batch_size)
+
+    log_dir = "{}/{}/{}".format(FLAGS.log_path, hparam_string, run_id)
+
+    logging.info("Starting run for hyperparameters: {}".format(hparam_string))
+
+    if topology.n_parameters > 1e7:
+        logging.warning("Ambitious number of parameters: {}".format(topology.n_parameters))
+    else:
+        logging.info("Number of parameters: {}".format(topology.n_parameters))
+
     # Start from a clean graph
     tf.reset_default_graph()
-    model = CrocuBotModel(topology, flags)
+    model = CrocuBotModel(topology, FLAGS)
     model.build_layers_variables()
 
-    if train_x is None:
-        use_data_loader = True
-    else:
-        use_data_loader = False
+    use_data_loader = True if train_x is None else False
 
     # Placeholders for the inputs and outputs of neural networks
-    x = tf.placeholder(FLAGS.d_type, shape=[None, topology.n_features_per_series, topology.n_series])
-    y = tf.placeholder(FLAGS.d_type)
+    x = tf.placeholder(FLAGS.d_type, shape=[None, topology.n_features_per_series, topology.n_series], name="x")
+    y = tf.placeholder(FLAGS.d_type, name="y")
+
     global_step = tf.Variable(0, trainable=False, name='global_step')
 
     n_batches = int(FLAGS.n_training_samples / FLAGS.batch_size)
+
     cost_operator = _set_cost_operator(model, x, y, n_batches)
+    tf.summary.scalar("cost", cost_operator)
+
     training_operator = tf.train.AdamOptimizer(FLAGS.learning_rate).minimize(cost_operator, global_step=global_step)
+
+    all_summaries = tf.summary.merge_all()
+
     model_initialiser = tf.global_variables_initializer()
 
     if save_path is None:
@@ -51,24 +72,32 @@ def train(topology, data_source, flags, train_x=None, train_y=None, bin_edges=No
     logging.info("Launching Graph.")
     with tf.Session() as sess:
 
-        if FLAGS.resume_training:
+        if restore_path is not None:
             try:
-                saver.restore(sess, save_path)
+                logging.info("Attempting to load model from {}".format(restore_path))
+                saver.restore(sess, restore_path)
                 logging.info("Model restored.")
+                n_epochs = FLAGS.n_retrain_epochs
             except:
-                logging.warning("Previous save file not found. Training from scratch")
+                logging.warning("Restore file not recovered. Training from scratch")
+                n_epochs = FLAGS.n_epochs
                 sess.run(model_initialiser)
         else:
+            logging.info("Initialising new model.")
+            n_epochs = FLAGS.n_epochs
             sess.run(model_initialiser)
 
-        epoch_loss_list = []
+        summary_writer = tf.summary.FileWriter(log_dir)
 
-        for epoch in range(FLAGS.n_epochs):
+        epoch_loss_list = []
+        for epoch in range(n_epochs):
 
             epoch_loss = 0.
             start_time = timer()
+            logging.info("Training epoch {} of {}".format(epoch, n_epochs))
 
             for b in range(n_batches):  # The randomly sampled weights are fixed within single batch
+
                 if use_data_loader:
                     batch_x, batch_y = io.load_training_batch(data_source, batch_number=b, batch_size=FLAGS.batch_size, bin_edges=bin_edges)
                 else:
@@ -77,15 +106,23 @@ def train(topology, data_source, flags, train_x=None, train_y=None, bin_edges=No
                     batch_x = train_x[lo_index:hi_index, :]
                     batch_y = train_y[lo_index:hi_index, :]
 
-                _, batch_loss = sess.run([training_operator, cost_operator], feed_dict={x: batch_x, y: batch_y})
+                if b == 0 and epoch == 0:
+                    logging.info("Training {} batches of size {} and {}".format(n_batches, batch_x.shape, batch_y.shape))
+
+                _, batch_loss, summ = sess.run([training_operator, cost_operator, all_summaries], feed_dict={x: batch_x, y: batch_y})
                 epoch_loss += batch_loss
 
+                index = epoch * n_batches + b
+                summary_writer.add_summary(summ, index)
+
             time_epoch = timer() - start_time
+
             epoch_loss_list.append(epoch_loss)
 
             if (epoch % PRINT_LOSS_INTERVAL) == 0:
-                msg = ['Epoch' + str(epoch) + "loss:" + str.format('{0:.2e}', epoch_loss) + "in" + str.format('{0:.2f}', time_epoch) + "seconds"]
+                msg = 'Epoch ' + str(epoch) + " loss:" + str.format('{0:.2e}', epoch_loss) + " in " + str.format('{0:.2f}', time_epoch) + " seconds"
                 logging.info(msg)
+
 
         out_path = saver.save(sess, save_path)
         logging.info("Model saved in file:{}".format(out_path))

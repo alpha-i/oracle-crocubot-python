@@ -68,8 +68,8 @@ class CrocuBotModel:
         weight_displacement = self._flags.INITIAL_WEIGHT_DISPLACEMENT
         bias_displacement = self._flags.INITIAL_BIAS_DISPLACEMENT
 
-        initial_rho_weights = np.log(weight_uncertainty)
-        initial_rho_bias = np.log(bias_uncertainty)
+        initial_rho_weights = tf.contrib.distributions.softplus_inverse(weight_uncertainty)
+        initial_rho_bias = tf.contrib.distributions.softplus_inverse(bias_uncertainty)
         initial_alpha = self._flags.INITIAL_ALPHA
 
         for layer_number in range(self._topology.n_layers):
@@ -155,7 +155,8 @@ class CrocuBotModel:
         rho = self.get_variable(layer_number, self.VAR_WEIGHT_RHO)
         noise = self.get_weight_noise(layer_number, iteration)
 
-        return mean + tf.exp(rho) * noise
+        return mean + tf.nn.softplus(rho) * noise
+        #  return mean + tf.exp(rho) * noise
 
     def compute_biases(self, layer_number, iteration):
         """Bias is Gaussian distributed"""
@@ -163,7 +164,8 @@ class CrocuBotModel:
         rho = self.get_variable(layer_number, self.VAR_BIAS_RHO)
         noise = self.get_bias_noise(layer_number, iteration)
 
-        return mean + tf.exp(rho) * noise
+        return mean + tf.nn.softplus(rho) * noise
+        #  return mean + tf.exp(rho) * noise
 
 
 class Estimator:

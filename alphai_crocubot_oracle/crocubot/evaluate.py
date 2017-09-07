@@ -2,7 +2,7 @@
 # Only used by oracle.py
 
 import logging
-
+from timeit import default_timer as timer
 import numpy as np
 import tensorflow as tf
 
@@ -38,7 +38,11 @@ def eval_neural_net(data, topology, save_file):
 
     with tf.Session() as sess:
         logging.info("Attempting to recover trained network: {}".format(save_file))
+        start_time = timer()
         saver.restore(sess, save_file)
+        end_time = timer()
+        detla_time = end_time - start_time
+        logging.info("Loading the model from disk took:{}".format(detla_time))
 
         return y.eval()
 

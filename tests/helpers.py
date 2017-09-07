@@ -93,6 +93,7 @@ def load_default_config():
 
         # Training specific
         'n_epochs': 1,
+        'n_retrain_epochs': 1,
         'n_training_samples': 1000,
         'learning_rate': 2e-3,
         'batch_size': 100,

@@ -129,10 +129,10 @@ class BayesianCost(object):
         :return: The log-probability value.
         """
 
-        # sigma = tf.nn.softplus(rho) #
+        sigma = tf.nn.softplus(rho)
         # sigma = tf.exp(rho)
-        # log_qw = tm.log_gaussian(theta, mu, sigma)  # these 2 lines gives better accuracy than the one line below!!
-        log_qw = tm.log_gaussian_logsigma(theta, mu, rho)
+        log_qw = tm.log_gaussian(theta, mu, sigma)
+        # log_qw = tm.log_gaussian_logsigma(theta, mu, rho)
 
         return tf.reduce_sum(log_qw)
 

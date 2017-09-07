@@ -5,6 +5,7 @@
 # A fairly generic interface, in that it can easily applied to other models
 
 import logging
+from timeit import default_timer as timer
 
 import numpy as np
 import pandas as pd
@@ -114,9 +115,27 @@ class CrocubotOracle:
         train_x = np.squeeze(train_x, axis=3).astype(np.float32)  # FIXME: prob do this in data transform, conditional on config file
         train_y = train_y.astype(np.float32)  # FIXME: prob do this in data transform, conditional on config file
 
+        logging.info('Training features of shape: {}.'.format(
+            train_x.shape,
+        ))
+        logging.info('Training labels of shape: {}.'.format(
+            train_y.shape,
+        ))
+
+        resume_train_path = None
+
+        if FLAGS.resume_training:
+            try:
+                resume_train_path = self._train_file_manager.latest_train_filename(execution_time)
+            except:
+                pass
         train_path = self._train_file_manager.new_filename(execution_time)
         data_source = 'financial_stuff'
-        crocubot.train(self._topology, data_source, FLAGS, train_x, train_y, save_path=train_path)
+        start_time = timer()
+        crocubot.train(self._topology, data_source, train_x, train_y, save_path=train_path, restore_path=resume_train_path)
+        end_time = timer()
+        train_time = end_time - start_time
+        logging.info("Training took: {} seconds".format(train_time))
 
     def predict(self, predict_data, execution_time):
         """
@@ -134,6 +153,7 @@ class CrocubotOracle:
 
         # Call the covariance library
         logging.info('Estimating historical covariance matrix.')
+        start_time = timer()
         cov = estimate_covariance(
             predict_data,
             self._covariance_ndays,
@@ -142,10 +162,13 @@ class CrocubotOracle:
             self._data_transformation.exchange_calendar,
             self._data_transformation.target_delta_ndays
         )
+        end_time = timer()
+        cov_time = end_time - start_time
+        logging.info("Historical covariance estimation took:{}".format(cov_time))
         if not np.isfinite(cov).all():
             raise ValueError('Covariance matrix computation failed. Contains non-finite values.')
         # Convert the array into a dataframe
-        historical_covariance = pd.DataFrame(data=cov, columns=predict_data['close'].columns, index=predict_data['close'].columns)
+        # historical_covariance = pd.DataFrame(data=cov, columns=predict_data['close'].columns, index=predict_data['close'].columns)
 
         predict_x = self._data_transformation.create_predict_data(predict_data)
 
@@ -154,8 +177,18 @@ class CrocubotOracle:
         # FIXME: temporary fix, to be added to data transform
         predict_x = np.squeeze(predict_x, axis=2).astype(np.float32)
 
+        # Verify data is the correct shape
+        topology_shape = (self._topology.n_features_per_series, self._topology.n_series)
+        if predict_x.shape != topology_shape:
+            raise ValueError('Data shape' + str(predict_x.shape) + " doesnt match network input " + str(topology_shape))
+
+        start_time = timer()
         predict_y = crocubot_eval.eval_neural_net(predict_x.reshape((1,) + predict_x.shape),
                                                   topology=self._topology, save_file=latest_train)
+        end_time = timer()
+        eval_time = end_time - start_time
+        logging.info("Crocubot evaluation took: {} seconds".format(eval_time))
+
         predict_y = np.squeeze(predict_y, axis=1)
         means, forecast_covariance = self._data_transformation.inverse_transform_multi_predict_y(predict_y)
 
@@ -169,4 +202,5 @@ class CrocubotOracle:
             raise ValueError('Prediction of means failed. Contains non-finite values.')
 
         means = pd.Series(np.squeeze(means), index=predict_data['close'].columns)
-        return means, historical_covariance, forecast_covariance
+        # return means, historical_covariance, forecast_covariance
+        return means, forecast_covariance
