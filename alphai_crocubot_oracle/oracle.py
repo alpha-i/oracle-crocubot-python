@@ -13,6 +13,7 @@ import tensorflow as tf
 
 from alphai_finance.data.transformation import FinancialDataTransformation
 
+
 import alphai_crocubot_oracle.crocubot.train as crocubot
 import alphai_crocubot_oracle.crocubot.evaluate as crocubot_eval
 from alphai_crocubot_oracle.flags import set_training_flags
@@ -74,6 +75,7 @@ class CrocubotOracle:
         self._train_path = configuration['train_path']
         self._covariance_method = configuration['covariance_method']
         self._covariance_ndays = configuration['covariance_ndays']
+        self._configuration = configuration
 
         self._train_file_manager = TrainFileManager(
             self._train_path,
@@ -86,17 +88,7 @@ class CrocubotOracle:
 
         set_training_flags(configuration)  # Perhaps use separate config dict here?
 
-        # Topology can either be directly constructed from layers, or build from sequence of parameters
-        self._topology = tp.Topology(
-            layers=None,
-            n_series=configuration['n_series'],
-            n_features_per_series=configuration['n_features_per_series'],
-            n_forecasts=configuration['n_forecasts'],
-            n_classification_bins=configuration['n_classification_bins'],
-            layer_heights=configuration['layer_heights'],
-            layer_widths=configuration['layer_widths'],
-            activation_functions=configuration['activation_functions']
-        )
+        self._topology = None
 
     def train(self, historical_universes, train_data, execution_time):
         """
@@ -112,8 +104,26 @@ class CrocubotOracle:
         ))
         train_x, train_y = self._data_transformation.create_train_data(train_data, historical_universes)
 
-        train_x = np.squeeze(train_x, axis=3).astype(np.float32)  # FIXME: prob do this in data transform, conditional on config file
-        train_y = train_y.astype(np.float32)  # FIXME: prob do this in data transform, conditional on config file
+        numpy_arrays = []
+        for key, value in train_x.items():
+            numpy_arrays.append(value.astype(np.float32))
+        train_x = np.concatenate(numpy_arrays, axis=1)
+
+        # Topology can either be directly constructed from layers, or build from sequence of parameters
+        if not self._topology:
+            self._topology = tp.Topology(
+                layers=None,
+                n_series=self._configuration['n_series'],
+                n_features_per_series=train_x.shape[1],
+                n_forecasts=self._configuration['n_forecasts'],
+                n_classification_bins=self._configuration['n_classification_bins'],
+                layer_heights=self._configuration['layer_heights'],
+                layer_widths=self._configuration['layer_widths'],
+                activation_functions=self._configuration['activation_functions']
+            )
+
+        for key, value in train_y.items():
+            train_y = value.astype(np.float32)
 
         if FLAGS.predict_single_shares:
             n_feat_x = train_x.shape[1]
@@ -179,12 +189,14 @@ class CrocubotOracle:
 
         predict_x = self._data_transformation.create_predict_data(predict_data)
 
+        numpy_arrays = []
+        for key, value in predict_x.items():
+            numpy_arrays.append(value.astype(np.float32))
+        predict_x = np.concatenate(numpy_arrays, axis=0)
+        predict_x = np.expand_dims(predict_x, axis=0)
+
         logging.info('Predicting mean values.')
         start_time = timer()
-
-        # FIXME: temporary fix, to be added to data transform
-        predict_x = np.squeeze(predict_x, axis=2).astype(np.float32)
-        predict_x = np.expand_dims(predict_x, axis=0)
 
         if FLAGS.predict_single_shares:
             predict_x = np.swapaxes(predict_x, axis1=0, axis2=2)
