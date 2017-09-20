@@ -93,7 +93,6 @@ quant_workflow:
       random_seed: 0
       n_epochs: 2
       n_retrain_epochs: 5
-      n_training_samples: 79
       learning_rate: 1e-4
       batch_size: 13
       cost_type: 'bayes'
@@ -135,7 +134,7 @@ quant_workflow:
 zipline:
   zipline_root: '/Users/Christopher_old/Downloads/20100101_20150101_30S/zipline_root'
   start_date: '20110401'
-  end_date: '20110430'
+  end_date: '20110415'
   capital_base: 1000000.
   data_frequency: 'minute'
   data_bundle: 'test_bundle'

@@ -1,5 +1,6 @@
 import os
 import shutil
+import tempfile
 
 import pandas_market_calendars as mcal
 from alphai_finance.data.cleaning import convert_to_utc, select_trading_hours, fill_gaps_data_dict, resample_ohlcv
@@ -11,7 +12,7 @@ from alphai_crocubot_oracle.oracle import CrocubotOracle
 DATA_FILENAME = 'sample_hdf5.h5'
 
 FIXTURES_SOURCE_DIR = os.path.join(os.path.dirname(__file__), 'resources')
-FIXTURE_DESTINATION_DIR = '/tmp/crocubot/'
+FIXTURE_DESTINATION_DIR = tempfile.TemporaryDirectory().name
 
 FIXTURE_DATA_FULLPATH = os.path.join(FIXTURE_DESTINATION_DIR, DATA_FILENAME)
 
