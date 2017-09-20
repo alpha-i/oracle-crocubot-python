@@ -76,7 +76,7 @@ quant_workflow:
             nbins: 12
             is_target: False
         exchange_name: 'NYSE'
-        features_ndays: 10
+        features_ndays: 5
         features_resample_minutes: 15
         features_start_market_minute: 60
         prediction_frequency_ndays: 1
