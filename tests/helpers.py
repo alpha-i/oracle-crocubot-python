@@ -68,10 +68,17 @@ def load_default_config():
             'feature_config_list': [
                 {
                     'name': 'close',
-                    'order': 'log-return',
+                    'transformation': {'name': 'log-return'},
                     'normalization': 'standard',
                     'nbins': 12,
                     'is_target': True,
+                },
+                {
+                    'name': 'close',
+                    'transformation': {'name': 'log-return'},
+                    'normalization': 'standard',
+                    'nbins': 12,
+                    'is_target': False,
                 },
             ],
             'exchange_name': 'NYSE',
