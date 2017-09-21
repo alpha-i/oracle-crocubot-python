@@ -135,11 +135,11 @@ class CrocuBotModel:
 
     def get_weight_noise(self, layer_number, iteration):
         noise = self.get_variable(layer_number, self.VAR_WEIGHT_NOISE)
-        return tf.random_shuffle(noise, seed=iteration)
+        return tf.random_shuffle(noise)
 
     def get_bias_noise(self, layer_number, iteration):
         noise = self.get_variable(layer_number, self.VAR_BIAS_NOISE)
-        return tf.random_shuffle(noise, seed=iteration)
+        return tf.random_shuffle(noise)
 
     def compute_weights(self, layer_number, iteration=0):
 
@@ -179,11 +179,9 @@ class Estimator:
         :return: Estimate of the posterior distribution.
         """
 
-        collated_outputs = self.collate_multiple_passes(data, number_of_passes)
+        return self.collate_multiple_passes(data, number_of_passes)
 
-        return tf.reduce_logsumexp(collated_outputs, axis=[0]) - tf.log(tf.to_float(number_of_passes))
-
-    def collate_multiple_passes(self, x, number_of_passes=50):
+    def efficient_multiple_passes(self, input_signal, number_of_passes=50):
         """
         Collate outputs from many realisations of weights from a bayesian network.
 
@@ -192,17 +190,24 @@ class Estimator:
         :return 4D tensor with dimensions [n_passes, batch_size, n_label_timesteps, n_categories]:
         """
 
-        outputs = []
-        for iteration in range(number_of_passes):
-            result = self.forward_pass(x, iteration)
-            outputs.append(result)
+        output_signal = tf.nn.log_softmax(self.forward_pass(input_signal, int(0)), dim=-1)
+        index_summation = (int(0), output_signal)
 
-        stacked_output = tf.stack(outputs, axis=0)
+        def condition(index, _):
+            return tf.less(index, number_of_passes)
 
-        # Make sure we softmax across the 'bin' dimension, but not across all series!
-        stacked_output = tf.nn.log_softmax(stacked_output, dim=-1)
+        def body(index, summation):
+            raw_output = self.forward_pass(input_signal, index)
+            log_p = tf.nn.log_softmax(raw_output, dim=-1)
 
-        return stacked_output
+            stacked_p = tf.stack([log_p, summation], axis=0)
+            log_p_total = tf.reduce_logsumexp(stacked_p, axis=0)
+
+            return tf.add(index, 1), log_p_total
+
+        # We do not care about the index value here, return only the signal
+        output = tf.while_loop(condition, body, index_summation)[1]
+        return tf.expand_dims(output, axis=0)
 
     def forward_pass(self, signal, iteration=0):
         """
