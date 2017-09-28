@@ -76,6 +76,7 @@ class CrocubotOracle:
         self._train_path = configuration['train_path']
         self._covariance_method = configuration['covariance_method']
         self._covariance_ndays = configuration['covariance_ndays']
+        self._configuration = configuration
 
         self._train_file_manager = TrainFileManager(
             self._train_path,
@@ -95,19 +96,7 @@ class CrocubotOracle:
             self._n_input_series = configuration['n_series']
             self._n_forecasts = configuration['n_forecasts']
 
-        # Topology can either be directly constructed from layers, or build from sequence of parameters
-        self._topology = tp.Topology(
-            layers=None,
-            n_series=self._n_input_series,
-            n_features_per_series=configuration['n_features_per_series'],
-            n_forecasts=self._n_forecasts,
-            n_classification_bins=configuration['n_classification_bins'],
-            layer_heights=configuration['layer_heights'],
-            layer_widths=configuration['layer_widths'],
-            activation_functions=configuration['activation_functions']
-        )
-
-        logging.info('Initialised network topology: {}.'.format(self._topology.layers))
+        self._topology = None
 
     def train(self, historical_universes, train_data, execution_time):
         """
@@ -124,6 +113,20 @@ class CrocubotOracle:
 
         train_x, train_y = self._data_transformation.create_train_data(train_data, historical_universes)
         train_x, train_y = self._preprocess_training(train_x, train_y)
+
+        # Topology can either be directly constructed from layers, or build from sequence of parameters
+        self._topology = tp.Topology(
+            layers=None,
+            n_series=self._n_input_series,
+            n_features_per_series=train_x.shape[1],
+            n_forecasts=self._n_forecasts,
+            n_classification_bins=self._configuration['n_classification_bins'],
+            layer_heights=self._configuration['layer_heights'],
+            layer_widths=self._configuration['layer_widths'],
+            activation_functions=self._configuration['activation_functions']
+        )
+
+        logging.info('Initialised network topology: {}.'.format(self._topology.layers))
 
         logging.info('Training features of shape: {}.'.format(
             train_x.shape,
@@ -221,7 +224,15 @@ class CrocubotOracle:
     def _preprocess_training(self, train_x, train_y):
         """ Prepare training data to be fed into crocubot. """
 
-        train_x = np.squeeze(train_x, axis=3)
+        numpy_arrays = []
+        for key, value in train_x.items():
+            numpy_arrays.append(value.astype(np.float32))
+        train_x = np.concatenate(numpy_arrays, axis=1)
+
+        for key, value in train_y.items():
+            train_y = value.astype(np.float32)
+
+        #train_x = np.squeeze(train_x, axis=3)
 
         # Gaussianise & Normalise of inputs (not necessary for outputs)
         train_x = self.gaussianise_series(train_x)
@@ -237,9 +248,15 @@ class CrocubotOracle:
     def _preprocess_prediction(self, predict_x):
         """ Prepare prediction to be fed into crocubot. """
 
-        # FIXME: astype is a temporary fix, to be added to data transform
-        predict_x = np.squeeze(predict_x, axis=2)
+        numpy_arrays = []
+        for key, value in predict_x.items():
+            numpy_arrays.append(value.astype(np.float32))
+        predict_x = np.concatenate(numpy_arrays, axis=0)
         predict_x = np.expand_dims(predict_x, axis=0)
+
+        # FIXME: astype is a temporary fix, to be added to data transform
+        # predict_x = np.squeeze(predict_x, axis=2)
+        # predict_x = np.expand_dims(predict_x, axis=0)
 
         predict_x = self.gaussianise_series(predict_x)
 

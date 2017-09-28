@@ -44,11 +44,37 @@ quant_workflow:
     oracle_arguments:
       data_transformation:
         feature_config_list:
-        - name: close
-          order: log-return
-          is_target: True
-          nbins: 6
-          normalization: standard
+          -
+            name: close
+            transformation:
+              name: 'log-return'
+            normalization: standard
+            nbins: 6
+            is_target: True
+            name: close
+          -
+            name: open
+            transformation:
+              name: 'KER'
+              lag: 10
+            normalization: standard
+            nbins: 12
+            is_target: False
+          -
+            name: high
+            transformation:
+              name: 'stochastic_k'
+            normalization: standard
+            nbins: 12
+            is_target: False
+          -
+            name: open
+            transformation:
+              name: 'ewma'
+              halflife: 10
+            normalization: standard
+            nbins: 12
+            is_target: False
         exchange_name: 'NYSE'
         features_ndays: 10
         features_resample_minutes: 15
@@ -120,9 +146,9 @@ quant_workflow:
       INITIAL_BIAS_DISPLACEMENT: 0.01
       USE_PERFECT_NOISE: False
       double_gaussian_weights_prior: True
-      wide_prior_std: 1.5
-      narrow_prior_std: 1e-05
-      spike_slab_weighting: 0.25
+      wide_prior_std: 0.8
+      narrow_prior_std: 0.0001
+      spike_slab_weighting: 0.5
   portfolio:
     max_abs_individual_weight: 0.2
     max_abs_pos_gross_exposure: 0.75
