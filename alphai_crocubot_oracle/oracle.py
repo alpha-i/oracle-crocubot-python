@@ -25,6 +25,7 @@ from alphai_crocubot_oracle.helpers import TrainFileManager
 DEFAULT_N_CORRELATED_SERIES = 5
 TRAIN_FILE_NAME_TEMPLATE = "{}_train_crocubot"
 FLAGS = tf.app.flags.FLAGS
+MAX_INPUT_AMPLITUDE = 6
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
@@ -123,7 +124,10 @@ class CrocubotOracle:
         ))
 
         train_x, train_y = self._data_transformation.create_train_data(train_data, historical_universes)
-        train_x, train_y = self._preprocess_training(train_x, train_y)
+
+        logging.info("Preprocessing training data")
+        train_x = self._preprocess_inputs(train_x)
+        train_y = self._preprocess_outputs(train_y)
 
         logging.info('Training features of shape: {}.'.format(
             train_x.shape,
@@ -182,11 +186,12 @@ class CrocubotOracle:
         # historical_covariance = pd.DataFrame(data=cov, columns=predict_data['close'].columns, index=predict_data['close'].columns)
 
         predict_x = self._data_transformation.create_predict_data(predict_data)
+        predict_x = np.expand_dims(predict_x, axis=0)  # Effective batch size of 1
 
         logging.info('Predicting mean values.')
         start_time = timer()
 
-        predict_x = self._preprocess_prediction(predict_x)
+        predict_x = self._preprocess_inputs(predict_x)
 
         # Verify data is the correct shape
         topology_shape = (self._topology.n_features_per_series, self._topology.n_series)
@@ -202,11 +207,12 @@ class CrocubotOracle:
             predict_y = np.swapaxes(predict_y, axis1=1, axis2=2)
 
         predict_y = np.squeeze(predict_y, axis=1)
-
         means, forecast_covariance = self._data_transformation.inverse_transform_multi_predict_y(predict_y)
 
         if not np.isfinite(forecast_covariance).all():
             raise ValueError('Prediction of forecast covariance failed. Contains non-finite values.')
+
+        logging.info("Samples from forecast_covariance: {}".format(np.diag(forecast_covariance)[0:5]))
 
         forecast_covariance = pd.DataFrame(data=forecast_covariance, columns=predict_data['close'].columns,
                                            index=predict_data['close'].columns)
@@ -215,38 +221,36 @@ class CrocubotOracle:
             raise ValueError('Prediction of means failed. Contains non-finite values.')
 
         means = pd.Series(np.squeeze(means), index=predict_data['close'].columns)
+
         # return means, historical_covariance, forecast_covariance
         return means, forecast_covariance
 
-    def _preprocess_training(self, train_x, train_y):
+    def _preprocess_inputs(self, train_x):
         """ Prepare training data to be fed into crocubot. """
 
         train_x = np.squeeze(train_x, axis=3)
 
         # Gaussianise & Normalise of inputs (not necessary for outputs)
-        train_x = self.gaussianise_series(train_x)
+        # train_x = self.gaussianise_series(train_x)
+        train_x = 300 * train_x   # FIXME: hack 15min universal normalisation issue for now until alpha-i finance is updated
+        train_x = np.clip(train_x, -MAX_INPUT_AMPLITUDE, MAX_INPUT_AMPLITUDE)  # Prevent extreme outliers from entering network
+
+        logging.info("Sample features from rescaled train_x: {}".format(train_x[0, 0:10, 0]))
+        logging.info("x Shape: {}".format(train_x.shape))
 
         # Expand dataset if requested
         if FLAGS.predict_single_shares:
             train_x = self.expand_input_data(train_x)
+
+        return train_x.astype(np.float32)  # FIXME: set float32 in data transform, conditional on config file
+
+    def _preprocess_outputs(self, train_y):
+
+        if FLAGS.predict_single_shares:
             n_feat_y = train_y.shape[2]
             train_y = np.reshape(train_y, [-1, 1, n_feat_y])
 
-        return train_x.astype(np.float32), train_y.astype(np.float32)  # FIXME: prob do this in data transform, conditional on config file
-
-    def _preprocess_prediction(self, predict_x):
-        """ Prepare prediction to be fed into crocubot. """
-
-        # FIXME: astype is a temporary fix, to be added to data transform
-        predict_x = np.squeeze(predict_x, axis=2)
-        predict_x = np.expand_dims(predict_x, axis=0)
-
-        predict_x = self.gaussianise_series(predict_x)
-
-        if FLAGS.predict_single_shares:
-            predict_x = self.expand_input_data(predict_x)
-
-        return predict_x.astype(np.float32)
+        return train_y.astype(np.float32)  # FIXME:set float32 in data transform, conditional on config file
 
     def gaussianise_series(self, train_x):
         """  Gaussianise each series within each batch - but don't normalise means
@@ -274,6 +278,7 @@ class CrocubotOracle:
         n_total_samples = n_batches * n_series
 
         corr_train_x = np.zeros(shape=[n_total_samples, n_feat_x, self._n_input_series])
+        found_duplicates = False
 
         for batch in range(n_batches):
             # Series ordering may differ between batches - so we need the correlations for each batch
@@ -283,10 +288,13 @@ class CrocubotOracle:
 
             for series_index in range(n_series):
                 if correlation_indices[series_index, [0]] != series_index:
-                    raise ValueError('A series should always be most correlated with itself!')
+                    found_duplicates = True
                 sample_number = batch * n_series + series_index
                 for i in range(self._n_input_series):
                     corr_series_index = correlation_indices[series_index, i]
                     corr_train_x[sample_number, :, i] = train_x[batch, :, corr_series_index]
+
+        if found_duplicates:
+            logging.warning('A series should always be most correlated with itself! Probably duplicate series in the data')
 
         return corr_train_x

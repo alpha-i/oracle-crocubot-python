@@ -121,7 +121,6 @@ def train(topology, series_name, execution_time, train_x=None, train_y=None, bin
 
             epoch_loss = 0.
             start_time = timer()
-            logging.info("Training epoch {} of {}".format(epoch, n_epochs))
 
             for batch_number in range(n_batches):  # The randomly sampled weights are fixed within single batch
 
