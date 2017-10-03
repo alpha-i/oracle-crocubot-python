@@ -121,7 +121,6 @@ sample_fin_feature_factory_list = [
     },
 ]
 
-
 sample_fin_data_transf_feature_factory_list_nobins = [
     {
         'name': 'open',
@@ -141,7 +140,7 @@ sample_fin_data_transf_feature_factory_list_nobins = [
         'name': 'high',
         'transformation': {'name': 'log-return'},
         'normalization': 'standard',
-        'nbins': None,
+        'nbins': 5,
         'is_target': True,
     },
 ]

@@ -7,6 +7,7 @@ import pytest
 from numpy.testing import assert_almost_equal, assert_array_equal
 from sklearn import preprocessing
 
+
 from alphai_crocubot_oracle.data.classifier import BinDistribution
 from alphai_crocubot_oracle.data.feature import (
     FinancialFeature,
@@ -60,7 +61,7 @@ class TestFinancialFeature(TestCase):
             name='high',
             transformation={'name': 'log-return'},
             normalization='standard',
-            nbins=10,
+            nbins=None,
             ndays=10,
             resample_minutes=60,
             start_market_minute=150,
@@ -100,6 +101,17 @@ class TestFinancialFeature(TestCase):
             is_target=True,
             exchange_calendar=sample_market_calendar,
         )
+        self.feature_7 = FinancialFeature(
+            name='high',
+            transformation={'name': 'log-return'},
+            normalization='standard',
+            nbins=10,
+            ndays=10,
+            resample_minutes=60,
+            start_market_minute=150,
+            is_target=True,
+            exchange_calendar=sample_market_calendar,
+        )
 
     def test_process_prediction_data_x_1(self):
         data_frame_x = sample_hourly_ohlcv_data_dict[self.feature_1.name]
@@ -114,7 +126,6 @@ class TestFinancialFeature(TestCase):
         assert_almost_equal(processed_prediction_data_x, expected_log_returns.values, ASSERT_NDECIMALS)
 
     def test_process_prediction_data_x_3(self):
-        self.has_fitted_scalar=False
         data_frame_x = sample_hourly_ohlcv_data_dict[self.feature_3.name]
         processed_prediction_data_x = self.feature_3.process_prediction_data_x(data_frame_x)
         expected_normalized_log_returns = \
@@ -181,20 +192,28 @@ class TestFinancialFeature(TestCase):
         assert_almost_equal(processed_prediction_data_y, expected_log_returns.values, ASSERT_NDECIMALS)
 
     def test_process_prediction_data_y_3(self):
-
         data_frame = sample_hourly_ohlcv_data_dict[self.feature_3.name]
         data_frame_x = data_frame.iloc[:-1]
         prediction_reference_data = data_frame_x.iloc[-1]
         data_frame_y = data_frame.iloc[-1]
         self.feature_3.process_prediction_data_x(data_frame_x)
 
+        self.assertRaises(NotImplementedError, self.feature_3.process_prediction_data_y,
+                          data_frame_y, prediction_reference_data)
+
+    def test_process_prediction_data_y_7(self):
+        data_frame = sample_hourly_ohlcv_data_dict[self.feature_7.name]
+        data_frame_x = data_frame.iloc[:-1]
+        prediction_reference_data = data_frame_x.iloc[-1]
+        data_frame_y = data_frame.iloc[-1]
+        self.feature_7.process_prediction_data_x(data_frame_x)
+
         processed_prediction_data_y = \
-            self.feature_3.process_prediction_data_y(data_frame_y, prediction_reference_data)
+            self.feature_7.process_prediction_data_y(data_frame_y, prediction_reference_data)
 
         log_ratio_data = np.log(data_frame_y / prediction_reference_data)
+        expected_normalized_log_returns = log_ratio_data.values
 
-        expected_normalized_log_returns = \
-            self.feature_3.scaler.transform(log_ratio_data.values.reshape(1, -1)).squeeze()
         assert_almost_equal(processed_prediction_data_y, expected_normalized_log_returns, ASSERT_NDECIMALS)
 
     def test_get_start_timestamp_x(self):
@@ -250,7 +269,7 @@ class TestFinancialFeature(TestCase):
         assert_array_equal(prediction_data_x.columns, prediction_data_y.index)
 
     def test_get_prediction_data(self):
-        feature_list = [self.feature_1, self.feature_2, self.feature_3]
+        feature_list = [self.feature_1, self.feature_2, self.feature_7]
         expected_length_list = [15, 34, 68]
         for feature, expected_length in zip(feature_list, expected_length_list):
             self.run_get_prediction_data_test(feature, expected_length)
@@ -322,7 +341,7 @@ class TestFinancialFeature(TestCase):
         n_train = 20
         n_series = 5
         feature_list = [self.feature_1, self.feature_2, self.feature_3]
-        train_y = {'open': np.linspace(0, 1, n_train)}
+        train_y = {'open': np.expand_dims(np.linspace(0, 1, n_train), 0)}
         expected_means = n_series * [0.5]
         expected_variances_list = [
             n_series * [0.07666667],
@@ -349,7 +368,7 @@ class TestFinancialFeature(TestCase):
         n_train = 20
         n_series = 5
         feature_list = [self.feature_1, self.feature_2, self.feature_3]
-        train_y = {'open': np.linspace(0, 1, n_train)}
+        train_y = {'open': np.expand_dims(np.linspace(0, 1, n_train), 0)}
         expected_means_list = [
             n_series * [0.5],
             n_series * [0.5],
@@ -361,6 +380,7 @@ class TestFinancialFeature(TestCase):
             [2.93159848e-06, 2.67647671e-06, 3.08804282e-06, 5.03376454e-06, 3.76759147e-06],
         ]
         for idx, feature in enumerate(feature_list):
+
             feature.classify_train_data_y(train_y[list(train_y.keys())[0]])
 
             data_frame_x = sample_hourly_ohlcv_data_dict[feature.name]

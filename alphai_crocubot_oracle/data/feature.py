@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import pandas_market_calendars as mcal
 from sklearn.preprocessing import RobustScaler, MinMaxScaler, StandardScaler
+from sklearn.preprocessing import QuantileTransformer
 
 from alphai_crocubot_oracle.data import FINANCIAL_FEATURE_TRANSFORMATIONS, FINANCIAL_FEATURE_NORMALIZATIONS, \
     MINUTES_IN_TRADING_DAY, MARKET_DAYS_SEARCH_MULTIPLIER, MIN_MARKET_DAYS_SEARCH
@@ -43,7 +44,7 @@ class FinancialFeature(object):
 
         self.bin_distribution = None
         self.has_fitted_scaler = False
-        self.classify_per_series = False  #FIXME We'll need to explore whether it is beneficial to hold different bins for each series
+        self.classify_per_series = False
 
         if self.normalization:
             if self.normalization == 'robust':
@@ -52,6 +53,8 @@ class FinancialFeature(object):
                 self.scaler = MinMaxScaler()
             elif self.normalization == 'standard':
                 self.scaler = StandardScaler()
+            elif self.normalization == 'gaussian':
+                self.scaler = QuantileTransformer(output_distribution='normal')
             else:
                 raise NotImplementedError('Requested normalisation not supported: {}'.format(self.normalization))
         else:
@@ -126,6 +129,13 @@ class FinancialFeature(object):
             self.has_fitted_scaler = True
 
         return processed_prediction_data_x
+
+    def fit_normalisation_constants(self, data_x):
+        """ Compute normalisation across the entire training set"""
+
+        if self.scaler is not None:
+            data_x.loc[:, :] = self.scaler.fit_transform(data_x)
+            self.has_fitted_scaler = True
 
     def process_prediction_data_y(self, prediction_data_y, prediction_reference_data):
         """
@@ -222,29 +232,31 @@ class FinancialFeature(object):
         if self.classify_per_series:
             self.bin_distribution = []
             for i in range(self.n_series):
-                self.bin_distribution.append(BinDistribution(train_y[:, i], self.nbins))
+                self.bin_distribution.append(BinDistribution(train_y[i, :], self.nbins))
         else:
             self.bin_distribution = BinDistribution(train_y, self.nbins)
 
     def classify_train_data_y(self, train_y):
         """
         Classify training target values.
-        :param ndarray train_y: Training target labels to calculate bin distribution.
-        :return ndarray: classified train_y or input train_y if self.nbins = None
+        :param ndarray train_y: Training target labels to calculate bin distribution. Of shape (batch_size, n_series)
+        :return ndarray: classified train_y. Of shape (batch_size, n_series, n_bins)
         """
 
         if self.nbins is None:
             return train_y
 
         self.bin_distribution = None
-        self.n_series = train_y.shape[1] # FIXME check if this is the right dimension! If not need to change other lines
+        batch_size = train_y.shape[0]
+        self.n_series = train_y.shape[1]
         self.calculate_bin_distribution(train_y)
 
         if self.classify_per_series:
-            labels = np.zeros((self.nbins, self.n_series))
+            labels = np.zeros((batch_size, self.n_series, self.nbins))
             for i in range(self.n_series):
                 bin_edges = self.bin_distribution[i].bin_edges
-                labels[:, i] = classify_labels(bin_edges, train_y[:, i])
+                labels[:, i, :] = classify_labels(bin_edges, train_y[:, i])
+                # FIXME May have to use swapaxes if this assignment to dims 0,2 doesnt work
         else:
             labels = classify_labels(self.bin_distribution.bin_edges, train_y)
 
@@ -279,8 +291,13 @@ class FinancialFeature(object):
             means = np.zeros(shape=(n_series,))
             variances = np.zeros(shape=(n_series,))
             for series_idx in range(n_series):
+                if self.classify_per_series:
+                    series_bins = self.bin_distribution[series_idx]
+                else:
+                    series_bins = self.bin_distribution
+
                 means[series_idx], variances[series_idx] = \
-                    declassify_labels(self.bin_distribution, predict_y[:, series_idx, :])
+                    declassify_labels(series_bins, predict_y[:, series_idx, :])
         else:
             means = np.mean(predict_y, axis=0)
             variances = np.var(predict_y, axis=0)
