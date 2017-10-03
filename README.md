@@ -18,14 +18,12 @@ $ source activate crocubot-env
 
 ```bash
 $ pip install -U setuptools --ignore-installed --no-cache-dir
-$ pip install -r requirements.txt --src $CONDA_PREFIX
-$ pip install -r requirements_alphai.txt --src $CONDA_PREFIX
-$ pip install -r requirements_dev.txt
+$ pip install -r dev-requirements.txt --src $CONDA_PREFIX
 ```
 
 ### Running the test suite
 ```bash
-$ PYTHONPATH=. python -m pytest tests/
+pytest tests/
 ```
 
 
@@ -41,9 +39,7 @@ set GSL_LIBRARY_DIR=C:\Users\sree\Documents\Software\gsl\lib
 ```
 Now install the requirements using `pip`.
 ```commandline
-pip install -r requirements.txt --src %CONDA_PREFIX%
-pip install -r requirements_alphai.txt --src %CONDA_PREFIX%
-pip install -r requirements_dev.txt
+pip install -r dev-requirements.txt --src %CONDA_PREFIX%
 ```
 
 ### Known Issues
