@@ -117,7 +117,7 @@ class BayesianCost(object):
         :param layer: The layer number for which the hyper prior is to be calculated.
         :return: The log-probability value.
         """
-        return - self._model.get_variable(layer, self._model.VAR_LOG_ALPHA)  # p(alpha) = 1 / alpha so log(p(alpha)) = - log(alpha)
+        return - self._model.get_variable(layer, self._model.VAR_LOG_ALPHA)
 
     @staticmethod
     def calculate_log_q_prior(theta, mu, rho):

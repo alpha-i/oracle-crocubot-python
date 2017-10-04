@@ -25,8 +25,9 @@ class Topology(object):
     Run checks on the user input to verify that it defines a valid topology.
     """
 
-    def __init__(self, layers=None, n_series=DEFAULT_N_SERIES, n_features_per_series=DEFAULT_FEAT_PER_SERIES, n_forecasts=DEFAULT_N_FORECASTS,
-                 n_classification_bins=DEFAULT_BINS, layer_heights=DEFAULT_HEIGHTS, layer_widths=DEFAULT_WIDTHS, activation_functions=DEFAULT_ACT_FUNCTIONS):
+    def __init__(self, layers=None, n_series=DEFAULT_N_SERIES, n_features_per_series=DEFAULT_FEAT_PER_SERIES,
+                 n_forecasts=DEFAULT_N_FORECASTS, n_classification_bins=DEFAULT_BINS, layer_heights=DEFAULT_HEIGHTS,
+                 layer_widths=DEFAULT_WIDTHS, activation_functions=DEFAULT_ACT_FUNCTIONS):
         """
         Following info is required to construct a topology object
         :param layers: Full list of layers can be provided, or:

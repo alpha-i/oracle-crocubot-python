@@ -121,7 +121,6 @@ def train(topology, series_name, execution_time, train_x=None, train_y=None, bin
 
             epoch_loss = 0.
             start_time = timer()
-            logging.info("Training epoch {} of {}".format(epoch, n_epochs))
 
             for batch_number in range(n_batches):  # The randomly sampled weights are fixed within single batch
 
@@ -132,7 +131,8 @@ def train(topology, series_name, execution_time, train_x=None, train_y=None, bin
                     batch_x, batch_y = extract_batch(train_x, train_y, batch_number)
 
                 if batch_number == 0 and epoch == 0:
-                    logging.info("Training {} batches of size {} and {}".format(n_batches, batch_x.shape, batch_y.shape))
+                    logging.info("Training {} batches of size {} and {}"
+                                 .format(n_batches, batch_x.shape, batch_y.shape))
 
                 _, batch_loss, summary_results = sess.run([training_operator, cost_operator, all_summaries],
                                                           feed_dict={x: batch_x, y: batch_y})
@@ -147,7 +147,8 @@ def train(topology, series_name, execution_time, train_x=None, train_y=None, bin
             epoch_loss_list.append(epoch_loss)
 
             if (epoch % PRINT_LOSS_INTERVAL) == 0:
-                msg = "Epoch {}... Loss: {:.2e}. in {:.2f} seconds.".format(epoch, epoch_loss, time_epoch)
+                msg = "Epoch {} of {} ... Loss: {:.2e}. in {:.2f} seconds.".format(epoch, n_epochs, epoch_loss,
+                                                                                   time_epoch)
                 logging.info(msg)
 
         out_path = saver.save(sess, save_path)
