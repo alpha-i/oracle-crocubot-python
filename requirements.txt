@@ -1,5 +1,5 @@
 --extra-index-url https://pypi.fury.io/reW6hdjFCrSbpo3ehrBu/alpha-i/
--e git+ssh://git@github.com/alpha-i/library-alphai-covariance.git@6897b34f000212132783f4b6fae51f8588827bb9#egg=alphai_covariance-0.1.2
+-e git+ssh://git@github.com/alpha-i/library-alphai-covariance.git@0.1.3#egg=alphai_covariance-0.1.3
 alphai-time-series>=0.0.3
 alphai-finance<=1.2.1
 alphai-data-sources>=1.0.1
