@@ -222,17 +222,29 @@ class Estimator:
             activation_function = self._model.topology.get_activation_function(layer_number)
 
             if layer_type == CONVOLUTIONAL_LAYER:
-                signal = self.convolutional_layer(signal)
+                signal = self.convolutional_layer_1D(signal)
             else:
                 signal = tf.tensordot(signal, weights, axes=2) + biases
                 signal = activation_function(signal)
 
         return signal
 
-    def convolutional_layer(self, signal):
+    def convolutional_layer_1D(self, signal):
         """ Sets a convolutional layer"""
 
         signal = tf.layers.conv1d(
+            inputs=signal,
+            filters=6,
+            kernel_size=(5,),
+            padding="same",
+            activation=tf.nn.relu)
+
+        return tf.layers.max_pooling1d(inputs=signal, pool_size=[4], strides=2)
+
+    def convolutional_layer_2D(self, signal):
+        """ Sets a convolutional layer"""
+
+        signal = tf.layers.conv2d(
             inputs=signal,
             filters=32,
             kernel_size=[5, 5],
