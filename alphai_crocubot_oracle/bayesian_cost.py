@@ -37,6 +37,12 @@ class BayesianCost(object):
 
         return (log_qw - log_pw) * self._epoch_fraction - log_likelihood
 
+    def get_bbalpha_cost(self, prediction, truth):
+        log_priors = self.calculate_bbalpha_priors()
+        log_likelihood = self.calculate_bbalpha_likelihood(truth, prediction)
+
+        return log_priors * self._epoch_fraction - log_likelihood
+
     def calculate_priors(self):
         log_pw = 0.
         log_qw = 0.

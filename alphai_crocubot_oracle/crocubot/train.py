@@ -184,6 +184,8 @@ def _set_cost_operator(crocubot_model, x, labels, n_batches):
 
     if FLAGS.cost_type == 'bayes':
         operator = cost_object.get_bayesian_cost(log_predictions, labels)
+    elif FLAGS.cost_type == 'bbalpha':
+        operator = cost_object.get_bbalpha_cost(log_predictions, labels)
     elif FLAGS.cost_type == 'softmax':
         operator = tf.nn.softmax_cross_entropy_with_logits(logits=log_predictions, labels=labels)
     else:
