@@ -125,6 +125,17 @@ class BayesianCost(object):
         return tf.reduce_sum(truth * log_forecast)   # Dimensions [batch_size, N_LABEL_TIMESTEPS, N_LABEL_CLASSES]
 
     @staticmethod
+    def calculate_bbalpha_likelihood(truth, log_forecast):
+        """
+        Compute the Hellinger cost given truth and forecasts.
+        :param truth: The true or target distributions.
+        :param log_forecast: The log forecast to be compared with truth
+        :return: The total log likelihood value.
+        """
+
+        return - tf.reduce_logsumexp(- truth * log_forecast)
+
+    @staticmethod
     def _verify_args(spike_std_dvn, slab_std_dvn, spike_slab_weighting):
 
         if slab_std_dvn <= 0. or slab_std_dvn > 100:
