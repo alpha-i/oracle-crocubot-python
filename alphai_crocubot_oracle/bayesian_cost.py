@@ -37,13 +37,24 @@ class BayesianCost(object):
 
         return (log_qw - log_pw) * self._epoch_fraction - log_likelihood
 
-    def get_bbalpha_cost(self, prediction, truth):
-        log_priors = self.calculate_bbalpha_priors()
-        log_likelihood = self.calculate_bbalpha_likelihood(truth, prediction)
+    def get_hellinger_cost(self, features, truth, n_passes, estimator):
+        """ Perform similar sum to bayesian cost, but different weighting over different passes"""
 
-        return log_priors * self._epoch_fraction - log_likelihood
+        costs = []
+        for i in range(n_passes):
+            prediction = estimator.forward_pass(features, iteration=i)
+            prediction = tf.nn.log_softmax(prediction, dim=-1)
 
-    def calculate_priors(self):
+            log_likelihood = self.calculate_likelihood(truth, prediction)
+            log_pw, log_qw = self.calculate_priors(iteration=i)
+
+            single_pass_cost = (log_qw - log_pw) * self._epoch_fraction - log_likelihood
+            costs.append(single_pass_cost)
+
+        stack_of_passes = tf.stack(costs, axis=0)
+        return - tf.reduce_logsumexp(- 0.5 * stack_of_passes, axis=0)
+
+    def calculate_priors(self, iteration=0):
         log_pw = 0.
         log_qw = 0.
 
@@ -54,8 +65,8 @@ class BayesianCost(object):
             rho_b = self._model.get_variable(layer, self._model.VAR_BIAS_RHO)
 
             # Only want to consider independent weights, not the full set, so do_tile_weights=False
-            weights = self._model.compute_weights(layer, iteration=0)
-            biases = self._model.compute_biases(layer, iteration=0)
+            weights = self._model.compute_weights(layer, iteration=iteration)
+            biases = self._model.compute_biases(layer, iteration=iteration)
 
             log_pw += self.calculate_log_weight_prior(weights, layer)  # not needed if we're using many passes
             log_pw += self.calculate_log_bias_prior(biases, layer)
@@ -129,17 +140,6 @@ class BayesianCost(object):
         """
 
         return tf.reduce_sum(truth * log_forecast)   # Dimensions [batch_size, N_LABEL_TIMESTEPS, N_LABEL_CLASSES]
-
-    @staticmethod
-    def calculate_bbalpha_likelihood(truth, log_forecast):
-        """
-        Compute the Hellinger cost given truth and forecasts.
-        :param truth: The true or target distributions.
-        :param log_forecast: The log forecast to be compared with truth
-        :return: The total log likelihood value.
-        """
-
-        return - tf.reduce_logsumexp(- truth * log_forecast)
 
     @staticmethod
     def _verify_args(spike_std_dvn, slab_std_dvn, spike_slab_weighting):
