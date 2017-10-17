@@ -22,26 +22,14 @@ class BayesianCost(object):
         :param spike_std_dvn: The standard deviation of the spike (narrow) Gaussian. Default value = 0.5
         :param spike_slab_weighting: The ratio of the spike(0) to slab(1) standard deviations. Default value = 0.5.
         """
+        self._verify_args(spike_std_dvn, slab_std_dvn, spike_slab_weighting)
         self._model = model
         self.topology = model.topology
         self._use_double_gaussian_weights_prior = use_double_gaussian_weights_prior
         self._epoch_fraction = 1 / n_batches
-        self._slab_std_dvn = slab_std_dvn
-        if self._slab_std_dvn <= 0. or self._slab_std_dvn > 100:
-            raise ValueError("The value of slab standard deviation, {} is out of range (0,100)."
-                             .format(self._slab_std_dvn))
-        self._spike_std_dvn = spike_std_dvn
-        if self._spike_std_dvn <= 0. or self._spike_std_dvn > 100:
-            raise ValueError("The value of spike standard deviation, {} is out of range (0,100)."
-                             .format(self._spike_std_dvn))
-        if self._spike_std_dvn >= self._slab_std_dvn:
-            raise ValueError("Spike standard deviation {} should be less that slab standard deviation {}."
-                             .format(self._spike_std_dvn, self._slab_std_dvn))
-
-        self._spike_slab_weighting = spike_slab_weighting
-        if self._spike_slab_weighting < 0. or self._spike_slab_weighting > 1.:
-            raise ValueError("The value of spike/slab weighting {} should be in the interval [0,1]."
-                             .format(self._spike_slab_weighting))
+        self._slab_std_dvn = tf.cast(slab_std_dvn, tm.DEFAULT_TF_TYPE)
+        self._spike_std_dvn = tf.cast(spike_std_dvn,  tm.DEFAULT_TF_TYPE)
+        self._spike_slab_weighting = tf.cast(spike_slab_weighting,  tm.DEFAULT_TF_TYPE)
 
     def get_bayesian_cost(self, prediction, truth):
         log_pw, log_qw = self.calculate_priors()
@@ -72,19 +60,20 @@ class BayesianCost(object):
 
         return log_pw, log_qw
 
-    def calculate_log_weight_prior(self, weights, layer):  # TODO can we make these two into a single function?
+    def calculate_log_weight_prior(self, weights, layer):
         """
         See Equation 7 in https://arxiv.org/pdf/1505.05424.pdf
         :param weights: The weights of the layer for which the prior value is to be calculated
         :param layer: The layer number for which the weights are given.
         :return: The log-probability value.
         """
+
         if self._use_double_gaussian_weights_prior:
+            log_p_spike = tf.log(1 - self._spike_slab_weighting) + tm.log_gaussian(weights, 0., self._spike_std_dvn)
+            log_p_slab = tf.log(self._spike_slab_weighting) + tm.log_gaussian(weights, 0., self._slab_std_dvn)
 
-            p_slab = tm.unit_gaussian(weights / self._slab_std_dvn) / self._slab_std_dvn
-            p_spike = tm.unit_gaussian(weights / self._spike_std_dvn) / self._spike_std_dvn
-
-            log_pw = tf.log(self._spike_slab_weighting * p_slab + (1 - self._spike_slab_weighting) * p_spike)
+            p_total = tf.stack([log_p_spike, log_p_slab], axis=0)
+            log_pw = tf.reduce_logsumexp(p_total, axis=0)
         else:
             # FIXME this may be removed in the future as the double Gaussian is a better way to do things!
             log_alpha = self._model.get_variable(layer, self._model.VAR_LOG_ALPHA)
@@ -92,24 +81,15 @@ class BayesianCost(object):
 
         return tf.reduce_sum(log_pw)
 
-    def calculate_log_bias_prior(self, biases, layer):  # TODO can we make these two into a single function?
+    def calculate_log_bias_prior(self, biases, layer):
         """
-        See Equation 7 in https://arxiv.org/pdf/1505.05424.pdf
+        At present we impose the same prior on the biases as is imposed on the weights
         :param biases: The biases of the layer for which the prior value is to be calculated
         :param layer: The layer number for which the weights are given.
         :return: The log-probability value.
         """
-        if self._use_double_gaussian_weights_prior:
 
-            p_slab = tf.contrib.distributions.Normal(0., 1.).prob(biases / self._slab_std_dvn) / self._slab_std_dvn
-            p_spike = tf.contrib.distributions.Normal(0., 1.).prob(biases / self._spike_std_dvn) / self._spike_std_dvn
-
-            log_pw = tf.log(self._spike_slab_weighting * p_slab + (1 - self._spike_slab_weighting) * p_spike)
-        else:
-            log_alpha = self._model.get_variable(layer, self._model.VAR_LOG_ALPHA)
-            log_pw = tm.log_gaussian_logsigma(biases, 0., log_alpha)
-
-        return tf.reduce_sum(log_pw)
+        return self.calculate_log_weight_prior(biases, layer)
 
     def calculate_log_hyperprior(self, layer):
         """
@@ -143,3 +123,19 @@ class BayesianCost(object):
         """
 
         return tf.reduce_sum(truth * log_forecast)   # Dimensions [batch_size, N_LABEL_TIMESTEPS, N_LABEL_CLASSES]
+
+    @staticmethod
+    def _verify_args(spike_std_dvn, slab_std_dvn, spike_slab_weighting):
+
+        if slab_std_dvn <= 0. or slab_std_dvn > 100:
+            raise ValueError("The value of slab standard deviation, {} is out of range (0,100)."
+                             .format(slab_std_dvn))
+        if spike_std_dvn <= 0. or spike_std_dvn > 100:
+            raise ValueError("The value of spike standard deviation, {} is out of range (0,100)."
+                             .format(spike_std_dvn))
+        if spike_std_dvn >= slab_std_dvn:
+            raise ValueError("Spike standard deviation {} should be less that slab standard deviation {}."
+                             .format(spike_std_dvn, slab_std_dvn))
+        if spike_slab_weighting < 0. or spike_slab_weighting > 1.:
+            raise ValueError("The value of spike/slab weighting {} should be in the interval [0,1]."
+                             .format(spike_slab_weighting))
