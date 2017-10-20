@@ -229,6 +229,7 @@ class CrocubotOracle:
 
         logging.info("Dump of predict data: {}".format(predict_data))
         logging.info("Dump of predict x: {}".format(predict_x))
+        logging.info("Dump of predict y: {}".format(predict_y))
 
         return means, covariance
 
