@@ -227,6 +227,9 @@ class CrocubotOracle:
             covariance = pd.DataFrame(data=forecast_covariance, columns=predict_data['close'].columns,
                                       index=predict_data['close'].columns)
 
+        logging.info("Dump of predict data: {}".format(predict_data))
+        logging.info("Dump of predict x: {}".format(predict_x))
+
         return means, covariance
 
     def filter_nan_samples(self, train_x, train_y):
