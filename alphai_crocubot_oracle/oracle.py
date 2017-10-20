@@ -23,7 +23,7 @@ from alphai_crocubot_oracle.constants import DATETIME_FORMAT_COMPACT
 from alphai_crocubot_oracle.covariance import estimate_covariance
 from alphai_crocubot_oracle.helpers import TrainFileManager
 
-CLIP_VALUE = 8.0  # Largest number allowed to enter the network
+CLIP_VALUE = 5.0  # Largest number allowed to enter the network
 DEFAULT_N_CORRELATED_SERIES = 5
 TRAIN_FILE_NAME_TEMPLATE = "{}_train_crocubot"
 FLAGS = tf.app.flags.FLAGS
@@ -134,7 +134,6 @@ class CrocubotOracle:
         logging.info("Processed train_x shape {}".format(train_x.shape))
         train_x, train_y = self.filter_nan_samples(train_x, train_y)
         logging.info("Filtered train_x shape {}".format(train_x.shape))
-        train_x = self.verify_data(train_x, train_y)
 
         # Topology can either be directly constructed from layers, or build from sequence of parameters
         if self._topology is None:
@@ -247,37 +246,40 @@ class CrocubotOracle:
 
         return train_x[mask, :], train_y[mask, :]
 
-    def verify_data(self, train_x, train_y):
+    def verify_y_data(self, y_data):
+        testy = deepcopy(y_data).flatten()
+        ynans = np.isnan(testy).sum()
+        yinfs = np.isinf(testy).sum()
+        ymax = np.max(testy)
+        ymin = np.min(testy)
+        logging.info("Y Infs: {}".format(yinfs))
+        logging.info("Y Nans: {}".format(ynans))
+        logging.info("Y Maxs: {}".format(ymax))
+        logging.info("Y Mins: {}".format(ymin))
+
+
+    def verify_x_data(self, x_data):
         """Check for nans or crazy numbers.
          """
-        testx = deepcopy(train_x).flatten()
-        testy = deepcopy(train_y).flatten()
+        testx = deepcopy(x_data).flatten()
 
         xnans = np.isnan(testx).sum()
-        ynans = np.isnan(testy).sum()
-
         xinfs = np.isinf(testx).sum()
-        yinfs = np.isinf(testy).sum()
-
         xmax = np.max(testx)
-        ymax = np.max(testy)
-
         xmin = np.min(testx)
-        ymin = np.min(testy)
-
-        logging.info("Nans: {}, {}".format(xnans, ynans))
-        logging.info("Infs: {}, {}".format(xinfs, yinfs))
-        logging.info("Maxs: {}, {}".format(xmax, ymax))
-        logging.info("Mins: {}, {}".format(xmin, ymin))
+        logging.info("X Infs: {}".format(xinfs))
+        logging.info("X Nans: {}".format(xnans))
+        logging.info("X Maxs: {}".format(xmax))
+        logging.info("X Mins: {}".format(xmin))
 
         if xmax > CLIP_VALUE or xmin < -CLIP_VALUE:
             n_clipped_elements = np.sum(xmax < np.abs(testx))
             n_elements = len(testx)
-            train_x = np.clip(train_x, a_min=-CLIP_VALUE, a_max=CLIP_VALUE)
+            x_data = np.clip(x_data, a_min=-CLIP_VALUE, a_max=CLIP_VALUE)
             logging.warning("Large inputs detected: clip values exceeding {}".format(CLIP_VALUE))
             logging.info("{} of {} elements were clipped.".format(n_clipped_elements, n_elements))
 
-        return train_x
+        return x_data
 
     def calculate_historical_covariance(self, predict_data):
 
@@ -325,6 +327,8 @@ class CrocubotOracle:
         if FLAGS.predict_single_shares:
             train_x = self.expand_input_data(train_x)
 
+        train_x = self.verify_x_data(train_x)
+
         return train_x.astype(np.float32)  # FIXME: set float32 in data transform, conditional on config file
 
     def _preprocess_outputs(self, train_y_dict):
@@ -335,6 +339,8 @@ class CrocubotOracle:
         if FLAGS.predict_single_shares:
             n_feat_y = train_y.shape[2]
             train_y = np.reshape(train_y, [-1, 1, n_feat_y])
+
+        self.verify_y_data(train_y)
 
         return train_y.astype(np.float32)  # FIXME:set float32 in data transform, conditional on config file
 
