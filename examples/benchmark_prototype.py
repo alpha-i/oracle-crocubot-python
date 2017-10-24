@@ -249,7 +249,7 @@ def run_mnist_test(train_path, tensorboard_log_path, method='Adam', use_full_tra
     config['model_save_path'] = train_path
     config['n_retrain_epochs'] = 5
     config['n_train_passes'] = 1
-    config['n_eval_passes'] = 40
+    config['n_eval_passes'] = 1
 
     fl.set_training_flags(config)
     # this flag is only used in benchmark.
