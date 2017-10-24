@@ -179,6 +179,7 @@ class CrocubotOracle:
 
         logging.info('Crocubot Oracle prediction on {}.'.format(execution_time))
 
+        self.verify_predict_data(predict_data)
         latest_train = self._train_file_manager.latest_train_filename(execution_time)
         predict_x = self._data_transformation.create_predict_data(predict_data)
 
@@ -226,7 +227,7 @@ class CrocubotOracle:
             logging.info("Samples from forecast_covariance: {}".format(np.diag(forecast_covariance)[0:5]))
             covariance = pd.DataFrame(data=forecast_covariance, columns=predict_data['close'].columns,
                                       index=predict_data['close'].columns)
-        
+
         return means, covariance
 
     def filter_nan_samples(self, train_x, train_y):
@@ -246,31 +247,34 @@ class CrocubotOracle:
 
         return train_x[mask, :], train_y[mask, :]
 
-    def verify_y_data(self, y_data):
-        testy = deepcopy(y_data).flatten()
-        ynans = np.isnan(testy).sum()
-        yinfs = np.isinf(testy).sum()
-        ymax = np.max(testy)
-        ymin = np.min(testy)
-        logging.info("Y Infs: {}".format(yinfs))
-        logging.info("Y Nans: {}".format(ynans))
-        logging.info("Y Maxs: {}".format(ymax))
-        logging.info("Y Mins: {}".format(ymin))
+    def print_verification_report(self, data, data_name):
 
+        data = data.flatten()
+        nans = np.isnan(data).sum()
+        infs = np.isinf(data).sum()
+        max_data = np.max(data)
+        min_data = np.min(data)
+        logging.info("{} Infs: {}".format(data_name, infs))
+        logging.info("{} Nans: {}".format(data_name, nans))
+        logging.info("{} Maxs: {}".format(data_name, max_data))
+        logging.info("{} Mins: {}".format(data_name, min_data))
+        return min_data, max_data
+
+    def verify_predict_data(self, predict_data):
+        """ Check for any issues in raw data. """
+
+        close = predict_data['close'].values
+        self.print_verification_report(close, 'Close')
+
+    def verify_y_data(self, y_data):
+        testy = deepcopy(y_data)
+        self.print_verification_report(testy, 'Y_data')
 
     def verify_x_data(self, x_data):
         """Check for nans or crazy numbers.
          """
         testx = deepcopy(x_data).flatten()
-
-        xnans = np.isnan(testx).sum()
-        xinfs = np.isinf(testx).sum()
-        xmax = np.max(testx)
-        xmin = np.min(testx)
-        logging.info("X Infs: {}".format(xinfs))
-        logging.info("X Nans: {}".format(xnans))
-        logging.info("X Maxs: {}".format(xmax))
-        logging.info("X Mins: {}".format(xmin))
+        xmin, xmax = self.print_verification_report(testx, 'X_data')
 
         if xmax > CLIP_VALUE or xmin < -CLIP_VALUE:
             n_clipped_elements = np.sum(xmax < np.abs(testx))
