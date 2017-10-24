@@ -64,7 +64,7 @@ def run_timed_benchmark_mnist(series_name, do_training):
     accuracy = print_MNIST_accuracy(metrics)
     print_time_info(train_time, eval_time)
 
-    return accuracy
+    return accuracy, metrics
 
 
 def print_time_info(train_time, eval_time):

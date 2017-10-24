@@ -11,18 +11,22 @@ N_CYCLES = 5
 def run_mnist_tests(optimisation_method):
 
     accuracy_array = np.zeros(N_CYCLES)
+    likeli_array = np.zeros(N_CYCLES)
 
     tensor_path = '/tmp/'
     train_path = '/tmp/'
 
     for i in range(N_CYCLES):
-        accuracy_array[i] = bench.run_mnist_test(train_path, tensor_path, optimisation_method)
+        accuracy_array[i], metrics = bench.run_mnist_test(train_path, tensor_path, optimisation_method)
+        likeli_array[i] = metrics['log_likelihood_per_sample']
 
     print(optimisation_method, 'accuracy:', accuracy_array)
+    print(optimisation_method, 'likelihoods:', likeli_array)
     print('Mean accuracy:', np.mean(accuracy_array))
+    print('Log likelihood:', np.mean(likeli_array))
 
 
-opt_methods = ['GDO', 'Adam']  # GDO Adam
+opt_methods = ['GDO']  # GDO Adam
 
 for method in opt_methods:
     run_mnist_tests(method)
@@ -51,3 +55,7 @@ for method in opt_methods:
 # Results: 200 epoch with gradient clipping AND big extra cost term (40 eval pass, 1 train, lr = 1e-3)
 # Adam: [ 0.9796
 # GDO:  [ 0.9831  0.982   0.9831  0.9835  0.9827] -> 0.98288
+
+
+# Results: 200 epoch with gradient clipping AND NO big extra cost term (40 eval pass, 1 train, lr = 1e-3)
+# GDO: [ 97.72 , -0.10671898991
