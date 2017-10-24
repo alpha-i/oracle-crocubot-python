@@ -34,9 +34,8 @@ class BayesianCost(object):
     def get_bayesian_cost(self, prediction, truth):
         log_pw, log_qw = self.calculate_priors()
         log_likelihood = self.calculate_likelihood(truth, prediction)
-        log_y_prior = 0.5 * tf.reduce_sum(prediction)
 
-        return (log_qw - log_pw - log_y_prior) * self._epoch_fraction - log_likelihood
+        return (log_qw - log_pw) * self._epoch_fraction - log_likelihood
 
     def calculate_priors(self):
         log_pw = 0.
