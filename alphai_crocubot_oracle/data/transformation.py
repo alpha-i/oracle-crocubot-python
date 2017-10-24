@@ -248,7 +248,6 @@ class FinancialDataTransformation(DataTransformation):
             except Exception as e:
                 logging.error('Failed to build a set of features', exc_info=e)
 
-
             if self.check_x_batch_dimensions(feature_x_dict):
                 data_x_list.append(feature_x_dict)
                 data_y_list.append(feature_y_dict)

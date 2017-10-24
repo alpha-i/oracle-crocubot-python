@@ -11,6 +11,9 @@ def set_training_flags(config):
 
     tf.flags._global_parser = argparse.ArgumentParser()
 
+    if 'optimisation_method' not in config:
+        config['optimisation_method'] = 'GDO'
+
     tf.app.flags.DEFINE_boolean('predict_single_shares', config['predict_single_shares'],
                                 """Whether the network predicts one share at a time.""")
 
@@ -21,6 +24,7 @@ def set_training_flags(config):
     tf.app.flags.DEFINE_integer('random_seed', 0, """Seed used to identify random noise realisiation.""")
     tf.app.flags.DEFINE_integer('n_classification_bins', config['n_classification_bins'], """How many bins to use for classification.""")
     tf.app.flags.DEFINE_string('model_save_path', config['model_save_path'], """Path to save graph.""")
+    tf.app.flags.DEFINE_string('optimisation_method', config['optimisation_method'], """Algorithm for training""")
 
     # Training specific
     tf.app.flags.DEFINE_integer('n_epochs', config['n_epochs'], """How many epochs to be used for training.""")
