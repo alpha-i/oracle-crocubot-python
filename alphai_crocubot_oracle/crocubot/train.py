@@ -80,7 +80,14 @@ def train(topology, series_name, execution_time, train_x=None, train_y=None, bin
     cost_operator = _set_cost_operator(model, x, y, n_batches)
     tf.summary.scalar("cost", cost_operator)
 
-    training_operator = tf.train.AdamOptimizer(FLAGS.learning_rate).minimize(cost_operator, global_step=global_step)
+    if FLAGS.optimisation_method == 'Adam':
+        optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate)
+        training_operator = optimizer.minimize(cost_operator, global_step=global_step)
+    elif FLAGS.optimisation_method == 'GDO':
+        optimizer = tf.train.GradientDescentOptimizer(FLAGS.learning_rate)
+        training_operator = optimizer.minimize(cost_operator, global_step=global_step)
+    else:
+        raise NotImplementedError
 
     all_summaries = tf.summary.merge_all()
 
