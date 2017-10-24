@@ -227,7 +227,7 @@ def print_MNIST_accuracy(metrics):
 def run_mnist_test(train_path, tensorboard_log_path, method='Adam', use_full_train_set=True):
 
     if use_full_train_set:
-        n_training_samples = 50000
+        n_training_samples = 60000
         n_epochs = 200
     else:
         n_training_samples = 500
@@ -235,7 +235,7 @@ def run_mnist_test(train_path, tensorboard_log_path, method='Adam', use_full_tra
 
     config = load_default_config()
     config["n_epochs"] = n_epochs
-    config["learning_rate"] = 2e-4   # Use high learning rate for testing purposes
+    config["learning_rate"] = 1e-3   # Use high learning rate for testing purposes
     config["cost_type"] = 'bayes'  # 'bayes'; 'softmax'; 'hellinger'
     config['batch_size'] = 200
     config['n_training_samples_benchmark'] = n_training_samples
@@ -249,7 +249,7 @@ def run_mnist_test(train_path, tensorboard_log_path, method='Adam', use_full_tra
     config['model_save_path'] = train_path
     config['n_retrain_epochs'] = 5
     config['n_train_passes'] = 1
-    config['n_eval_passes'] = 1
+    config['n_eval_passes'] = 40
 
     fl.set_training_flags(config)
     # this flag is only used in benchmark.
