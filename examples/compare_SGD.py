@@ -1,7 +1,6 @@
 # Performance comparison: Adam vs SGD
 import tensorflow as tf
 import numpy as np
-import argparse
 
 import examples.benchmark_prototype as bench
 FLAGS = tf.app.flags.FLAGS
@@ -9,7 +8,7 @@ FLAGS = tf.app.flags.FLAGS
 N_CYCLES = 5
 
 
-def run_mnist_tests(method):
+def run_mnist_tests(optimisation_method):
 
     accuracy_array = np.zeros(N_CYCLES)
 
@@ -17,9 +16,9 @@ def run_mnist_tests(method):
     train_path = '/tmp/'
 
     for i in range(N_CYCLES):
-        accuracy_array[i] = bench.run_mnist_test(train_path, tensor_path, method)
+        accuracy_array[i] = bench.run_mnist_test(train_path, tensor_path, optimisation_method)
 
-    print(method, 'accuracy:', accuracy_array)
+    print(optimisation_method, 'accuracy:', accuracy_array)
     print('Mean accuracy:', np.mean(accuracy_array))
 
 
@@ -50,7 +49,5 @@ for method in opt_methods:
 # GDO: [ 0.9825  0.9835  0.9828  0.9838  0.9824] -> 0.983  ****
 
 # Results: 200 epoch with gradient clipping AND big extra cost term (40 eval pass, 1 train, lr = 1e-3)
-# Adam: [
+# Adam: [ 0.9796
 # GDO:  [ 0.9831  0.982   0.9831  0.9835  0.9827] -> 0.98288
-
-
