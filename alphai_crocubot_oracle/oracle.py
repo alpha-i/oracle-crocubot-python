@@ -126,6 +126,7 @@ class CrocubotOracle:
             execution_time,
         ))
 
+        self.verify_pricing_data(train_data)
         train_x, train_y = self._data_transformation.create_train_data(train_data, historical_universes)
 
         logging.info("Preprocessing training data")
@@ -179,7 +180,7 @@ class CrocubotOracle:
 
         logging.info('Crocubot Oracle prediction on {}.'.format(execution_time))
 
-        self.verify_predict_data(predict_data)
+        self.verify_pricing_data(predict_data)
         latest_train = self._train_file_manager.latest_train_filename(execution_time)
         predict_x = self._data_transformation.create_predict_data(predict_data)
 
@@ -252,19 +253,22 @@ class CrocubotOracle:
         data = data.flatten()
         nans = np.isnan(data).sum()
         infs = np.isinf(data).sum()
-        max_data = np.max(data)
-        min_data = np.min(data)
+        finite_data = data[np.isfinite(data)]
+        max_data = np.max(finite_data)
+        min_data = np.min(finite_data)
         logging.info("{} Infs: {}".format(data_name, infs))
         logging.info("{} Nans: {}".format(data_name, nans))
         logging.info("{} Maxs: {}".format(data_name, max_data))
         logging.info("{} Mins: {}".format(data_name, min_data))
         return min_data, max_data
 
-    def verify_predict_data(self, predict_data):
+    def verify_pricing_data(self, predict_data):
         """ Check for any issues in raw data. """
 
         close = predict_data['close'].values
-        self.print_verification_report(close, 'Close')
+        min_price, max_price = self.print_verification_report(close, 'Close')
+        if min_price < 1e-3:
+            logging.warning("Found an unusually small price: {}".format(min_price))
 
     def verify_y_data(self, y_data):
         testy = deepcopy(y_data)
