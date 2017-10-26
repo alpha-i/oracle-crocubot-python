@@ -48,10 +48,16 @@ class FinancialFeature(object):
         self.n_series = None
 
         self.bin_distribution = None
+        if self.nbins:
+            self.bin_distribution_dict = {}
+        else:
+            self.bin_distribution_dict = None
+
         self.classify_per_series = classify_per_series
         self.normalise_per_series = normalise_per_series
 
         if self.normalization:
+            self.scaler_dict = {}
             if self.normalization == 'robust':
                 self.scaler = RobustScaler()
             elif self.normalization == 'min_max':
@@ -64,6 +70,7 @@ class FinancialFeature(object):
                 raise NotImplementedError('Requested normalisation not supported: {}'.format(self.normalization))
         else:
             self.scaler = None
+            self.scaler_dict = None
 
     @property
     def full_name(self):
@@ -132,32 +139,43 @@ class FinancialFeature(object):
 
         return processed_prediction_data_x
 
-    def apply_normalisation(self, data_x, do_normalisation_fitting):
-        """ Compute normalisation across the entire training set, or apply predetermined normalistion to prediction.
+    def fit_normalisation(self, symbol, symbol_data):
+        """ Creates a scikitlearn scalar, assigns it to a dictionary, fits it to the data
 
-        :param nparray data_x: Features of shape [n_samples, n_series, n_features]
-        :param bool do_normalisation_fitting: Whether to use pre-fitted normalisation, or set normalisation constants
+        :param symbol:
+        :param symbol_data:
         :return:
         """
 
-        if self.scaler is not None:
+        self.scaler_dict[symbol] = deepcopy(self.scaler)
+        symbol_data = symbol_data.reshape(-1, 1)  # Reshape for scikitlearn
+        self.scaler_dict[symbol].fit(symbol_data)
+
+    def apply_normalisation(self, dataframe):
+        """ Compute normalisation across the entire training set, or apply predetermined normalistion to prediction.
+
+        :param pd dataframe data_x: Features of shape [n_samples, n_series, n_features]
+        :return:
+        """
+
+        for symbol in dataframe:
+            data_x = dataframe[symbol].values
             original_shape = data_x.shape
-            data_x = self.reshape_for_scikit(data_x)
-            nan_mask = np.ma.fix_invalid(data_x, fill_value=0)  # FIXME: Ideally fit without Nans rather than filled
+            data_x = data_x.reshape(-1, 1)
 
-            if do_normalisation_fitting:
-                data_x = self.scaler.fit_transform(nan_mask.data)
+            nan_mask = np.ma.fix_invalid(data_x, fill_value=0)
+
+            if symbol in self.scaler_dict:
+                data_x = self.scaler_dict[symbol].transform(nan_mask.data)
+                # Put the nans back in so we know to avoid them
+                data_x[nan_mask.mask] = np.nan
+                dataframe[symbol] = data_x.reshape(original_shape)
             else:
-                data_x = self.scaler.transform(nan_mask.data)
+                logging.warning("Symbol lacks normalisation scaler: {}", symbol)
+                dataframe.drop(symbol, axis=1, inplace=True)
+                logging.warning("Dropping symbol from dataframe: {}", symbol)
 
-            # Put the nans back in so we know to avoid them
-            data_x[nan_mask.mask] = np.nan
-
-            data_x = data_x.reshape(original_shape)
-        else:
-            logging.warning("Feature lacks normalisation scaler.")
-
-        return data_x
+        return dataframe
 
     def reshape_for_scikit(self, data_x):
         """ Scikit expects an input of the form [samples, features]; normalisation applied separately to each feature.
@@ -266,16 +284,50 @@ class FinancialFeature(object):
         """
         assert isinstance(self.nbins, int) and self.nbins > 0
 
-        if self.classify_per_series:
-            self.bin_distribution = []
-            for i in range(self.n_series):
-                series_data = train_y[:, i].flatten()
-                cleaned_data = series_data[np.isfinite(series_data)]
-                self.bin_distribution.append(BinDistribution(cleaned_data, self.nbins))
-        else:
-            series_data = train_y.flatten()
-            cleaned_data = series_data[np.isfinite(series_data)]
-            self.bin_distribution = BinDistribution(cleaned_data, self.nbins)
+        # if self.classify_per_series:
+        #     self.bin_distribution = []
+        #     for i in range(self.n_series):
+        #         series_data = train_y[:, i].flatten()
+        #         cleaned_data = series_data[np.isfinite(series_data)]
+        #         self.bin_distribution.append(BinDistribution(cleaned_data, self.nbins))
+        # else:
+        series_data = train_y.flatten()
+        cleaned_data = series_data[np.isfinite(series_data)]
+        return BinDistribution(cleaned_data, self.nbins)
+
+    def fit_classification(self, symbol, symbol_data):
+        """  Fill dict with classifiers
+
+        :param symbol_data:
+        :return:
+        """
+
+        if self.nbins is None:
+            return
+
+        self.bin_distribution_dict[symbol] = BinDistribution(symbol_data, self.nbins)
+
+    def apply_classification(self, dataframe):
+        """ Apply predetermined classification to y data.
+
+        :param pd dataframe data_x: Features of shape [n_samples, n_series, n_features]
+        :return:
+        """
+
+        hot_dataframe = pd.DataFrame(0, index=np.arange(self.nbins), columns=dataframe.columns)
+
+        for symbol in dataframe:
+            data_y = dataframe[symbol].values
+
+            if symbol in self.bin_distribution_dict:
+                 symbol_binning = self.bin_distribution_dict[symbol]
+                 hot_dataframe[symbol] = np.squeeze(classify_labels(symbol_binning.bin_edges, data_y))
+            else:
+                logging.warning("Symbol lacks clasification bins: {}", symbol)
+                dataframe.drop(symbol, axis=1, inplace=True)
+                logging.warning("Dropping {} from dataframe.", symbol)
+
+        return hot_dataframe
 
     def classify_train_data_y(self, train_y):
         """
@@ -335,18 +387,32 @@ class FinancialFeature(object):
 
         return means, variances
 
-    def inverse_transform_multi_predict_y(self, predict_y):
+    def inverse_transform_multi_predict_y(self, predict_y, symbols):
         """
         Inverse-transform multi-pass predict_y data
         :param pd.Dataframe predict_y: target multi-pass prediction
         :return pd.Dataframe: inversely transformed mean and variance of target multi-pass prediction
         """
         assert self.is_target
-        inverse_transf_means, inverse_transf_variances = self.declassify_multi_predict_y(predict_y)
 
-        diag_cov_matrix = np.diag(inverse_transf_variances)
+        n_symbols = len(symbols)
+        means = np.zeros(shape=(n_symbols,))
+        variances = np.zeros(shape=(n_symbols,))
+        assert predict_y.shape[1] == n_symbols, "Weird shape - predict y not equal to n symbols"
 
-        return inverse_transf_means, diag_cov_matrix
+        for i, symbol in enumerate(symbols):
+            if symbol in self.bin_distribution_dict:
+                symbol_bins = self.bin_distribution_dict[symbol]
+                means[i], variances[i] = declassify_labels(symbol_bins, predict_y[:, i, :])
+            else:
+                logging.warning("No bin distribution found for symbol: {}".format(symbol))
+                means[i] = np.nan
+                variances[i] = np.nan
+
+        variances[variances == 0] = 1.0  # FIXME Hack
+
+        diag_cov_matrix = np.diag(variances)
+        return means, diag_cov_matrix
 
 
 def single_financial_feature_factory(feature_config):

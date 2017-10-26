@@ -181,15 +181,15 @@ class CrocubotOracle:
         logging.info('Crocubot Oracle prediction on {}.'.format(execution_time))
 
         latest_train = self._train_file_manager.latest_train_filename(execution_time)
-        predict_x = self._data_transformation.create_predict_data(predict_data)
-
-        if self._topology is None:
-            features_per_series = predict_x.shape[1]
-            self.initialise_topology(features_per_series)
+        predict_x, symbols = self._data_transformation.create_predict_data(predict_data)
 
         logging.info('Predicting mean values.')
         start_time = timer()
         predict_x = self._preprocess_inputs(predict_x)
+
+        if self._topology is None:
+            features_per_series = predict_x.shape[1]
+            self.initialise_topology(features_per_series)
 
         # Verify data is the correct shape
         topology_shape = (self._topology.n_features_per_series, self._topology.n_series)
@@ -207,7 +207,7 @@ class CrocubotOracle:
             predict_y = np.swapaxes(predict_y, axis1=1, axis2=2)
 
         predict_y = np.squeeze(predict_y, axis=1)
-        means, forecast_covariance = self._data_transformation.inverse_transform_multi_predict_y(predict_y)
+        means, forecast_covariance = self._data_transformation.inverse_transform_multi_predict_y(predict_y, symbols)
         if not np.isfinite(forecast_covariance).all():
             logging.warning('Prediction of forecast covariance failed. Contains non-finite values.')
             logging.warning('forecast_covariance: {}'.format(forecast_covariance))
@@ -218,7 +218,7 @@ class CrocubotOracle:
         else:
             logging.info('Samples from predicted means: {}'.format(means[0:10]))
 
-        means = pd.Series(np.squeeze(means), index=predict_data['close'].columns)
+        means = pd.Series(np.squeeze(means), index=predict_data['close'].columns) # FIXME check symbols match cols here
 
         if self.use_historical_covariance:
             covariance = self.calculate_historical_covariance(predict_data)
