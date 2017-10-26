@@ -15,7 +15,7 @@ from alphai_data_sources.data_sources import DataSourceGenerator
 from alphai_data_sources.generator import BatchOptions
 
 FLAGS = tf.app.flags.FLAGS
-PRINT_LOSS_INTERVAL = 1
+PRINT_LOSS_INTERVAL = 20
 PRINT_SUMMARY_INTERVAL = 5
 MAX_GRADIENT = 7.0
 
