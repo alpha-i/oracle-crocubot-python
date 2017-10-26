@@ -1,10 +1,15 @@
 # Performance comparison: Adam vs SGD
 import tensorflow as tf
 import numpy as np
+import logging
 
 import examples.benchmark_prototype as bench
-FLAGS = tf.app.flags.FLAGS
 
+logger = logging.getLogger('tipper')
+logger.addHandler(logging.StreamHandler())
+logging.basicConfig(level=logging.DEBUG)
+
+FLAGS = tf.app.flags.FLAGS
 N_CYCLES = 5
 
 
@@ -56,6 +61,12 @@ for method in opt_methods:
 # Adam: [ 0.9796
 # GDO:  [ 0.9831  0.982   0.9831  0.9835  0.9827] -> 0.98288
 
+# Results: 200 epoch with gradient clipping AND big extra cost term (40 eval pass, 1 train, lr = 1e-3)
+# Repeated to get likelihoods
+# GDO accuracy: [ 0.9824  0.9834  0.9834  0.9853  0.9832]
+# GDO likelihoods: [-0.06876133 -0.06876963 -0.06817838 -0.063859   -0.06839153]
 
 # Results: 200 epoch with gradient clipping AND NO big extra cost term (40 eval pass, 1 train, lr = 1e-3)
-# GDO: [ 97.72 , -0.10671898991
+# GDO accuracy: [0.9787  0.9792  0.9781  0.9793  0.9767]
+# GDO likelihoods: [-0.10307571 -0.09865605 -0.10417016 -0.09949302 -0.11244867]
+
