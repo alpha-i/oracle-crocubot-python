@@ -61,8 +61,10 @@ def run_timed_benchmark_mnist(series_name, do_training):
     eval_time = timer() - mid_time
 
     print('Metrics:')
-    print_MNIST_accuracy(metrics)
+    accuracy = print_MNIST_accuracy(metrics)
     print_time_info(train_time, eval_time)
+
+    return accuracy, metrics
 
 
 def print_time_info(train_time, eval_time):
@@ -222,22 +224,23 @@ def print_MNIST_accuracy(metrics):
     return accuracy
 
 
-def run_mnist_test(train_path, tensorboard_log_path, use_full_train_set=True):
+def run_mnist_test(train_path, tensorboard_log_path, method='Adam', use_full_train_set=True):
 
     if use_full_train_set:
-        n_training_samples = 50000
-        n_epochs = 300
+        n_training_samples = 60000
+        n_epochs = 200
     else:
         n_training_samples = 500
         n_epochs = 100
 
     config = load_default_config()
     config["n_epochs"] = n_epochs
-    config["learning_rate"] = 2e-3   # Use high learning rate for testing purposes
+    config["learning_rate"] = 1e-3   # Use high learning rate for testing purposes
     config["cost_type"] = 'bayes'  # 'bayes'; 'softmax'; 'hellinger'
     config['batch_size'] = 200
     config['n_training_samples_benchmark'] = n_training_samples
     config['n_series'] = 1
+    config['optimisation_method'] = method
     config['n_features_per_series'] = 784
     config['resume_training'] = False  # Make sure we start from scratch
     config['activation_functions'] = ['linear', 'selu', 'selu']
@@ -254,7 +257,8 @@ def run_mnist_test(train_path, tensorboard_log_path, use_full_train_set=True):
                                 """Number of samples for benchmarking.""")
     FLAGS._parse_flags()
     print("Epochs to evaluate:", FLAGS.n_epochs)
-    run_timed_benchmark_mnist(series_name="mnist", do_training=True)
+
+    return run_timed_benchmark_mnist(series_name="mnist", do_training=True)
 
 
 def run_stochastic_test(train_path, tensorboard_log_path):
