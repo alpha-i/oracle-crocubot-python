@@ -1,3 +1,5 @@
+# TODO Looks like not all this constants are used in the project.
+
 SCALER_STANDARD = 'standard'
 
 MINUTE_IN_AN_HOUR = 60.

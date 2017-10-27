@@ -1,5 +1,6 @@
 # Sets the crocubot hyperparameters as flags in tensorflow, based on a configuration dictionary
 # Used by oracle.py
+# TODO replace this singleton FLAGS with another configuration class
 
 import tensorflow as tf
 import argparse

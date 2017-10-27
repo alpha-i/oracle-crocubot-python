@@ -102,6 +102,7 @@ class CrocubotOracle:
         self._train_file_manager.ensure_path_exists()
         self._est_cov = None
 
+        # TODO Replace this FLAGS with an actual object
         set_training_flags(configuration)  # Perhaps use separate config dict here?
 
         if FLAGS.predict_single_shares:
@@ -159,7 +160,7 @@ class CrocubotOracle:
                 pass
         train_path = self._train_file_manager.new_filename(execution_time)
         data_source = 'financial_stuff'
-        start_time = timer()  # FIXME we should find a way to make some function 'temporizable' with a python decorator
+        start_time = timer()  # TODO replace this with timeit like decorator
         crocubot.train(self._topology, data_source, execution_time, train_x, train_y, save_path=train_path,
                        restore_path=resume_train_path)
         end_time = timer()

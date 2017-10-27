@@ -2,6 +2,7 @@ import numpy as np
 
 from alphai_crocubot_oracle.data.cleaning import sample_minutes_after_market_open_data_frame
 
+# TODO this method looks like an helper function used only in the covariance module. move it there and make it private
 
 def returns_minutes_after_market_open_data_frame(data_frame, market_calendar, minutes_after_market_open):
     """
@@ -15,7 +16,7 @@ def returns_minutes_after_market_open_data_frame(data_frame, market_calendar, mi
         sample_minutes_after_market_open_data_frame(data_frame, market_calendar, minutes_after_market_open)
     return np.log(sampled_data_frame.pct_change() + 1).dropna()
 
-
+# TODO this method is not user anywhere in the main package. Move it
 def log_to_simple_returns_conversion(log_returns, covariance_matrix):
     """
     converts the log returns and covariances into simple returns and covariances for use in the portfolio optimisation
