@@ -5,6 +5,7 @@ import logging
 from timeit import default_timer as timer
 import os
 import tensorflow as tf
+import numpy as np
 
 import alphai_crocubot_oracle.bayesian_cost as cost
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel, Estimator
@@ -92,6 +93,8 @@ def train(topology, series_name, execution_time, train_x=None, train_y=None, bin
 
         epoch_loss_list = []
         for epoch in range(n_epochs):
+            if train_x is not None:
+                train_x, train_y = shuffle_training_data(train_x, train_y)
 
             epoch_loss = 0.
             start_time = timer()
@@ -127,6 +130,9 @@ def train(topology, series_name, execution_time, train_x=None, train_y=None, bin
                 msg = "Epoch {} of {} ... Loss: {:.2e}. in {:.2f} seconds.".format(epoch + 1, n_epochs, epoch_loss,
                                                                                    time_epoch)
                 logging.info(msg)
+
+                # accuracy_test
+
 
         out_path = saver.save(sess, save_path)
         logging.info("Model saved in file:{}".format(out_path))
@@ -229,3 +235,16 @@ def _set_training_operator(cost_operator, global_step):
         raise NotImplementedError("Unknown optimisation method: ", FLAGS.optimisation_method)
 
     return optimize
+
+
+def shuffle_training_data(train_x, train_y):
+    """ Reorder the numpy array in a random manner """
+
+    n_samples = train_x.shape[0]
+    indices = np.arange(n_samples)
+    np.random.shuffle(indices)
+
+    train_x = train_x[indices, :, :]
+    train_y = train_y[indices, :, :]
+
+    return train_x, train_y

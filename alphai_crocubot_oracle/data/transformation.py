@@ -261,14 +261,14 @@ class FinancialDataTransformation(DataTransformation):
             if n_valid_samples == 0:
                 self.print_diagnostics(feature_x_dict, feature_y_dict)
 
-        x_list = self._make_normalised_x_list(data_x_list, do_normalisation_fitting)
+        data_x_list = self._make_normalised_x_list(data_x_list, do_normalisation_fitting)
 
         if target_market_open is None:
             y_dict = None
-            x_dict, x_symbols = self.stack_samples_for_each_feature(x_list)
+            x_dict, x_symbols = self.stack_samples_for_each_feature(data_x_list)
         else:
             y_list = self._make_classified_y_list(data_y_list)
-            x_dict, x_symbols = self.stack_samples_for_each_feature(x_list, y_list)
+            x_dict, x_symbols = self.stack_samples_for_each_feature(data_x_list, y_list)
             y_dict, _ = self.stack_samples_for_each_feature(y_list)
 
         return x_dict, y_dict, x_symbols
@@ -308,20 +308,28 @@ class FinancialDataTransformation(DataTransformation):
         # Fitting
         if do_normalisation_fitting:
             for feature in self.features:
-                logging.info("Fitting normalisation to: {}".format(feature.full_name))
-                for symbol in symbols:
-                    symbol_data = self.extract_data_by_symbol(x_list, symbol, feature.full_name)
-                    feature.fit_normalisation(symbol, symbol_data)
+                if feature.scaler:
+                    logging.info("Fitting normalisation to: {}".format(feature.full_name))
+                    if self.normalise_per_series:
+                        for symbol in symbols:
+                            symbol_data = self.extract_data_by_symbol(x_list, symbol, feature.full_name)
+                            feature.fit_normalisation(symbol_data, symbol)
+                    else:
+                        all_data = self.extract_all_data(x_list, feature.full_name)
+                        feature.fit_normalisation(all_data)
+                else:
+                    logging.info("Skipping normalisation to: {}".format(feature.full_name))
 
         # Applying
         for feature in self.features:
-            logging.info("Applying normalisation to: {}".format(feature.full_name))
-            for x_dict in x_list:
-                if feature.full_name in x_dict:
-                    x_dict[feature.full_name] = feature.apply_normalisation(x_dict[feature.full_name])
-                else:
-                    logging.info("Failed to find {} in dict: {}".format(feature.full_name, list(x_dict.keys())))
-                    logging.info("x_list: {}".format(x_list))
+            if feature.scaler:
+                logging.info("Applying normalisation to: {}".format(feature.full_name))
+                for x_dict in x_list:
+                    if feature.full_name in x_dict:
+                        x_dict[feature.full_name] = feature.apply_normalisation(x_dict[feature.full_name])
+                    else:
+                        logging.info("Failed to find {} in dict: {}".format(feature.full_name, list(x_dict.keys())))
+                        logging.info("x_list: {}".format(x_list))
 
         return x_list
 
@@ -334,6 +342,19 @@ class FinancialDataTransformation(DataTransformation):
             collated_data.extend(sample.dropna().values)
 
         return np.asarray(collated_data)
+
+    def extract_all_data(self,  x_list, feature_name):
+        """ Extracts all finite values from list of dictionaries"""
+
+        collated_data = []
+        for x_dict in x_list:
+            sample = x_dict[feature_name]
+            values = sample.values.flatten()
+            finite_values = values[np.isfinite(values)]
+            collated_data.extend(finite_values)
+
+        return np.asarray(collated_data)
+
 
     def _make_classified_y_list(self, y_list):
         """ Takes list of dictionaries, and classifies them based on the full sample

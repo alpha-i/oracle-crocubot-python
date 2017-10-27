@@ -127,11 +127,11 @@ class CrocubotOracle:
         ))
 
         self.verify_pricing_data(train_data)
-        train_x, train_y = self._data_transformation.create_train_data(train_data, historical_universes)
+        train_x_dict, train_y_dict = self._data_transformation.create_train_data(train_data, historical_universes)
 
         logging.info("Preprocessing training data")
-        train_x = self._preprocess_inputs(train_x)
-        train_y = self._preprocess_outputs(train_y)
+        train_x = self._preprocess_inputs(train_x_dict)
+        train_y = self._preprocess_outputs(train_y_dict)
         logging.info("Processed train_x shape {}".format(train_x.shape))
         train_x, train_y = self.filter_nan_samples(train_x, train_y)
         logging.info("Filtered train_x shape {}".format(train_x.shape))
@@ -188,6 +188,7 @@ class CrocubotOracle:
         start_time = timer()
         predict_x = self._preprocess_inputs(predict_x)
 
+
         if self._topology is None:
             features_per_series = predict_x.shape[1]
             self.initialise_topology(features_per_series)
@@ -219,7 +220,7 @@ class CrocubotOracle:
         else:
             logging.info('Samples from predicted means: {}'.format(means[0:10]))
 
-        means = pd.Series(np.squeeze(means), index=predict_data['close'].columns) # FIXME check symbols match cols here
+        means = pd.Series(np.squeeze(means), index=predict_data['close'].columns)  # FIXME check symbols match cols here
 
         if self.use_historical_covariance:
             covariance = self.calculate_historical_covariance(predict_data)
@@ -344,9 +345,11 @@ class CrocubotOracle:
         for key, value in train_y_dict.items():  # FIXME move this preprocess_outputs
             train_y = value
 
+        train_y = np.swapaxes(train_y, axis1=1, axis2=2)
+
         if FLAGS.predict_single_shares:
             n_feat_y = train_y.shape[2]
-            train_y = np.reshape(train_y, [-1, 1, n_feat_y])
+            train_y = np.reshape(train_y, [-1, 1, n_feat_y])  # , order='F'
 
         self.verify_y_data(train_y)
 
@@ -380,22 +383,29 @@ class CrocubotOracle:
         n_series = train_x.shape[2]
         n_total_samples = n_batches * n_series
 
-        corr_train_x = np.zeros(shape=[n_total_samples, n_feat_x, self._n_input_series])
+        corr_shape = [n_total_samples, self._n_input_series, n_feat_x]
+        corr_train_x = np.zeros(shape=corr_shape)
         found_duplicates = False
 
-        for batch in range(n_batches):
-            # Series ordering may differ between batches - so we need the correlations for each batch
-            batch_data = train_x[batch, :, :]
-            neg_correlation_matrix = - np.corrcoef(batch_data, rowvar=False)  # False since each col represents a var
-            correlation_indices = neg_correlation_matrix.argsort(axis=1)  # Sort negative corr to get descending order
+        if self._n_input_series == 1:
+            train_x = np.swapaxes(train_x, axis1=1, axis2=2)
+            corr_train_x = train_x.reshape(corr_shape)
+            corr_train_x = np.swapaxes(corr_train_x, axis1=1, axis2=2)
+        else:
+            raise NotImplementedError('not yet fixed to use multiple correlated series')
+            for batch in range(n_batches):
+                # Series ordering may differ between batches - so we need the correlations for each batch
+                batch_data = train_x[batch, :, :]
+                neg_correlation_matrix = - np.corrcoef(batch_data, rowvar=False)  # False since each col represents a var
+                correlation_indices = neg_correlation_matrix.argsort(axis=1)  # Sort negative corr to get descending order
 
-            for series_index in range(n_series):
-                if correlation_indices[series_index, [0]] != series_index:
-                    found_duplicates = True
-                sample_number = batch * n_series + series_index
-                for i in range(self._n_input_series):
-                    corr_series_index = correlation_indices[series_index, i]
-                    corr_train_x[sample_number, :, i] = train_x[batch, :, corr_series_index]
+                for series_index in range(n_series):
+                    if correlation_indices[series_index, [0]] != series_index:
+                        found_duplicates = True
+                    sample_number = batch * n_series + series_index
+                    for i in range(self._n_input_series):
+                        corr_series_index = correlation_indices[series_index, i]
+                        corr_train_x[sample_number, :, i] = train_x[batch, :, corr_series_index]
 
         if found_duplicates:
             logging.warning('Some NaNs or duplicate series were found in the data')

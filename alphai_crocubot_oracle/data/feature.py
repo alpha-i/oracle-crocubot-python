@@ -139,7 +139,7 @@ class FinancialFeature(object):
 
         return processed_prediction_data_x
 
-    def fit_normalisation(self, symbol, symbol_data):
+    def fit_normalisation(self, symbol_data, symbol=None):
         """ Creates a scikitlearn scalar, assigns it to a dictionary, fits it to the data
 
         :param symbol:
@@ -147,9 +147,13 @@ class FinancialFeature(object):
         :return:
         """
 
-        self.scaler_dict[symbol] = deepcopy(self.scaler)
-        symbol_data = symbol_data.reshape(-1, 1)  # Reshape for scikitlearn
-        self.scaler_dict[symbol].fit(symbol_data)
+        if symbol:
+            self.scaler_dict[symbol] = deepcopy(self.scaler)
+            symbol_data = symbol_data.reshape(-1, 1)  # Reshape for scikitlearn
+            self.scaler_dict[symbol].fit(symbol_data)
+        else:
+            symbol_data = symbol_data.reshape(-1, 1)  # Reshape for scikitlearn
+            self.scaler.fit(symbol_data)
 
     def apply_normalisation(self, dataframe):
         """ Compute normalisation across the entire training set, or apply predetermined normalistion to prediction.
@@ -165,15 +169,21 @@ class FinancialFeature(object):
 
             nan_mask = np.ma.fix_invalid(data_x, fill_value=0)
 
-            if symbol in self.scaler_dict:
-                data_x = self.scaler_dict[symbol].transform(nan_mask.data)
+            if self.normalise_per_series:
+                if symbol in self.scaler_dict:
+                    data_x = self.scaler_dict[symbol].transform(nan_mask.data)
+                    # Put the nans back in so we know to avoid them
+                    data_x[nan_mask.mask] = np.nan
+                    dataframe[symbol] = data_x.reshape(original_shape)
+                else:
+                    logging.warning("Symbol lacks normalisation scaler: {}", symbol)
+                    dataframe.drop(symbol, axis=1, inplace=True)
+                    logging.warning("Dropping symbol from dataframe: {}", symbol)
+            else:
+                data_x = self.scaler.transform(nan_mask.data)
                 # Put the nans back in so we know to avoid them
                 data_x[nan_mask.mask] = np.nan
                 dataframe[symbol] = data_x.reshape(original_shape)
-            else:
-                logging.warning("Symbol lacks normalisation scaler: {}", symbol)
-                dataframe.drop(symbol, axis=1, inplace=True)
-                logging.warning("Dropping symbol from dataframe: {}", symbol)
 
         return dataframe
 
