@@ -10,7 +10,7 @@ logger.addHandler(logging.StreamHandler())
 logging.basicConfig(level=logging.DEBUG)
 
 FLAGS = tf.app.flags.FLAGS
-N_CYCLES = 5
+N_CYCLES = 10
 
 
 def run_mnist_tests(optimisation_method):
@@ -31,7 +31,7 @@ def run_mnist_tests(optimisation_method):
     print('Log likelihood:', np.mean(likeli_array))
 
 
-opt_methods = ['GDO']  # GDO Adam
+opt_methods = ['GDO', 'Adam']  # GDO Adam
 
 for method in opt_methods:
     run_mnist_tests(method)
@@ -63,10 +63,19 @@ for method in opt_methods:
 
 # Results: 200 epoch with gradient clipping AND big extra cost term (40 eval pass, 1 train, lr = 1e-3)
 # Repeated to get likelihoods
-# GDO accuracy: [ 0.9824  0.9834  0.9834  0.9853  0.9832]
-# GDO likelihoods: [-0.06876133 -0.06876963 -0.06817838 -0.063859   -0.06839153]
+# GDO accuracy: [ 0.9824  0.9834  0.9834  0.9853  0.9832] -> 0.983
+# GDO likelihoods: [-0.06876133 -0.06876963 -0.06817838 -0.063859   -0.06839153] -> -0.0676
 
 # Results: 200 epoch with gradient clipping AND NO big extra cost term (40 eval pass, 1 train, lr = 1e-3)
 # GDO accuracy: [0.9787  0.9792  0.9781  0.9793  0.9767]
-# GDO likelihoods: [-0.10307571 -0.09865605 -0.10417016 -0.09949302 -0.11244867]
+# GDO likelihoods: [-0.10307571 -0.09865605 -0.10417016 -0.09949302 -0.11244867] -> 0.1035
 
+# Results: 200 epoch with new full extra cost term (40 eval pass, 1 train, lr = 1e-3)
+# GDO Accuracy:
+#  [0.9829  0.9836  0.9836  0.9821  0.9824  0.9828  0.9827  0.9831  0.9824      0.9836] -> 0.98292
+#    likelihoods: [-0.0707785 - 0.06766419 - 0.06848358 - 0.07242996 - 0.0704145 - 0.07105065      - 0.07299981 - 0.07197466 - 0.069243 - 0.06973318]
+# -> -0.070477
+
+
+# Adam:
+#
