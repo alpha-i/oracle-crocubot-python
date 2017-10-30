@@ -10,7 +10,7 @@ import numpy as np
 import alphai_crocubot_oracle.bayesian_cost as cost
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel, Estimator
 import alphai_crocubot_oracle.iotools as io
-from alphai_crocubot_oracle.constants import DATETIME_FORMAT_COMPACT
+from alphai_crocubot_oracle import DATETIME_FORMAT_COMPACT
 
 from alphai_data_sources.data_sources import DataSourceGenerator
 from alphai_data_sources.generator import BatchOptions
@@ -20,7 +20,8 @@ PRINT_LOSS_INTERVAL = 20
 PRINT_SUMMARY_INTERVAL = 5
 MAX_GRADIENT = 7.0
 
-
+# TODO encapsulate the parameters in a ParameterObject
+# TODO remove FLAGS usage
 def train(topology, series_name, execution_time, train_x=None, train_y=None, bin_edges=None, save_path=None,
           restore_path=None):
     """ Train network on either MNIST or time series data
@@ -66,6 +67,7 @@ def train(topology, series_name, execution_time, train_x=None, train_y=None, bin
 
     model_initialiser = tf.global_variables_initializer()
 
+    # TODO set save_path and restore path as required so we can remove the dependency
     if save_path is None:
         save_path = io.load_file_name(series_name, topology)
     saver = tf.train.Saver()
@@ -96,11 +98,14 @@ def train(topology, series_name, execution_time, train_x=None, train_y=None, bin
             if train_x is not None:
                 train_x, train_y = shuffle_training_data(train_x, train_y)
 
+            # TODO replace this timer with timeit like decorator
             epoch_loss = 0.
             start_time = timer()
 
             for batch_number in range(n_batches):  # The randomly sampled weights are fixed within single batch
 
+                # TODO implement a smarter version of DatasourceGenerator to remove the iotools dependency
+                # TODO and replace alphai_crocubot_oracle.iotools.load_batch
                 if use_data_loader:
                     batch_options.batch_number = batch_number
                     batch_x, batch_y = io.load_batch(batch_options, data_source, bin_edges=bin_edges)
@@ -155,7 +160,7 @@ def extract_batch(x, y, batch_number):
 
     return batch_x, batch_y
 
-
+# TODO remove FLAGS
 def _set_cost_operator(crocubot_model, x, labels, n_batches):
     """
     Set the cost operator
@@ -213,11 +218,12 @@ def get_tensorboard_log_dir_current_execution(execution_time):
     :param execution_time: The execution time for which a unique directory is to be created.
     :return: A unique directory path inside tensorboard path.
     """
+    # TODO remove make tensorflow_log_path as required parameter intead of using FLAGS
     hyper_param_string = "lr={}_bs={}".format(FLAGS.learning_rate, FLAGS.batch_size)
     execution_string = execution_time.strftime(DATETIME_FORMAT_COMPACT)
     return os.path.join(FLAGS.tensorboard_log_path, hyper_param_string, execution_string)
 
-
+# TODO remove the usage of FLAGS. Create a Provider for training_operator
 def _set_training_operator(cost_operator, global_step):
     """ Define the algorithm for updating the trainable variables. """
 

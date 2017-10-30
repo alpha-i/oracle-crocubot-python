@@ -1,5 +1,8 @@
 # Used for retrieving non-financial data, and saving/retrieving non-financial models
 # Will not be used by quant workflow
+# TODO the comment above is not true cause this module is imported in the crocubot.train module.
+# TODO move this iotools somewhere in the benchmark namespace
+
 import os
 import tensorflow as tf
 

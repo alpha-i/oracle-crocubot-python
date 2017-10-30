@@ -3,16 +3,16 @@
 import os
 import glob
 
-from alphai_crocubot_oracle.constants import (
-    DATETIME_FORMAT_COMPACT,
-    TIMESTAMP_NCARACTERS,
-)
+from alphai_crocubot_oracle import DATETIME_FORMAT_COMPACT
 
 
 class TrainFileManager:
     """
     This class manage read and retrieval of the calibration file for the training.
     """
+
+    TIMESTAMP_CHARS_NUMBER = 14
+
     def __init__(self, path, file_name_template, datetime_format=DATETIME_FORMAT_COMPACT):
         """
 
@@ -54,7 +54,7 @@ class TrainFileManager:
         execution_timestamp = int(execution_time.strftime(self._datetime_format))
         latest_calibration = None
         for calibration_file_name in sorted(calibration_files):
-            calibration_timestamp = int(calibration_file_name[:TIMESTAMP_NCARACTERS])
+            calibration_timestamp = int(calibration_file_name[:self.TIMESTAMP_CHARS_NUMBER])
             if execution_timestamp >= calibration_timestamp:
                 latest_calibration = calibration_file_name.split('.')[0]
             else:
@@ -64,3 +64,6 @@ class TrainFileManager:
             raise ValueError("No calibration found before {}".format(execution_timestamp))
 
         return os.path.join(self._path, latest_calibration)
+
+
+

@@ -1,5 +1,7 @@
-from alphai_crocubot_oracle.metrics.returns import returns_minutes_after_market_open_data_frame
+import numpy as np
 from alphai_covariance.dynamic_cov import estimate_cov
+
+from alphai_crocubot_oracle.data.cleaning import sample_minutes_after_market_open_data_frame
 
 DEFAULT_N_ESTIMATES = 100
 DEFAULT_SPLIT_STEPS = 1
@@ -30,3 +32,16 @@ def estimate_covariance(data, ndays, minutes_after_open, estimation_method,
 
     # Rescale for longer horizons
     return covariance_matrix * forecast_interval_in_days
+
+
+def returns_minutes_after_market_open_data_frame(data_frame, market_calendar, minutes_after_market_open):
+    """
+    Daily returns from input dataframe sampled at a specified number of minutes after market opens
+    :param data_frame: Dataframe with time as index
+    :param market_calendar: pandas_market_calendar
+    :param minutes_after_market_open: number of minutes after market opens
+    :return: Dataframe of daily returns at specified time after market opens
+    """
+    sampled_data_frame = \
+        sample_minutes_after_market_open_data_frame(data_frame, market_calendar, minutes_after_market_open)
+    return np.log(sampled_data_frame.pct_change() + 1).dropna()

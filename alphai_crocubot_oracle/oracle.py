@@ -19,7 +19,7 @@ import alphai_crocubot_oracle.crocubot.train as crocubot
 import alphai_crocubot_oracle.crocubot.evaluate as crocubot_eval
 from alphai_crocubot_oracle.flags import set_training_flags
 import alphai_crocubot_oracle.topology as tp
-from alphai_crocubot_oracle.constants import DATETIME_FORMAT_COMPACT
+from alphai_crocubot_oracle import DATETIME_FORMAT_COMPACT
 from alphai_crocubot_oracle.covariance import estimate_covariance
 from alphai_crocubot_oracle.helpers import TrainFileManager
 
@@ -87,6 +87,7 @@ class CrocubotOracle:
         else:
             self.use_historical_covariance = False
 
+        # FIXME use n_correlated_series configuration.get('n_correlated_series', DEFAULT_N_CORRELATED_SERIES)
         if 'n_correlated_series' in configuration:
             n_correlated_series = configuration['n_correlated_series']
         else:
@@ -102,6 +103,7 @@ class CrocubotOracle:
         self._train_file_manager.ensure_path_exists()
         self._est_cov = None
 
+        # TODO Replace this FLAGS with an actual object
         set_training_flags(configuration)  # Perhaps use separate config dict here?
 
         if FLAGS.predict_single_shares:
@@ -159,7 +161,7 @@ class CrocubotOracle:
                 pass
         train_path = self._train_file_manager.new_filename(execution_time)
         data_source = 'financial_stuff'
-        start_time = timer()  # FIXME we should find a way to make some function 'temporizable' with a python decorator
+        start_time = timer()  # TODO replace this with timeit like decorator
         crocubot.train(self._topology, data_source, execution_time, train_x, train_y, save_path=train_path,
                        restore_path=resume_train_path)
         end_time = timer()
