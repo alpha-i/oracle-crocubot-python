@@ -112,7 +112,6 @@ class FinancialFeature(object):
             processed_prediction_data_x = processed_prediction_data_x.iloc[1:]
 
         if self.transformation['name'] == 'stochastic_k':
-
             columns = processed_prediction_data_x.columns
             processed_prediction_data_x \
                 = ((processed_prediction_data_x.iloc[-1] - processed_prediction_data_x.min()) /
