@@ -11,20 +11,21 @@ from alphai_crocubot_oracle.topology import (
     DEFAULT_BINS,
     DEFAULT_N_FORECASTS
 )
-from alphai_crocubot_oracle.flags import FLAGS
-from tests.helpers import default as initialize_default_flags
-DEFAULT_BATCH_SIZE = 100
 
+from alphai_crocubot_oracle.topology import Topology
+from tests.helpers import get_default_flags
+
+DEFAULT_BATCH_SIZE = 100
 
 class TestCrocuBotModel(tf.test.TestCase):
 
     def test_create_model(self):
 
-        initialize_default_flags()
+        flags = get_default_flags()
 
         topology = Topology()
 
-        model = CrocuBotModel(topology, FLAGS)
+        model = CrocuBotModel(topology, flags)
         n_connections_between_layers = DEFAULT_HIDDEN_LAYERS + 1
         self.assertEqual(model.number_of_layers, n_connections_between_layers)
         self.assertEqual(model.topology, topology)
@@ -56,16 +57,16 @@ class TestEstimator(tf.test.TestCase):
 
     def setUp(self):
 
-        initialize_default_flags()
+        self._flags = get_default_flags()
         tf.reset_default_graph()
 
         topology = Topology()
 
-        self.crocubot_model = CrocuBotModel(topology, FLAGS)
+        self.crocubot_model = CrocuBotModel(topology, self._flags)
 
     def test_forward_pass(self):
 
-        estimator = Estimator(self.crocubot_model, FLAGS)
+        estimator = Estimator(self.crocubot_model, self._flags)
 
         self.crocubot_model.build_layers_variables()
         data = np.ones(shape=(DEFAULT_BATCH_SIZE, DEFAULT_DEPTH, DEFAULT_N_SERIES, DEFAULT_TIMESTEPS), dtype=np.float32)
@@ -79,7 +80,7 @@ class TestEstimator(tf.test.TestCase):
 
     def test_collate_multiple_passes(self):
 
-        estimator = Estimator(self.crocubot_model, FLAGS)
+        estimator = Estimator(self.crocubot_model, self._flags)
 
         self.crocubot_model.build_layers_variables()
 
@@ -96,7 +97,7 @@ class TestEstimator(tf.test.TestCase):
 
     def test_average_multiple_passes(self):
 
-        estimator = Estimator(self.crocubot_model, FLAGS)
+        estimator = Estimator(self.crocubot_model, self._flags)
 
         self.crocubot_model.build_layers_variables()
 

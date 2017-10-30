@@ -10,24 +10,24 @@ from copy import deepcopy
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 
+from alphai_crocubot_oracle.crocubot.helpers import TensorflowPath, TensorboardOptions
+from alphai_crocubot_oracle.data.providers import TrainDataProvider
 from alphai_crocubot_oracle.data.transformation import FinancialDataTransformation
 from alphai_time_series.transform import gaussianise
 
 import alphai_crocubot_oracle.crocubot.train as crocubot
 import alphai_crocubot_oracle.crocubot.evaluate as crocubot_eval
-from alphai_crocubot_oracle.flags import set_training_flags
+from alphai_crocubot_oracle.flags import build_tensorflow_flags
 import alphai_crocubot_oracle.topology as tp
 from alphai_crocubot_oracle import DATETIME_FORMAT_COMPACT
 from alphai_crocubot_oracle.covariance import estimate_covariance
-from alphai_crocubot_oracle.helpers import TrainFileManager
+from alphai_crocubot_oracle.helpers import TrainFileManager, logtime
 
 CLIP_VALUE = 5.0  # Largest number allowed to enter the network
 DEFAULT_N_CORRELATED_SERIES = 5
 FEATURE_TO_RANK_CORRELATIONS = 0  # Use the first feature to form correlation coefficients
 TRAIN_FILE_NAME_TEMPLATE = "{}_train_crocubot"
-FLAGS = tf.app.flags.FLAGS
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
@@ -97,10 +97,9 @@ class CrocubotOracle:
         self._train_file_manager.ensure_path_exists()
         self._est_cov = None
 
-        # TODO Replace this FLAGS with an actual object
-        set_training_flags(configuration)  # Perhaps use separate config dict here?
+        self._tensorflow_flags = build_tensorflow_flags(configuration)  # Perhaps use separate config dict here?
 
-        if FLAGS.predict_single_shares:
+        if self._tensorflow_flags.predict_single_shares:
             self._n_input_series = int(np.minimum(n_correlated_series, configuration['n_series']))
             self._n_forecasts = 1
         else:
@@ -124,6 +123,7 @@ class CrocubotOracle:
 
         self.verify_pricing_data(train_data)
         train_x_dict, train_y_dict = self._data_transformation.create_train_data(train_data, historical_universes)
+
         logging.info("Preprocessing training data")
         train_x = self._preprocess_inputs(train_x_dict)
         train_y = self._preprocess_outputs(train_y_dict)
@@ -147,19 +147,26 @@ class CrocubotOracle:
 
         resume_train_path = None
 
-        if FLAGS.resume_training:
+        if self._tensorflow_flags.resume_training:
             try:
                 resume_train_path = self._train_file_manager.latest_train_filename(execution_time)
-            except:
+            except ValueError:
                 pass
+
         train_path = self._train_file_manager.new_filename(execution_time)
-        data_source = 'financial_stuff'
-        start_time = timer()  # TODO replace this with timeit like decorator
-        crocubot.train(self._topology, data_source, execution_time, train_x, train_y, save_path=train_path,
-                       restore_path=resume_train_path)
-        end_time = timer()
-        train_time = end_time - start_time
-        logging.info("Training took: {} seconds".format(train_time))
+
+        tensorflow_path = TensorflowPath(train_path, resume_train_path)
+        tensorboard_options = TensorboardOptions(self._tensorflow_flags.tensorboard_log_path,
+                                                 self._tensorflow_flags.learning_rate,
+                                                 self._tensorflow_flags.batch_size,
+                                                 execution_time
+                                                 )
+        data_provider = TrainDataProvider(train_x, train_y, self._tensorflow_flags.batch_size)
+        self._do_train(tensorflow_path, tensorboard_options, data_provider)
+
+    @logtime(message="Training the model.")
+    def _do_train(self, tensorflow_path, tensorboard_options, data_provider):
+        crocubot.train(self._topology, data_provider, tensorflow_path, tensorboard_options, self._tensorflow_flags)
 
     def predict(self, predict_data, execution_time):
         """
@@ -176,7 +183,7 @@ class CrocubotOracle:
         logging.info('Crocubot Oracle prediction on {}.'.format(execution_time))
 
         self.verify_pricing_data(predict_data)
-        latest_train = self._train_file_manager.latest_train_filename(execution_time)
+        latest_train_file = self._train_file_manager.latest_train_filename(execution_time)
         predict_x, symbols = self._data_transformation.create_predict_data(predict_data)
 
         logging.info('Predicting mean values.')
@@ -195,13 +202,17 @@ class CrocubotOracle:
             err_msg = 'Data shape' + str(data_input_shape) + " doesnt match network input " + str(network_input_shape)
             raise ValueError(err_msg)
 
-        predict_y = crocubot_eval.eval_neural_net(predict_x, topology=self._topology, save_file=latest_train)
+        predict_y = crocubot_eval.eval_neural_net(
+            predict_x, self._topology,
+            self._tensorflow_flags,
+            latest_train_file
+        )
 
         end_time = timer()
         eval_time = end_time - start_time
         logging.info("Crocubot evaluation took: {} seconds".format(eval_time))
 
-        if FLAGS.predict_single_shares:  # Return batch axis to series position
+        if self._tensorflow_flags.predict_single_shares:  # Return batch axis to series position
             predict_y = np.swapaxes(predict_y, axis1=1, axis2=2)
 
         predict_y = np.squeeze(predict_y, axis=1)
@@ -340,7 +351,7 @@ class CrocubotOracle:
         train_x = self.reorder_input_dimensions(train_x)
 
         # Expand dataset if requested
-        if FLAGS.predict_single_shares:
+        if self._tensorflow_flags.predict_single_shares:
             train_x = self.expand_input_data(train_x)
 
         train_x = self.verify_x_data(train_x)
@@ -348,13 +359,11 @@ class CrocubotOracle:
         return train_x.astype(np.float32)  # FIXME: set float32 in data transform, conditional on config file
 
     def _preprocess_outputs(self, train_y_dict):
-        # jut one loop below. a convoluted way of getting the only value out of a dictionary
-        for key, value in train_y_dict.items():  # FIXME move this preprocess_outputs
-            train_y = value
 
+        train_y = list(train_y_dict.values())[0]
         train_y = np.swapaxes(train_y, axis1=1, axis2=2)
 
-        if FLAGS.predict_single_shares:
+        if self._tensorflow_flags.predict_single_shares:
             n_feat_y = train_y.shape[2]
             train_y = np.reshape(train_y, [-1, 1, 1, n_feat_y])
 

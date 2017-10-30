@@ -2,8 +2,12 @@
 
 import os
 import glob
+import time
+import logging
 
 from alphai_crocubot_oracle import DATETIME_FORMAT_COMPACT
+
+logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 
 class TrainFileManager:
@@ -64,3 +68,43 @@ class TrainFileManager:
             raise ValueError("No calibration found before {}".format(execution_timestamp))
 
         return os.path.join(self._path, latest_calibration)
+
+
+def logtime(message=None):
+    def wrap(method):
+        def wrapped_f(*args, **kw):
+            ts = time.time()
+            result = method(*args, **kw)
+            te = time.time()
+            duration = te - ts
+            msg = message if message else method.__name__
+            logging.info("{}: Execution time: {} seconds".format(msg, duration))
+            return result
+
+        return wrapped_f
+
+    return wrap
+
+
+def printtime(message=None):
+    def wrap(method):
+        def wrapped_f(*args, **kw):
+            ts = time.time()
+            result = method(*args, **kw)
+            te = time.time()
+            duration = te - ts
+            msg = message if message else method.__name__
+            print("{}: Execution time: {} seconds".format(msg, duration))
+            return result
+
+        return wrapped_f
+
+    return wrap
+
+
+def execute_and_get_duration(method, *args, **kw):
+    ts = time.time()
+    result = method(*args, **kw)
+    te = time.time()
+    duration = te - ts
+    return duration, result

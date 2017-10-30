@@ -5,8 +5,7 @@ from scipy.stats import norm
 from alphai_crocubot_oracle.bayesian_cost import BayesianCost
 from alphai_crocubot_oracle.topology import Topology
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel
-from alphai_crocubot_oracle.flags import FLAGS
-from tests.helpers import default as initialize_default_flags
+from tests.helpers import get_default_flags
 
 
 class TestBayesianCost(tf.test.TestCase):
@@ -30,7 +29,7 @@ class TestBayesianCost(tf.test.TestCase):
 
     def test_init(self):
 
-        initialize_default_flags()
+        flags = get_default_flags()
 
         layer_number = [
             {"activation_func": "relu", "trainable": False, "height": 20, "width": 10, "cell_height": 1},
@@ -39,7 +38,7 @@ class TestBayesianCost(tf.test.TestCase):
         ]
         topology = Topology(layer_number)
 
-        self.model = CrocuBotModel(topology, FLAGS)
+        self.model = CrocuBotModel(topology, flags)
 
         # case1 no error thrown
         use_double_gaussian_weights_prior = True
