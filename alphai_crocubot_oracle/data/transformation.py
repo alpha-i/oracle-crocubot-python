@@ -333,17 +333,20 @@ class FinancialDataTransformation(DataTransformation):
 
         return x_list
 
-    def extract_data_by_symbol(self, x_list, symbol, feature_name):
+    @staticmethod
+    def extract_data_by_symbol(x_list, symbol, feature_name):
         """ Collect all data from a list of dicts of features, for a given symbol """
 
         collated_data = []
         for x_dict in x_list:
-            sample = x_dict[feature_name][symbol]
-            collated_data.extend(sample.dropna().values)
+            if symbol in x_dict[feature_name].columns:
+                sample = x_dict[feature_name][symbol]
+                collated_data.extend(sample.dropna().values)
 
         return np.asarray(collated_data)
 
-    def extract_all_data(self,  x_list, feature_name):
+    @staticmethod
+    def extract_all_data(x_list, feature_name):
         """ Extracts all finite values from list of dictionaries"""
 
         collated_data = []
@@ -354,7 +357,6 @@ class FinancialDataTransformation(DataTransformation):
             collated_data.extend(finite_values)
 
         return np.asarray(collated_data)
-
 
     def _make_classified_y_list(self, y_list):
         """ Takes list of dictionaries, and classifies them based on the full sample
@@ -385,19 +387,6 @@ class FinancialDataTransformation(DataTransformation):
                 logging.info("Failed to find {} in dict: {}".format(target_name, list(y_dict.keys())))
                 logging.info("y_list: {}".format(y_list))
 
-        # for y_dict in y_list:
-        #
-        #     if target_feature.nbins:
-        #         # y_key_list = list(y_dict.keys())
-        #         # y_train_data = y_dict[y_key_list[0]]
-        #         y_train_dataframe = y_dict[target_feature.full_name]
-        #         y_dict = {target_feature.full_name: target_feature.classify_train_data_y(y_train_data)}
-        #
-        #
-        # else:
-        #     raise NotImplementedError('If not using a classifier, we need to implement an inverse y transformation.'
-        #                               ' Take care with the discintion between the '
-        #                               'timescale for the x and y log returns')
         return y_list
 
     def build_features(self, raw_data_dict, historical_universes, prediction_market_open, target_market_open):
