@@ -135,9 +135,7 @@ def train(topology, series_name, execution_time, train_x=None, train_y=None, bin
                 msg = "Epoch {} of {} ... Loss: {:.2e}. in {:.2f} seconds.".format(epoch + 1, n_epochs, epoch_loss,
                                                                                    time_epoch)
                 logging.info(msg)
-
                 # accuracy_test
-
 
         out_path = saver.save(sess, save_path)
         logging.info("Model saved in file:{}".format(out_path))
@@ -244,13 +242,11 @@ def _set_training_operator(cost_operator, global_step):
 
 
 def shuffle_training_data(train_x, train_y):
-    """ Reorder the numpy array in a random manner """
+    """ Reorder the numpy arrays in a random but consistent manner """
 
-    n_samples = train_x.shape[0]
-    indices = np.arange(n_samples)
-    np.random.shuffle(indices)
-
-    train_x = train_x[indices, :, :]
-    train_y = train_y[indices, :, :]
+    rng_state = np.random.get_state()
+    np.random.shuffle(train_x)
+    np.random.set_state(rng_state)
+    np.random.shuffle(train_y)
 
     return train_x, train_y
