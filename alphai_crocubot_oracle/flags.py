@@ -13,7 +13,7 @@ def set_training_flags(config):
     tf.flags._global_parser = argparse.ArgumentParser()
 
     if 'optimisation_method' not in config:
-        config['optimisation_method'] = 'Adam'
+        config['optimisation_method'] = 'GDO'
 
     tf.app.flags.DEFINE_boolean('predict_single_shares', config['predict_single_shares'],
                                 """Whether the network predicts one share at a time.""")

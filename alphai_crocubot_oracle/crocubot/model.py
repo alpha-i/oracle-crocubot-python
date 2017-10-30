@@ -84,7 +84,7 @@ class CrocuBotModel:
             self._create_variable_for_layer(
                 layer_number,
                 self.VAR_WEIGHT_RHO,
-                initial_rho_weights + tm.centred_gaussian(w_shape, np.abs(initial_rho_weights) / 10)
+                initial_rho_weights + tf.zeros(w_shape, tm.DEFAULT_TF_TYPE)
             )
 
             self._create_variable_for_layer(
@@ -96,7 +96,7 @@ class CrocuBotModel:
             self._create_variable_for_layer(
                 layer_number,
                 self.VAR_BIAS_RHO,
-                initial_rho_bias + tm.centred_gaussian(b_shape, np.abs(initial_rho_bias) / 10)
+                initial_rho_bias + tf.zeros(b_shape, tm.DEFAULT_TF_TYPE)
             )
 
             self._create_variable_for_layer(
