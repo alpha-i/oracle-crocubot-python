@@ -87,6 +87,7 @@ class CrocubotOracle:
         else:
             self.use_historical_covariance = False
 
+        # FIXME use n_correlated_series configuration.get('n_correlated_series', DEFAULT_N_CORRELATED_SERIES)
         if 'n_correlated_series' in configuration:
             n_correlated_series = configuration['n_correlated_series']
         else:
