@@ -1,9 +1,9 @@
 from unittest import TestCase
 from tests.helpers import (create_fixtures, destroy_fixtures, read_hdf5_into_dict_of_data_frames, FIXTURE_DATA_FULLPATH)
 import pandas as pd
-from alphai_crocubot_oracle.covariance import estimate_covariance, DEFAULT_NUM_REALISATIONS_MULTIPLICATION_FACTOR
+from alphai_crocubot_oracle.covariance import estimate_covariance, DEFAULT_NUM_REALISATIONS_MULTIPLICATION_FACTOR, \
+    returns_minutes_after_market_open_data_frame
 from alphai_crocubot_oracle.data.transformation import FinancialDataTransformation
-from alphai_crocubot_oracle.metrics.returns import returns_minutes_after_market_open_data_frame
 
 from sklearn.covariance import GraphLassoCV
 import numpy as np

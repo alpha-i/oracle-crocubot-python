@@ -10,7 +10,7 @@ import numpy as np
 import alphai_crocubot_oracle.bayesian_cost as cost
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel, Estimator
 import alphai_crocubot_oracle.iotools as io
-from alphai_crocubot_oracle.constants import DATETIME_FORMAT_COMPACT
+from alphai_crocubot_oracle import DATETIME_FORMAT_COMPACT
 
 from alphai_data_sources.data_sources import DataSourceGenerator
 from alphai_data_sources.generator import BatchOptions

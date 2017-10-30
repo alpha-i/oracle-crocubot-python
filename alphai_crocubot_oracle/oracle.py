@@ -19,7 +19,7 @@ import alphai_crocubot_oracle.crocubot.train as crocubot
 import alphai_crocubot_oracle.crocubot.evaluate as crocubot_eval
 from alphai_crocubot_oracle.flags import set_training_flags
 import alphai_crocubot_oracle.topology as tp
-from alphai_crocubot_oracle.constants import DATETIME_FORMAT_COMPACT
+from alphai_crocubot_oracle import DATETIME_FORMAT_COMPACT
 from alphai_crocubot_oracle.covariance import estimate_covariance
 from alphai_crocubot_oracle.helpers import TrainFileManager
 

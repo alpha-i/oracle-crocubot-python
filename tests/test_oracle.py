@@ -4,7 +4,7 @@ from unittest import TestCase
 
 import pandas as pd
 
-from alphai_crocubot_oracle.constants import DATETIME_FORMAT_COMPACT
+from alphai_crocubot_oracle import DATETIME_FORMAT_COMPACT
 from alphai_crocubot_oracle.oracle import TRAIN_FILE_NAME_TEMPLATE
 
 from tests.helpers import (
