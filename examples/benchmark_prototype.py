@@ -180,6 +180,7 @@ def load_default_topology(series_name):
     """The input and output layers must adhere to the dimensions of the features and labels.
     """
 
+    layer_types = ['full', 'full', 'full', 'full']
     if series_name == 'low_noise':
         n_input_series = 1
         n_features_per_series = 100
@@ -191,15 +192,24 @@ def load_default_topology(series_name):
         n_classification_bins = 12
         n_output_series = 10
     elif series_name == 'mnist':
+        if FLAGS.use_convolution:
+            layer_types[0] = 'convolution'
         n_input_series = 1
         n_features_per_series = 784
+        n_classification_bins = 10
+        n_output_series = 1
+    elif series_name == 'mnist_reshaped':
+        if FLAGS.use_convolution:
+            layer_types[0] = 'convolution'
+        n_input_series = 28
+        n_features_per_series = 28
         n_classification_bins = 10
         n_output_series = 1
     else:
         raise NotImplementedError
 
     return topo.Topology(layers=None, n_series=n_input_series, n_features_per_series=n_features_per_series, n_forecasts=n_output_series,
-                         n_classification_bins=n_classification_bins)
+                         n_classification_bins=n_classification_bins, layer_types=layer_types)
 
 
 def print_MNIST_accuracy(metrics):
@@ -250,6 +260,7 @@ def run_mnist_test(train_path, tensorboard_log_path, method='Adam', use_full_tra
     config['n_retrain_epochs'] = 5
     config['n_train_passes'] = 1
     config['n_eval_passes'] = 40
+    config['use_convolution'] = True
 
     fl.set_training_flags(config)
     # this flag is only used in benchmark.
@@ -279,6 +290,7 @@ def run_stochastic_test(train_path, tensorboard_log_path):
     config['train_path'] = train_path
     config['model_save_path'] = train_path
     config['n_retrain_epochs'] = 5
+    config['use_convolution'] = False
 
     fl.set_training_flags(config)
     # this flag is only used in benchmark.
