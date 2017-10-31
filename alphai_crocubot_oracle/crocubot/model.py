@@ -16,6 +16,7 @@ import tensorflow as tf
 
 import alphai_crocubot_oracle.tensormaths as tm
 
+CONVOLUTIONAL_LAYER = 'convolution'
 
 class CrocuBotModel:
 
@@ -217,9 +218,27 @@ class Estimator:
         for layer_number in range(self._model.topology.n_layers):
             weights = self._model.compute_weights(layer_number, iteration)
             biases = self._model.compute_biases(layer_number, iteration)
-
-            signal = tf.tensordot(signal, weights, axes=2) + biases
+            layer_type = self._model.topology.get_layer_type(layer_number)
             activation_function = self._model.topology.get_activation_function(layer_number)
-            signal = activation_function(signal)
+
+            if layer_type == CONVOLUTIONAL_LAYER:
+                signal = self.convolutional_layer(signal)
+            else:
+                signal = tf.tensordot(signal, weights, axes=2) + biases
+                signal = activation_function(signal)
 
         return signal
+
+    def convolutional_layer(self, signal):
+        """ Sets a convolutional layer"""
+
+        signal = tf.layers.conv1d(
+            inputs=signal,
+            filters=32,
+            kernel_size=[5, 5],
+            padding="same",
+            activation=tf.nn.relu)
+
+        return tf.layers.max_pooling2d(inputs=signal, pool_size=[2, 2], strides=2)
+
+

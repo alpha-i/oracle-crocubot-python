@@ -138,6 +138,10 @@ class Topology(object):
 
         return bias_shape
 
+    def get_layer_type(self, layer_number):
+
+        return self.layers[layer_number]["type"]
+
     def get_activation_function(self, layer_number):
 
         function_name = self.layers[layer_number + 1]["activation_func"]
