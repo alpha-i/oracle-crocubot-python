@@ -10,7 +10,7 @@ logger.addHandler(logging.StreamHandler())
 logging.basicConfig(level=logging.DEBUG)
 
 FLAGS = tf.app.flags.FLAGS
-N_CYCLES = 10
+N_CYCLES = 5
 
 
 def run_mnist_tests(optimisation_method):
@@ -77,5 +77,7 @@ for method in opt_methods:
 # -> -0.070477
 
 
+# Results: 200 epoch no extra cost term but new initialisation (40 eval pass, 1 train, lr = 1e-3)
+# GDO [ 0.981   0.9814  0.9808  0.9801  0.9817] -> 0.981
+    # Likeli -0.074672919459
 # Adam:
-#
