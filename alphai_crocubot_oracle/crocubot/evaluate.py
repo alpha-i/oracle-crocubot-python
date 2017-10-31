@@ -44,9 +44,13 @@ def eval_neural_net(data, topology, save_file):
         delta_time = end_time - start_time
         logging.info("Loading the model from disk took:{}".format(delta_time))
 
+        sess.run(tf.global_variables_initializer())
+
         log_p = y.eval()
 
-        return np.exp(log_p)
+    posterior = np.exp(log_p)
+
+    return posterior
 
 
 def forecast_means_and_variance(outputs, bin_distribution):

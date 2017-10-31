@@ -65,7 +65,6 @@ def train(topology, series_name, execution_time, train_x=None, train_y=None, bin
     optimize = _set_training_operator(cost_operator, global_step)
 
     all_summaries = tf.summary.merge_all()
-
     model_initialiser = tf.global_variables_initializer()
 
     # TODO set save_path and restore path as required so we can remove the dependency

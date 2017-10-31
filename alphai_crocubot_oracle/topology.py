@@ -10,8 +10,8 @@ ACTIVATION_FN_RELU = "relu"
 
 ALLOWED_ACTIVATION_FN = [ACTIVATION_FN_RELU, ACTIVATION_FN_SELU, ACTIVATION_FN_LINEAR]
 
-DEFAULT_N_SERIES = 3
-DEFAULT_FEAT_PER_SERIES = 10
+DEFAULT_N_SERIES = 28
+DEFAULT_FEAT_PER_SERIES = 28
 DEFAULT_BINS = 10
 DEFAULT_N_FORECASTS = 3
 DEFAULT_HIDDEN_LAYERS = 2
@@ -176,10 +176,19 @@ class Topology(object):
             layer = {}
             layer["activation_func"] = activation_functions[i]
             layer["trainable"] = True  # Just hardcode for now, will be configurable in future
-            layer["height"] = layer_heights[i]
-            layer["width"] = layer_widths[i]
             layer["cell_height"] = 1  # Just hardcode for now, will be configurable in future
             layer["type"] = layer_types[i]
+
+            layer["height"] = layer_heights[i]
+            layer["width"] = layer_widths[i]
+
+            if i > 0:  # Ensure dimensions are consistent
+                if layer_types[i-1] == 'pool2d':
+                    layer["height"] = int(layer_heights[i - 1] / 2)
+                    layer["width"] = int(layer_widths[i - 1] / 2)
+                elif layer_types[i-1] in {'conv2d', 'conv1d'}:
+                    layer["height"] = int(layer_heights[i - 1])
+                    layer["width"] = int(layer_widths[i - 1])
 
             layers.append(layer)
 
