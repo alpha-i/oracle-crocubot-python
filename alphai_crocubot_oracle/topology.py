@@ -17,7 +17,8 @@ DEFAULT_N_FORECASTS = 3
 DEFAULT_HIDDEN_LAYERS = 2
 DEFAULT_HEIGHT = 400  # NB this is the dimension which gets shuffled
 DEFAULT_WIDTH = 1  # NB noise in this dimension is not shuffled
-DEFAULT_ACT_FUNCTION = 'selu'
+DEFAULT_ACT_FUNCTION = 'relu'
+DEFAULT_LAYER_TYPE = 'full'
 
 
 class Topology(object):
@@ -28,7 +29,7 @@ class Topology(object):
 
     def __init__(self, layers=None, n_series=DEFAULT_N_SERIES, n_features_per_series=DEFAULT_FEAT_PER_SERIES,
                  n_forecasts=DEFAULT_N_FORECASTS, n_classification_bins=DEFAULT_BINS, layer_heights=None,
-                 layer_widths=None, activation_functions=None):
+                 layer_widths=None, activation_functions=None, layer_types=None):
         """
         Following info is required to construct a topology object
         :param layers: Full list of layers can be provided, or:
@@ -46,7 +47,7 @@ class Topology(object):
             layer_heights, layer_widths, activation_functions = self.get_default_layers(DEFAULT_HIDDEN_LAYERS)
 
         if layers is None:
-            layers = self._build_layers(layer_heights, layer_widths, activation_functions)
+            layers = self._build_layers(layer_heights, layer_widths, activation_functions, layer_types)
             # FIXME Short term hack to ensure consistency - the following four lines should probably be assertions
             layers[0]["width"] = n_features_per_series
             layers[0]["height"] = n_series
@@ -152,7 +153,7 @@ class Topology(object):
         else:
             raise NotImplementedError
 
-    def _build_layers(self, layer_heights, layer_widths, activation_functions):
+    def _build_layers(self, layer_heights, layer_widths, activation_functions, layer_types):
         """
         :param activation_functions:
         :param n_series:
@@ -174,6 +175,7 @@ class Topology(object):
             layer["height"] = layer_heights[i]
             layer["width"] = layer_widths[i]
             layer["cell_height"] = 1  # Just hardcode for now, will be configurable in future
+            layer["type"] = layer_types[i]
 
             layers.append(layer)
 
