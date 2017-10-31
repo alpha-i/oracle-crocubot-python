@@ -340,10 +340,10 @@ def load_default_config():
 
         # Initial conditions
         'INITIAL_ALPHA': 0.8,
-        'INITIAL_WEIGHT_UNCERTAINTY': 0.01,
-        'INITIAL_BIAS_UNCERTAINTY': 0.001,
-        'INITIAL_WEIGHT_DISPLACEMENT': 0.001,
-        'INITIAL_BIAS_DISPLACEMENT': 0.0001,
+        'INITIAL_WEIGHT_UNCERTAINTY': 0.02,
+        'INITIAL_BIAS_UNCERTAINTY': 0.02,
+        'INITIAL_WEIGHT_DISPLACEMENT': 0.1,
+        'INITIAL_BIAS_DISPLACEMENT': 0.1,
         'USE_PERFECT_NOISE': False,
 
         # Priors
