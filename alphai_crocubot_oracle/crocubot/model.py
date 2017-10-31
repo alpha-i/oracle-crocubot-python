@@ -16,7 +16,14 @@ import tensorflow as tf
 
 import alphai_crocubot_oracle.tensormaths as tm
 
-CONVOLUTIONAL_LAYER = 'convolution'
+CONVOLUTIONAL_LAYER_1D = 'conv1d'
+CONVOLUTIONAL_LAYER_2D = 'conv2d'
+FULLY_CONNECTED_LAYER = 'full'
+POOL_LAYER_2D = 'pool2d'
+KERNEL_HEIGHT = 3
+KERNEL_WIDTH = 3
+DEFAULT_N_KERNELS = 1
+
 
 class CrocuBotModel:
 
@@ -216,41 +223,62 @@ class Estimator:
         """
 
         for layer_number in range(self._model.topology.n_layers):
-            weights = self._model.compute_weights(layer_number, iteration)
-            biases = self._model.compute_biases(layer_number, iteration)
-            layer_type = self._model.topology.get_layer_type(layer_number)
-            activation_function = self._model.topology.get_activation_function(layer_number)
-
-            if layer_type == CONVOLUTIONAL_LAYER:
-                signal = self.convolutional_layer_1D(signal)
-            else:
-                signal = tf.tensordot(signal, weights, axes=2) + biases
-                signal = activation_function(signal)
+            signal = self.single_layer_pass(signal, layer_number, iteration)
 
         return signal
 
-    def convolutional_layer_1D(self, signal):
-        """ Sets a convolutional layer"""
+    def single_layer_pass(self, signal, layer_number, iteration):
+
+        layer_type = self._model.topology.get_layer_type(layer_number)
+        activation_function = self._model.topology.get_activation_function(layer_number)
+
+        if layer_type == CONVOLUTIONAL_LAYER_1D:
+            signal = self.convolutional_layer_1d(signal)
+        elif layer_type == CONVOLUTIONAL_LAYER_2D:
+            signal = self.convolutional_layer_2d(signal)
+        elif layer_type == FULLY_CONNECTED_LAYER:
+            weights = self._model.compute_weights(layer_number, iteration)
+            biases = self._model.compute_biases(layer_number, iteration)
+            signal = tf.tensordot(signal, weights, axes=2) + biases
+        elif layer_type == POOL_LAYER_2D:
+            signal = self.pool_layer_2d(signal)
+        else:
+            raise ValueError('Unknown layer type')
+
+        return activation_function(signal)
+
+    def convolutional_layer_1d(self, signal):
+        """ Sets a convolutional layer with a one-dimensional kernel. """
 
         signal = tf.layers.conv1d(
             inputs=signal,
             filters=6,
             kernel_size=(5,),
             padding="same",
-            activation=tf.nn.relu)
+            activation=None)
 
-        return tf.layers.max_pooling1d(inputs=signal, pool_size=[4], strides=2)
+        pooled_signal = tf.layers.max_pooling1d(inputs=signal, pool_size=[4], strides=2)
 
-    def convolutional_layer_2D(self, signal):
-        """ Sets a convolutional layer"""
+        return pooled_signal
+
+    def convolutional_layer_2d(self, signal):
+        """ Sets a convolutional layer with a two-dimensional kernel. """
+
+        signal = tf.expand_dims(signal, -1)
 
         signal = tf.layers.conv2d(
             inputs=signal,
-            filters=32,
-            kernel_size=[5, 5],
+            filters=DEFAULT_N_KERNELS,
+            kernel_size=[KERNEL_HEIGHT, KERNEL_WIDTH],
             padding="same",
-            activation=tf.nn.relu)
+            activation=None)
 
-        return tf.layers.max_pooling2d(inputs=signal, pool_size=[2, 2], strides=2)
+        return tf.squeeze(signal, axis=-1)
 
+    def pool_layer_2d(self, signal):
 
+        signal = tf.expand_dims(signal, -1)
+
+        pooled_signal = tf.layers.max_pooling2d(inputs=signal, pool_size=[2, 2], strides=2)
+
+        return tf.squeeze(pooled_signal, axis=-1)

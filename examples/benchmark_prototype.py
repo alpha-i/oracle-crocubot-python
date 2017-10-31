@@ -133,7 +133,7 @@ def evaluate_network(topology, series_name, bin_dist):  # bin_dist not used in M
     binned_outputs = eval.eval_neural_net(test_features, topology, save_file)
     n_samples = binned_outputs.shape[1]
 
-    if series_name == 'mnist':
+    if series_name in {'mnist', 'mnist_reshaped'}:
         binned_outputs = np.mean(binned_outputs, axis=0)  # Average over passes
         predicted_indices = np.argmax(binned_outputs, axis=2)
         true_indices = np.argmax(test_labels, axis=2)
@@ -181,6 +181,10 @@ def load_default_topology(series_name):
     """
 
     layer_types = ['full', 'full', 'full', 'full']
+    layer_heights = None,
+    layer_widths = None,
+    activation_functions = None
+
     if series_name == 'low_noise':
         n_input_series = 1
         n_features_per_series = 100
@@ -193,14 +197,20 @@ def load_default_topology(series_name):
         n_output_series = 10
     elif series_name == 'mnist':
         if FLAGS.use_convolution:
-            layer_types[0] = 'convolution'
+            layer_types[0] = ['conv1d', 'full', 'full', 'full']
+            layer_heights = [784, 1, 1, 1]
+            layer_widths = [1, 1, 1, 1]
+            activation_functions = ['linear', 'relu', 'relu', 'relu', 'linear']
         n_input_series = 1
         n_features_per_series = 784
         n_classification_bins = 10
         n_output_series = 1
     elif series_name == 'mnist_reshaped':
         if FLAGS.use_convolution:
-            layer_types[0] = 'convolution'
+            layer_types = ['conv2d', 'full', 'full', 'full', 'full']
+            layer_heights = [28, 28, 28, 400, 10]
+            layer_widths = [28, 28, 28, 1, 1]
+            activation_functions = ['linear', 'relu', 'relu', 'relu', 'linear']
         n_input_series = 28
         n_features_per_series = 28
         n_classification_bins = 10
@@ -208,8 +218,13 @@ def load_default_topology(series_name):
     else:
         raise NotImplementedError
 
-    return topo.Topology(layers=None, n_series=n_input_series, n_features_per_series=n_features_per_series, n_forecasts=n_output_series,
-                         n_classification_bins=n_classification_bins, layer_types=layer_types)
+    topology = topo.Topology(layers=None, n_series=n_input_series, n_features_per_series=n_features_per_series,
+                             n_forecasts=n_output_series,
+                             n_classification_bins=n_classification_bins, layer_types=layer_types,
+                             layer_heights=layer_heights, layer_widths=layer_widths,
+                             activation_functions=activation_functions)
+
+    return topology
 
 
 def print_MNIST_accuracy(metrics):
@@ -234,11 +249,11 @@ def print_MNIST_accuracy(metrics):
     return accuracy
 
 
-def run_mnist_test(train_path, tensorboard_log_path, method='Adam', use_full_train_set=True):
+def run_mnist_test(train_path, tensorboard_log_path, method='GDO', use_full_train_set=True, reshape_to_2d=False):
 
     if use_full_train_set:
         n_training_samples = 60000
-        n_epochs = 200
+        n_epochs = 10
     else:
         n_training_samples = 500
         n_epochs = 100
@@ -269,7 +284,12 @@ def run_mnist_test(train_path, tensorboard_log_path, method='Adam', use_full_tra
     FLAGS._parse_flags()
     print("Epochs to evaluate:", FLAGS.n_epochs)
 
-    return run_timed_benchmark_mnist(series_name="mnist", do_training=True)
+    if reshape_to_2d:
+        series_name = "mnist_reshaped"
+    else:
+        series_name = "mnist"
+
+    return run_timed_benchmark_mnist(series_name=series_name, do_training=True)
 
 
 def run_stochastic_test(train_path, tensorboard_log_path):
