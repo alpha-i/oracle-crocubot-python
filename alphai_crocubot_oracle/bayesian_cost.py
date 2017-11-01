@@ -45,7 +45,6 @@ class BayesianCost(object):
         :return:
         """
         log_py = 0.5 * tf.reduce_sum(prediction + tf.log(1.0 - tf.exp(prediction)))
-        
         return log_py
 
     def calculate_priors(self):

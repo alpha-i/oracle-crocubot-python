@@ -207,7 +207,7 @@ class FinancialDataTransformation(DataTransformation):
 
         training_dates = self.get_training_market_dates(raw_data_dict)
         train_x, train_y, _ = self._create_data(raw_data_dict, training_dates, historical_universes,
-                                             do_normalisation_fitting=True)
+                                                do_normalisation_fitting=True)
         return train_x, train_y
 
     def create_predict_data(self, raw_data_dict):
