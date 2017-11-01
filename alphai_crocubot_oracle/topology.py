@@ -157,7 +157,7 @@ class Topology(object):
         else:
             raise NotImplementedError
 
-    def _build_layers(self, layer_heights, layer_widths, activation_functions, layer_types):
+    def _build_layers(self, layer_heights, layer_widths, activation_functions, layer_types=None):
         """
         :param activation_functions:
         :param n_series:
@@ -177,16 +177,22 @@ class Topology(object):
             layer["activation_func"] = activation_functions[i]
             layer["trainable"] = True  # Just hardcode for now, will be configurable in future
             layer["cell_height"] = 1  # Just hardcode for now, will be configurable in future
-            layer["type"] = layer_types[i]
+
+            if layer_types is None:
+                layer["type"] = DEFAULT_LAYER_TYPE
+            else:
+                layer["type"] = layer_types[i]
 
             layer["height"] = layer_heights[i]
             layer["width"] = layer_widths[i]
 
-            if i > 0:  # Ensure dimensions are consistent
-                if layer_types[i-1] == 'pool2d':
+            if i > 0:  # Enforce consistent dimensions
+                previous_layer_type = layers[i - 1]["type"]
+
+                if previous_layer_type == 'pool2d':
                     layer["height"] = int(layer_heights[i - 1] / 2)
                     layer["width"] = int(layer_widths[i - 1] / 2)
-                elif layer_types[i-1] in {'conv2d', 'conv1d'}:
+                elif previous_layer_type in {'conv2d', 'conv1d'}:
                     layer["height"] = int(layer_heights[i - 1])
                     layer["width"] = int(layer_widths[i - 1])
 
