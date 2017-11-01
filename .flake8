@@ -4,7 +4,6 @@ exclude=
     # src is where the pip installs other build related stuff in CI builds.
     src/,
     # we don't want the flake8 to look in third party.
-    alphai_crocubot_oracle/third_party/,
     doc/,
     # No need to traverse our git directory
     .git/,
@@ -12,7 +11,7 @@ exclude=
     build,
     dist,
     alphai_crocubot_oracle/flags.py,
-    examples/benchmark_prototype.py
+    examples/,
     setup.py
 
 max-complexity = 15
