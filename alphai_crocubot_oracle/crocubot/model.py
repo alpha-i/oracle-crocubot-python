@@ -19,6 +19,7 @@ import alphai_crocubot_oracle.tensormaths as tm
 CONVOLUTIONAL_LAYER_1D = 'conv1d'
 CONVOLUTIONAL_LAYER_2D = 'conv2d'
 FULLY_CONNECTED_LAYER = 'full'
+RESIDUAL_LAYER = 'res'
 POOL_LAYER_2D = 'pool2d'
 KERNEL_HEIGHT = 3
 KERNEL_WIDTH = 3
@@ -235,7 +236,7 @@ class Estimator:
         if layer_type == CONVOLUTIONAL_LAYER_1D:
             signal = self.convolutional_layer_1d(signal)
         elif layer_type == CONVOLUTIONAL_LAYER_2D:
-            signal = self.convolutional_layer_2d(signal)
+            signal = self.convolutional_layer_2d(signal, iteration)
         elif layer_type == FULLY_CONNECTED_LAYER:
             weights = self._model.compute_weights(layer_number, iteration)
             biases = self._model.compute_biases(layer_number, iteration)
@@ -247,31 +248,46 @@ class Estimator:
 
         return activation_function(signal)
 
-    def convolutional_layer_1d(self, signal):
+    def convolutional_layer_1d(self, signal, iteration):
         """ Sets a convolutional layer with a one-dimensional kernel. """
+
+        reuse_kernel = (iteration > 0)  # later passes reuse kernel
 
         signal = tf.layers.conv1d(
             inputs=signal,
             filters=6,
             kernel_size=(5,),
             padding="same",
-            activation=None)
+            activation=None,
+            reuse=reuse_kernel)
 
         pooled_signal = tf.layers.max_pooling1d(inputs=signal, pool_size=[4], strides=2)
 
         return pooled_signal
 
-    def convolutional_layer_2d(self, signal):
+    def convolutional_layer_2d(self, signal, iteration):
         """ Sets a convolutional layer with a two-dimensional kernel. """
 
         signal = tf.expand_dims(signal, -1)
 
-        signal = tf.layers.conv2d(
-            inputs=signal,
-            filters=DEFAULT_N_KERNELS,
-            kernel_size=[KERNEL_HEIGHT, KERNEL_WIDTH],
-            padding="same",
-            activation=None)
+        try:
+            signal = tf.layers.conv2d(
+                inputs=signal,
+                filters=DEFAULT_N_KERNELS,
+                kernel_size=[KERNEL_HEIGHT, KERNEL_WIDTH],
+                padding="same",
+                activation=None,
+                name='conv2d',
+                reuse=False)
+        except:
+            signal = tf.layers.conv2d(
+                inputs=signal,
+                filters=DEFAULT_N_KERNELS,
+                kernel_size=[KERNEL_HEIGHT, KERNEL_WIDTH],
+                padding="same",
+                activation=None,
+                name='conv2d',
+                reuse=True)
 
         return tf.squeeze(signal, axis=-1)
 

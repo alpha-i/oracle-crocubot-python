@@ -13,6 +13,7 @@ from alphai_crocubot_oracle.data.classifier import declassify_labels
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel, Estimator
 
 FLAGS = tf.app.flags.FLAGS
+PRINT_KERNEL = True
 
 
 def eval_neural_net(data, topology, save_file):
@@ -27,26 +28,39 @@ def eval_neural_net(data, topology, save_file):
     logging.info("Evaluating with shape {}".format(data.shape))
 
     model = CrocuBotModel(topology, FLAGS)
-    try:
-        model.build_layers_variables()
-    except:
-        logging.info('Variables already initialised')
-
+    # reuse_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="conv[2]d")
+    # reuse_vars_dict = dict([(var.op.name, var) for var in reuse_vars])
     saver = tf.train.Saver()
+
     estimator = Estimator(model, FLAGS)
     y = estimator.collate_multiple_passes(data, FLAGS.n_eval_passes)
 
     with tf.Session() as sess:
         logging.info("Attempting to recover trained network: {}".format(save_file))
         start_time = timer()
+
         saver.restore(sess, save_file)
+
         end_time = timer()
         delta_time = end_time - start_time
         logging.info("Loading the model from disk took:{}".format(delta_time))
 
-        sess.run(tf.global_variables_initializer())
+        graph = tf.get_default_graph()
+        # Finally we can retrieve tensors, operations, collections, etc.
+        try:
+            kernel = graph.get_tensor_by_name('conv2d:0').eval()
+            logging.info("Evaluating conv2d with kernel: {}".format(kernel.flatten()))
+        except:
+            pass
 
         log_p = y.eval()
+
+        if PRINT_KERNEL:
+            gr = tf.get_default_graph()
+            conv1_kernel_val = gr.get_tensor_by_name('conv2d/kernel:0').eval()
+            conv1_bias_val = gr.get_tensor_by_name('conv2d/bias:0').eval()
+            logging.info("Kernel values: {}".format(conv1_kernel_val.flatten()))
+            logging.info("Kernel bias: {}".format(conv1_bias_val))
 
     posterior = np.exp(log_p)
 

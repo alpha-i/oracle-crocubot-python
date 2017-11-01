@@ -19,6 +19,7 @@ FLAGS = tf.app.flags.FLAGS
 PRINT_LOSS_INTERVAL = 20
 PRINT_SUMMARY_INTERVAL = 5
 MAX_GRADIENT = 7.0
+PRINT_KERNEL = True
 
 
 # TODO encapsulate the parameters in a ParameterObject
@@ -125,6 +126,14 @@ def train(topology, series_name, execution_time, train_x=None, train_y=None, bin
                     summary_writer.add_summary(summary_results, summary_index)
 
             time_epoch = timer() - start_time
+
+            # Print convolutional kernel
+            if PRINT_KERNEL:
+                gr = tf.get_default_graph()
+                conv1_kernel_val = gr.get_tensor_by_name('conv2d/kernel:0').eval()
+                conv1_bias_val = gr.get_tensor_by_name('conv2d/bias:0').eval()
+                logging.info("Kernel values: {}".format(conv1_kernel_val.flatten()))
+                logging.info("Kernel bias: {}".format(conv1_bias_val))
 
             if epoch_loss != epoch_loss:
                 raise ValueError("Found nan value for epoch loss.")
