@@ -1,9 +1,10 @@
 from unittest import TestCase
 from tests.helpers import (create_fixtures, destroy_fixtures, read_hdf5_into_dict_of_data_frames, FIXTURE_DATA_FULLPATH)
 import pandas as pd
-from alphai_crocubot_oracle.covariance import estimate_covariance, DEFAULT_NUM_REALISATIONS_MULTIPLICATION_FACTOR
-from alphai_finance.data.transformation import FinancialDataTransformation
-from alphai_finance.metrics.returns import returns_minutes_after_market_open_data_frame
+from alphai_crocubot_oracle.covariance import estimate_covariance, DEFAULT_NUM_REALISATIONS_MULTIPLICATION_FACTOR, \
+    returns_minutes_after_market_open_data_frame
+from alphai_crocubot_oracle.data.transformation import FinancialDataTransformation
+
 from sklearn.covariance import GraphLassoCV
 import numpy as np
 
@@ -34,9 +35,8 @@ class TestCrocubot(TestCase):
             'feature_config_list': [
                 {
                     'name': 'close',
-                    'order': 'log-return',
                     'normalization': 'standard',
-                    'nbins': 12,
+                    'transformation': {'name': 'log-return'},
                     'is_target': True,
                 },
             ],
@@ -48,6 +48,10 @@ class TestCrocubot(TestCase):
             'prediction_market_minute': 60,
             'target_delta_ndays': 1,
             'target_market_minute': 60,
+            'n_classification_bins': 12,
+            'nassets': 3,
+            'classify_per_series': False,
+            'normalise_per_series': False
         }
 
         data_transformation = FinancialDataTransformation(configuration)

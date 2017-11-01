@@ -12,16 +12,16 @@ logging:
       level: 'DEBUG'
       stream: 'ext://sys.stdout'
     file:
-      class : 'logging.FileHandler'
+      class: 'logging.FileHandler'
       formatter: 'formatter'
       level: 'DEBUG'
-      filename: 'D:\Zipline\20100101_20150101_500S\crocoubot_runs\logs\quant_workflow-debug.log'
+      filename: 'C:\Users\tbs19\Documents\Data\Zipline\20100101_20150101_500S\crocoubot_runs\logs\quant_workflow-debug.log'
   root:
     level: 'DEBUG'
     handlers: ['file', 'console']
 quant_workflow:
   run_mode: 'backtest'
-  results_path: 'D:\Zipline\20100101_20150101_500S\crocoubot_runs\results'
+  results_path: 'C:\Users\tbs19\Documents\Data\Zipline\20100101_20150101_500S\crocoubot_runs\results'
   fill_limit: 5
   trade_resample_rule: '15T'
   trade_history_ndays: 20
@@ -37,6 +37,7 @@ quant_workflow:
   alert_level: 'NONE'
   execution_timeout: 180.
   open_order_timeout: 3600.
+
   oracle:
     method: library
     module_path: alphai_crocubot_oracle.oracle
@@ -44,13 +45,12 @@ quant_workflow:
     oracle_arguments:
       data_transformation:
         feature_config_list:
-          -
-            name: close
-            order: 'log-return'
-            normalization: standard
-            nbins: 12
-            is_target: True
-        exchange_name: 'NYSE'
+        - normalization: standard
+          transformation:
+            name: log-return
+          is_target: True
+          name: close
+        exchange_name: "NYSE"
         features_ndays: 10
         features_resample_minutes: 15
         features_start_market_minute: 60
@@ -58,69 +58,108 @@ quant_workflow:
         prediction_market_minute: 60
         target_delta_ndays: 1
         target_market_minute: 60
-      train_path: 'D:\Zipline\20100101_20150101_500S\crocoubot_runs\train'
-      tensorboard_log_path: 'D:\Zipline\20100101_20150101_500S\crocoubot_runs\temp'
-      covariance_method: 'Ledoit'
+
+      train_path: 'C:\Users\tbs19\Documents\Data\Zipline\20100101_20150101_500S\crocoubot_runs\train'
+      tensorboard_log_path: 'C:\Users\tbs19\Documents\Data\Zipline\20100101_20150101_500S\crocoubot_runs\temp'
+      covariance_method: Ledoit
       covariance_ndays: 9
-      model_save_path: 'D:\Zipline\20100101_20150101_500S\crocoubot_runs\model'
+      model_save_path: 'C:\Users\tbs19\Documents\Data\Zipline\20100101_20150101_500S\crocoubot_runs\model'
       d_type: float32
       tf_type: 32
       random_seed: 0
-      predict_single_shares: False
-      n_epochs: 50
-      n_retrain_epochs: 5
-      learning_rate: 1e-4
-      batch_size: 13
-      cost_type: 'bayes'
-      n_train_passes: 16
-      n_eval_passes: 16
+      predict_single_shares: True
+      n_epochs: 10
+      n_retrain_epochs: 1
+      n_training_samples: 15800
+      learning_rate: 0.001
+      batch_size: 50
+      cost_type: bayes
+      n_train_passes: 4
+      n_eval_passes: 4
       resume_training: True
-      n_series: 200
+      n_series: 1
+      nassets: 100
       n_features_per_series: 271
-      n_forecasts: 200
-      n_classification_bins: 12
-      layer_heights: [3, 200, 200, 200]
-      layer_widths: [3, 1, 1, 1]
-      activation_functions: ["relu", "relu", "relu", "relu"]
-      INITIAL_ALPHA: 0.01
-      INITIAL_WEIGHT_UNCERTAINTY: 0.05
-      INITIAL_BIAS_UNCERTAINTY: 0.005
-      INITIAL_WEIGHT_DISPLACEMENT: 0.02
-      INITIAL_BIAS_DISPLACEMENT: 0.0005
+      n_forecasts: 1
+      n_classification_bins: 2
+      classify_per_series: True
+      normalise_per_series: True
+      layer_heights:
+      - 100
+      - 100
+      - 100
+      - 100
+
+      layer_widths:
+      - 1
+      - 1
+      - 1
+      - 1
+
+      activation_functions:
+      - selu
+      - selu
+      - selu
+      - selu
+
+      INITIAL_ALPHA: 0.2
+      INITIAL_WEIGHT_UNCERTAINTY: 0.01
+      INITIAL_BIAS_UNCERTAINTY: 0.05
+      INITIAL_WEIGHT_DISPLACEMENT: 0.05
+      INITIAL_BIAS_DISPLACEMENT: 0.2
       USE_PERFECT_NOISE: True
       double_gaussian_weights_prior: True
-      wide_prior_std: 0.8
-      narrow_prior_std: 0.0001
-      spike_slab_weighting: 0.5
+      wide_prior_std: 1.0
+      narrow_prior_std: 1e-05
+      spike_slab_weighting: 0.25
+      n_training_samples_benchmark: 1000
+
+
+
+      n_correlated_series: 5
+      use_historical_covariance: True
   portfolio:
-    max_abs_individual_weight: 0.2
-    max_abs_pos_gross_exposure: 0.75
-    max_abs_neg_gross_exposure: 0.75
-    margin_ratio: 1.0
-    max_annualised_std: 0.3
+    max_individual_weight: 0.3
+    min_individual_weight: -0.3
+    max_aggregate_exposure: 0.6
+    min_aggregate_exposure: -0.6
+    margin_ratio: 1.5
+    max_annualised_std: 0.20
+    alpha_plus: 0
+    alpha_minus: 0
+    beta_plus: 0
+    beta_minus: 0
+
+#  universe:
+#    method: liquidity
+#    nassets: 100
+#    ndays_window: 60
+#    update_frequency: monthly
+#    avg_function: median
+#    fill_limit: 5
+#    dropna: False
+
   universe:
-    method: 'liquidity'
-    nassets: 200
-    ndays_window: 100
-    update_frequency: 'monthly'
-    avg_function: 'median'
-    fill_limit: 5
-    dropna: False
+    method: 'fixed_historical'
+    historical_universes_filepath: 'C:\Users\tbs19\Documents\Data\Zipline\20100101_20150101_500S\resources\liquidity_historical_universe_20000101_20171005_400S_25_monthly.csv'
+
 zipline:
-  zipline_root: 'D:\Zipline\20100101_20150101_500S\zipline_root'
-  start_date: '20110401'
-  end_date: '20110415'
-  capital_base: 1000000.
+  zipline_root: 'C:\Users\tbs19\Documents\Data\Zipline\20100101_20150101_500S\zipline_root'
   data_frequency: 'minute'
-  data_bundle: 'test_bundle'
   slippage_type: 'TradeAtTheOpenSlippageModel'
-  spread: 0.
-  open_close_fraction: 0.
-  volume_limit: 0.
-  price_impact: 0.
   commission_type: 'PerShare'
+
+  start_date: '20110101'
+  end_date: '20110301'
+  data_bundle: 'test_bundle'
+  capital_base: 1000000
+  spread: 0.0
+  open_close_fraction: 0.0
+  volume_limit: 0.0
+  price_impact: 0.0
   cost: 0.0005
-  min_trade_cost: 1.
+  min_trade_cost: 1.0
+
 live_clock_configuration:
   host: 'localhost'
   port: 45672

@@ -1,5 +1,5 @@
 [flake8]
-ignore=E501
+max-line-length = 120
 exclude=
     # src is where the pip installs other build related stuff in CI builds.
     src/,
@@ -11,5 +11,8 @@ exclude=
     __pycache__,
     build,
     dist,
+    alphai_crocubot_oracle/flags.py,
+    examples/benchmark_prototype.py
+    setup.py
 
-max-complexity = 14
+max-complexity = 15

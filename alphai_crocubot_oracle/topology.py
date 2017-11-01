@@ -10,13 +10,15 @@ ACTIVATION_FN_RELU = "relu"
 
 ALLOWED_ACTIVATION_FN = [ACTIVATION_FN_RELU, ACTIVATION_FN_SELU, ACTIVATION_FN_LINEAR]
 
-DEFAULT_N_SERIES = 3
-DEFAULT_FEAT_PER_SERIES = 10
+DEFAULT_N_SERIES = 28
+DEFAULT_FEAT_PER_SERIES = 28
 DEFAULT_BINS = 10
 DEFAULT_N_FORECASTS = 3
-DEFAULT_HEIGHTS = [DEFAULT_N_SERIES, 400, 400, DEFAULT_N_FORECASTS]  # NB this is the dimension which gets shuffled
-DEFAULT_WIDTHS = [DEFAULT_FEAT_PER_SERIES, 1, 1, DEFAULT_BINS]  # NB noise in this dimension is not shuffled
-DEFAULT_ACT_FUNCTIONS = ['linear', 'relu', 'relu', 'relu']
+DEFAULT_HIDDEN_LAYERS = 2
+DEFAULT_HEIGHT = 400  # NB this is the dimension which gets shuffled
+DEFAULT_WIDTH = 1  # NB noise in this dimension is not shuffled
+DEFAULT_ACT_FUNCTION = 'relu'
+DEFAULT_LAYER_TYPE = 'full'
 
 
 class Topology(object):
@@ -25,8 +27,9 @@ class Topology(object):
     Run checks on the user input to verify that it defines a valid topology.
     """
 
-    def __init__(self, layers=None, n_series=DEFAULT_N_SERIES, n_features_per_series=DEFAULT_FEAT_PER_SERIES, n_forecasts=DEFAULT_N_FORECASTS,
-                 n_classification_bins=DEFAULT_BINS, layer_heights=DEFAULT_HEIGHTS, layer_widths=DEFAULT_WIDTHS, activation_functions=DEFAULT_ACT_FUNCTIONS):
+    def __init__(self, layers=None, n_series=DEFAULT_N_SERIES, n_features_per_series=DEFAULT_FEAT_PER_SERIES,
+                 n_forecasts=DEFAULT_N_FORECASTS, n_classification_bins=DEFAULT_BINS, layer_heights=None,
+                 layer_widths=None, activation_functions=None, layer_types=None):
         """
         Following info is required to construct a topology object
         :param layers: Full list of layers can be provided, or:
@@ -39,8 +42,12 @@ class Topology(object):
         :param activation_functions:
         """
 
+        if layer_heights is None:
+            assert layer_widths is None and activation_functions is None
+            layer_heights, layer_widths, activation_functions = self.get_default_layers(DEFAULT_HIDDEN_LAYERS)
+
         if layers is None:
-            layers = self._build_layers(layer_heights, layer_widths, activation_functions)
+            layers = self._build_layers(layer_heights, layer_widths, activation_functions, layer_types)
             # FIXME Short term hack to ensure consistency - the following four lines should probably be assertions
             layers[0]["width"] = n_features_per_series
             layers[0]["height"] = n_series
@@ -131,6 +138,10 @@ class Topology(object):
 
         return bias_shape
 
+    def get_layer_type(self, layer_number):
+
+        return self.layers[layer_number]["type"]
+
     def get_activation_function(self, layer_number):
 
         function_name = self.layers[layer_number + 1]["activation_func"]
@@ -146,7 +157,7 @@ class Topology(object):
         else:
             raise NotImplementedError
 
-    def _build_layers(self, layer_heights, layer_widths, activation_functions):
+    def _build_layers(self, layer_heights, layer_widths, activation_functions, layer_types):
         """
         :param activation_functions:
         :param n_series:
@@ -165,10 +176,33 @@ class Topology(object):
             layer = {}
             layer["activation_func"] = activation_functions[i]
             layer["trainable"] = True  # Just hardcode for now, will be configurable in future
+            layer["cell_height"] = 1  # Just hardcode for now, will be configurable in future
+            layer["type"] = layer_types[i]
+
             layer["height"] = layer_heights[i]
             layer["width"] = layer_widths[i]
-            layer["cell_height"] = 1  # Just hardcode for now, will be configurable in future
+
+            if i > 0:  # Ensure dimensions are consistent
+                if layer_types[i-1] == 'pool2d':
+                    layer["height"] = int(layer_heights[i - 1] / 2)
+                    layer["width"] = int(layer_widths[i - 1] / 2)
+                elif layer_types[i-1] in {'conv2d', 'conv1d'}:
+                    layer["height"] = int(layer_heights[i - 1])
+                    layer["width"] = int(layer_widths[i - 1])
 
             layers.append(layer)
 
         return layers
+
+    @staticmethod
+    def get_default_layers(n_hidden_layers):
+        """ Compiles the list of layer heights, widths and activation funcs to be used if none are provided
+
+        :return:
+        """
+
+        layer_heights = [DEFAULT_N_SERIES] + [DEFAULT_HEIGHT] * n_hidden_layers + [DEFAULT_N_FORECASTS]
+        layer_widths = [DEFAULT_FEAT_PER_SERIES] + [DEFAULT_WIDTH] * n_hidden_layers + [DEFAULT_BINS]
+        activation_functions = ['linear'] + [DEFAULT_ACT_FUNCTION] * n_hidden_layers + ['linear']
+
+        return layer_heights, layer_widths, activation_functions

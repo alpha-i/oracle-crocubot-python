@@ -1,0 +1,135 @@
+logging:
+  version: 1
+  formatters:
+    formatter:
+      format: '%(asctime)s - %(levelname)s [%(name)s:%(module)s]: %(message)s'
+      datefmt: '%Y/%m/%d %H:%M:%S'
+  handlers:
+    #these handlers say: for ERROR an higher, log on console. for DEBUG log on file
+    console:
+      class: 'logging.StreamHandler'
+      formatter: 'formatter'
+      level: 'DEBUG'
+      stream: 'ext://sys.stdout'
+    file:
+      class : 'logging.FileHandler'
+      formatter: 'formatter'
+      level: 'DEBUG'
+      filename: '/mnt/pika/20100101_20150101_500S/correlated_deep/logs/quant_workflow-debug.log'
+  root:
+    level: 'DEBUG'
+    handlers: ['file', 'console']
+quant_workflow:
+  run_mode: 'backtest'
+  results_path: '/mnt/pika/20100101_20150101_500S/correlated_deep/results'
+  fill_limit: 10
+  trade_resample_rule: '15T'
+  trade_history_ndays: 20
+  trade_frequency: 'weekly'
+  trade_days_offset: 1
+  trade_minutes_offset: 60
+  trade_horizon_ncycles: 1
+  train_resample_rule: '15T'
+  train_history_ndays: 250
+  train_frequency: 'weekly'
+  train_days_offset: 0
+  train_minutes_offset: 60
+  alert_level: 'NONE'
+  execution_timeout: 180.
+  open_order_timeout: 3600.
+  oracle:
+    method: library
+    module_path: alphai_crocubot_oracle.oracle
+    oracle_class_name: CrocubotOracle
+    oracle_arguments:
+      data_transformation:
+        feature_config_list:
+          -
+            name: close
+            transformation:
+              name: 'log-return'
+            normalization: gaussian
+            is_target: True
+            name: close
+        exchange_name: 'NYSE'
+        features_ndays: 10
+        features_resample_minutes: 15
+        features_start_market_minute: 60
+        prediction_frequency_ndays: 1
+        prediction_market_minute: 60
+        target_delta_ndays: 5
+        target_market_minute: 60
+
+      train_path: '/mnt/pika/20100101_20150101_500S/correlated_deep/train'
+      tensorboard_log_path: '/mnt/pika/20100101_20150101_500S/correlated_deep/tensorboard'
+      covariance_method: 'Ledoit'
+      covariance_ndays: 9
+      model_save_path: '/mnt/pika/20100101_20150101_500S/correlated_deep/model'
+      d_type: float32
+      tf_type: 32
+      random_seed: 0
+      predict_single_shares: True
+      n_epochs: 2
+      n_retrain_epochs: 2
+      n_training_samples: 15800
+      learning_rate: 1e-4
+      batch_size: 200
+      cost_type: 'bayes'
+      n_train_passes: 4
+      n_eval_passes: 4
+      resume_training: True
+      n_series: 1
+      n_correlated_series: 5
+      nassets: 400
+      n_features_per_series: 271
+      n_forecasts: 1
+      n_classification_bins: 12
+      classify_per_series: True
+      normalise_per_series: True
+      layer_heights: [3, 400, 400, 400,  400, 400, 400, 400]
+      layer_widths:  [3,  1,    1,    1,    1,   1,  1, 1]
+      activation_functions: ["relu", "relu", "relu", "relu", "relu", "relu", "relu", "relu"]
+      INITIAL_ALPHA: 0.1
+      INITIAL_WEIGHT_UNCERTAINTY: 0.5
+      INITIAL_BIAS_UNCERTAINTY: 0.05
+      INITIAL_WEIGHT_DISPLACEMENT: 0.2
+      INITIAL_BIAS_DISPLACEMENT: 0.05
+      USE_PERFECT_NOISE: False
+      double_gaussian_weights_prior: True
+      wide_prior_std: 0.8
+      narrow_prior_std: 0.0001
+      spike_slab_weighting: 0.5
+      use_historical_covariance: False
+  portfolio:
+    max_abs_individual_weight: 0.2
+    max_abs_pos_gross_exposure: 0.75
+    max_abs_neg_gross_exposure: 0.75
+    margin_ratio: 1.0
+    max_annualised_std: 0.3
+  universe:
+    method: 'liquidity'
+    nassets: 400
+    ndays_window: 60
+    update_frequency: 'monthly'
+    avg_function: 'median'
+    fill_limit: 5
+    dropna: False
+zipline:
+  zipline_root: '/mnt/pika/19990101_20161231_723S/zipline_root'
+  start_date: '20110101'
+  end_date: '20110301'
+  capital_base: 1000000.
+  data_frequency: 'minute'
+  data_bundle: 'test_bundle'
+  slippage_type: 'TradeAtTheOpenSlippageModel'
+  spread: 0.
+  open_close_fraction: 0.
+  volume_limit: 0.
+  price_impact: 0.
+  commission_type: 'PerShare'
+  cost: 0.0005
+  min_trade_cost: 1.
+live_clock_configuration:
+  host: 'localhost'
+  port: 45672
+  queue_name: 'clock-pulse'

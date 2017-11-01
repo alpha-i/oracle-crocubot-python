@@ -1,13 +1,20 @@
 # Used for retrieving non-financial data, and saving/retrieving non-financial models
 # Will not be used by quant workflow
+# TODO the comment above is not true cause this module is imported in the crocubot.train module.
+# TODO move this iotools somewhere in the benchmark namespace
+
 import os
 import tensorflow as tf
 
 from alphai_data_sources.generator import BatchGenerator
-import alphai_crocubot_oracle.classifier as cl
+from alphai_crocubot_oracle.data.classifier import classify_labels
 
 FLAGS = tf.app.flags.FLAGS
 batch_generator = BatchGenerator()
+
+
+def reset_mnist():
+    batch_generator.reset_mnist()
 
 
 def load_batch(batch_options, data_source, bin_edges=None):
@@ -15,7 +22,7 @@ def load_batch(batch_options, data_source, bin_edges=None):
     features, labels = batch_generator.get_batch(batch_options, data_source)
 
     if bin_edges is not None:
-        labels = cl.classify_labels(bin_edges, labels)
+        labels = classify_labels(bin_edges, labels)
 
     return features, labels
 

@@ -1,1 +1,0 @@
--e git+ssh://git@github.com/alpha-i/library-alphai-covariance.git@09d13f83382ba8da5fbbf37f870454e0819b9034#egg=alphai_covariance-0.1.2

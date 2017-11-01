@@ -39,7 +39,7 @@ class TestCrocuBotModel(tf.test.TestCase):
             model.build_layers_variables()
             session.run(tf.global_variables_initializer())
 
-            self.assertEquals(len(session.run(tf.report_uninitialized_variables())), 0)
+            self.assertEqual(len(session.run(tf.report_uninitialized_variables())), 0)
 
             for layer_number in range(model.number_of_layers):
                 for variable_name in model.layer_variables_list:

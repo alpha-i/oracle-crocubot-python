@@ -16,6 +16,14 @@ import tensorflow as tf
 
 import alphai_crocubot_oracle.tensormaths as tm
 
+CONVOLUTIONAL_LAYER_1D = 'conv1d'
+CONVOLUTIONAL_LAYER_2D = 'conv2d'
+FULLY_CONNECTED_LAYER = 'full'
+POOL_LAYER_2D = 'pool2d'
+KERNEL_HEIGHT = 3
+KERNEL_WIDTH = 3
+DEFAULT_N_KERNELS = 1
+
 
 class CrocuBotModel:
 
@@ -84,7 +92,7 @@ class CrocuBotModel:
             self._create_variable_for_layer(
                 layer_number,
                 self.VAR_WEIGHT_RHO,
-                initial_rho_weights + tm.centred_gaussian(w_shape, np.abs(initial_rho_weights) / 10)
+                initial_rho_weights + tf.zeros(w_shape, tm.DEFAULT_TF_TYPE)
             )
 
             self._create_variable_for_layer(
@@ -96,7 +104,7 @@ class CrocuBotModel:
             self._create_variable_for_layer(
                 layer_number,
                 self.VAR_BIAS_RHO,
-                initial_rho_bias + tm.centred_gaussian(b_shape, np.abs(initial_rho_bias) / 10)
+                initial_rho_bias + tf.zeros(b_shape, tm.DEFAULT_TF_TYPE)
             )
 
             self._create_variable_for_layer(
@@ -135,11 +143,11 @@ class CrocuBotModel:
 
     def get_weight_noise(self, layer_number, iteration):
         noise = self.get_variable(layer_number, self.VAR_WEIGHT_NOISE)
-        return tf.random_shuffle(noise)
+        return tf.random_shuffle(noise, seed=iteration)
 
     def get_bias_noise(self, layer_number, iteration):
         noise = self.get_variable(layer_number, self.VAR_BIAS_NOISE)
-        return tf.random_shuffle(noise)
+        return tf.random_shuffle(noise, seed=iteration)
 
     def compute_weights(self, layer_number, iteration=0):
 
@@ -179,7 +187,30 @@ class Estimator:
         :return: Estimate of the posterior distribution.
         """
 
-        return self.collate_multiple_passes(data, number_of_passes)
+        collated_outputs = self.collate_multiple_passes(data, number_of_passes)
+
+        return tf.reduce_logsumexp(collated_outputs, axis=[0])
+
+    def collate_multiple_passes(self, x, number_of_passes):
+        """
+        Collate outputs from many realisations of weights from a bayesian network.
+
+        :param tensor x:
+        :param int number_of_passes:
+        :return 4D tensor with dimensions [n_passes, batch_size, n_label_timesteps, n_categories]:
+        """
+
+        outputs = []
+        for iteration in range(number_of_passes):
+            result = self.forward_pass(x, iteration)
+            outputs.append(result)
+
+        stacked_output = tf.stack(outputs, axis=0)
+
+        # Make sure we softmax across the 'bin' dimension, but not across all series!
+        stacked_output = tf.nn.log_softmax(stacked_output, dim=-1)
+
+        return stacked_output
 
     def efficient_multiple_passes(self, input_signal, number_of_passes=50):
         """
@@ -220,11 +251,62 @@ class Estimator:
         """
 
         for layer_number in range(self._model.topology.n_layers):
-            weights = self._model.compute_weights(layer_number, iteration)
-            biases = self._model.compute_biases(layer_number, iteration)
-
-            signal = tf.tensordot(signal, weights, axes=2) + biases
-            activation_function = self._model.topology.get_activation_function(layer_number)
-            signal = activation_function(signal)
+            signal = self.single_layer_pass(signal, layer_number, iteration)
 
         return signal
+
+    def single_layer_pass(self, signal, layer_number, iteration):
+
+        layer_type = self._model.topology.get_layer_type(layer_number)
+        activation_function = self._model.topology.get_activation_function(layer_number)
+
+        if layer_type == CONVOLUTIONAL_LAYER_1D:
+            signal = self.convolutional_layer_1d(signal)
+        elif layer_type == CONVOLUTIONAL_LAYER_2D:
+            signal = self.convolutional_layer_2d(signal)
+        elif layer_type == FULLY_CONNECTED_LAYER:
+            weights = self._model.compute_weights(layer_number, iteration)
+            biases = self._model.compute_biases(layer_number, iteration)
+            signal = tf.tensordot(signal, weights, axes=2) + biases
+        elif layer_type == POOL_LAYER_2D:
+            signal = self.pool_layer_2d(signal)
+        else:
+            raise ValueError('Unknown layer type')
+
+        return activation_function(signal)
+
+    def convolutional_layer_1d(self, signal):
+        """ Sets a convolutional layer with a one-dimensional kernel. """
+
+        signal = tf.layers.conv1d(
+            inputs=signal,
+            filters=6,
+            kernel_size=(5,),
+            padding="same",
+            activation=None)
+
+        pooled_signal = tf.layers.max_pooling1d(inputs=signal, pool_size=[4], strides=2)
+
+        return pooled_signal
+
+    def convolutional_layer_2d(self, signal):
+        """ Sets a convolutional layer with a two-dimensional kernel. """
+
+        signal = tf.expand_dims(signal, -1)
+
+        signal = tf.layers.conv2d(
+            inputs=signal,
+            filters=DEFAULT_N_KERNELS,
+            kernel_size=[KERNEL_HEIGHT, KERNEL_WIDTH],
+            padding="same",
+            activation=None)
+
+        return tf.squeeze(signal, axis=-1)
+
+    def pool_layer_2d(self, signal):
+
+        signal = tf.expand_dims(signal, -1)
+
+        pooled_signal = tf.layers.max_pooling2d(inputs=signal, pool_size=[2, 2], strides=2)
+
+        return tf.squeeze(pooled_signal, axis=-1)

@@ -125,15 +125,20 @@ The `portfolio` section can be used to specify the portfolio creation. The follo
 
 | key | description |
 | --- | --- |
-| `max_abs_individual_weight` | Maximum fraction of the portfolio value allowed for an individual asset. E.g. `0.02` for 2% |
-| `max_abs_pos_gross_exposure` | Maximum fraction of the portfolio value allowed for all the long positions combined. E.g. `0.6` for 60% |
-| `max_abs_neg_gross_exposure` | Maximum fraction of the portfolio value allowed for all the short positions combined. E.g. `0.6` for 60% |
-| `margin_ratio` | Ratio between the amount available as a loan and the net value portfolio value. E.g. `0.5` for 1.5x leverage |
-| `max_annualised_std` | Maximum annualised standard deviation tolerated for the portfolio of assets. E.g. `0.2` for 20%  |
+| `max_individual_weight` | scalar - bound on long positions for individual stocks |
+| `min_individual_weight` |scalar - bound on short positions for individual stocks |
+| `max_aggregate_exposure` | scalar - bound on net long position for portfolio |
+| `min_aggregate_exposure` | scalar - bound on net short position for portfolio |
+| `margin_ratio` | scalar > 1 - max allowed ratio of invested capital to real value of assets  |
+| `max_annualised_std` | scalar - max standard deviation of the portfolio over a year |
+| `alpha_plus` | scalar - linear cost for buying a unit of stock |
+| `alpha_minus` | scalar - linear cost for shorting a unit of stock |
+| `beta_plus` | scalar - fixed cost for buying a nonzero quantity of stock |
+| `beta_minus` | scalar - fixed cost for shorting a nonzero quantity of stock  |
 
 ### `universe` 
 The `universe` section deals with the universe creation. This section requires the key `method` to be specified. It 
-can either be `'fixed'` or `'liquidity'`. 
+can either be `'fixed'`, `'liquidity'` or `'fixed_historical'`. 
 If `method: 'fixed'`, the universe is constant over time and equal to the user input:
 ```yaml
   universe:
@@ -161,6 +166,13 @@ If `method: 'liquidity'`, the universe changes over time to reflect the most liq
 | `update_frequency` | Frequency of update of the assets in the universe. Options are [`'daily'`, `'weekly'`, `'monthly'`, `'yearly'`] |
 | `avg_function` | Averaging function to be used in the calculation of liquidity. Options are [`'median'`, `'mean'`] |
 | `fill_limit` | Maximum number of 1-minute time stamps in which missing data can be filled using previous values, for the calculation of liquidity. |
+
+If `method: 'fixed_historical'`, then the liquidity calculation in the previous step is done using a file provided. The
+only argument required is below.
+
+| key | description |
+| --- | --- |
+| `historical_universes_filepath` | A file providing historical universe selection. |
 
 *Note that your ingested data bundle should contain these stocks for this specification to work!*
 

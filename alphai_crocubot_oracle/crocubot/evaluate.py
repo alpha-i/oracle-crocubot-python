@@ -9,8 +9,7 @@ import tensorflow as tf
 # FIXME once time_series is updated, uncomment the below and delete the copy in this file
 # from alphai_time_series.calculator import make_diagonal_covariance_matrices
 
-# FIXME this classifier is now obsolete. We need to use alphai-finance instead.
-import alphai_crocubot_oracle.classifier as cl
+from alphai_crocubot_oracle.data.classifier import declassify_labels
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel, Estimator
 
 FLAGS = tf.app.flags.FLAGS
@@ -45,9 +44,13 @@ def eval_neural_net(data, topology, save_file):
         delta_time = end_time - start_time
         logging.info("Loading the model from disk took:{}".format(delta_time))
 
+        sess.run(tf.global_variables_initializer())
+
         log_p = y.eval()
 
-        return np.exp(log_p)
+    posterior = np.exp(log_p)
+
+    return posterior
 
 
 def forecast_means_and_variance(outputs, bin_distribution):
@@ -59,7 +62,9 @@ def forecast_means_and_variance(outputs, bin_distribution):
     :return: Means and variances of the posterior.
     """
 
-    assert outputs.shape[0] == FLAGS.n_eval_passes, 'unexpected output shape'
+    if outputs.shape[0] != FLAGS.n_eval_passes:
+        raise ValueError('Unexpected output shape {}. It should be identical to n_eval_passes {}'
+                         .format(outputs.shape[0], FLAGS.n_eval_passes))
     n_samples = outputs.shape[1]
     n_series = outputs.shape[2]
 
@@ -69,7 +74,7 @@ def forecast_means_and_variance(outputs, bin_distribution):
     for i in range(n_samples):
         for j in range(n_series):
             bin_passes = outputs[:, i, j, :]
-            temp_mean, temp_variance = cl.declassify_labels(bin_distribution, bin_passes)
+            temp_mean, temp_variance = declassify_labels(bin_distribution, bin_passes)
             mean[i, j] = temp_mean
             variance[i, j] = temp_variance
 

@@ -3,8 +3,9 @@ import shutil
 import tempfile
 
 import pandas_market_calendars as mcal
-from alphai_finance.data.cleaning import convert_to_utc, select_trading_hours, fill_gaps_data_dict, resample_ohlcv
-from alphai_finance.data.read_from_hdf5 import read_feature_data_dict_from_hdf5
+from alphai_crocubot_oracle.data.cleaning import (
+    convert_to_utc, select_trading_hours, fill_gaps_data_dict, resample_ohlcv)
+from alphai_crocubot_oracle.data.read_from_hdf5 import read_feature_data_dict_from_hdf5
 
 from alphai_crocubot_oracle.flags import set_training_flags
 from alphai_crocubot_oracle.oracle import CrocubotOracle
@@ -69,9 +70,10 @@ def load_default_config():
             'feature_config_list': [
                 {
                     'name': 'close',
-                    'order': 'log-return',
+                    'transformation': {
+                        'name': 'log-return'
+                    },
                     'normalization': 'standard',
-                    'nbins': 12,
                     'is_target': True,
                 },
             ],
@@ -97,16 +99,18 @@ def load_default_config():
         'predict_single_shares': True,
         'n_epochs': 1,
         'n_retrain_epochs': 1,
-        'n_training_samples_benchmark': 1000,
         'learning_rate': 2e-3,
         'batch_size': 100,
         'cost_type': 'bayes',
         'n_train_passes': 30,
         'n_eval_passes': 100,
         'resume_training': False,
+        'classify_per_series': False,
+        'normalise_per_series': False,
 
         # Topology
         'n_series': 3,
+        'nassets': 3,
         'n_features_per_series': 271,
         'n_forecasts': 1,
         'n_classification_bins': 12,

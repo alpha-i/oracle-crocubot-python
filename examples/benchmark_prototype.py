@@ -7,8 +7,7 @@ import logging
 import numpy as np
 import tensorflow as tf
 
-# FIXME this classifier is now obsolete. We need to use alphai-finance instead.
-import alphai_crocubot_oracle.classifier as cl
+from alphai_crocubot_oracle.data.classifier import BinDistribution
 import alphai_crocubot_oracle.crocubot.evaluate as eval
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel
 import alphai_crocubot_oracle.flags as fl
@@ -27,16 +26,17 @@ model_metrics = Metrics()
 
 FLAGS = tf.app.flags.FLAGS
 TIME_LIMIT = 600
+D_TYPE = 'float32'
 
 
-def run_timed_benchmark_mnist(series_name, flags, do_training):
+def run_timed_benchmark_mnist(series_name, do_training):
 
     topology = load_default_topology(series_name)
 
     batch_options = BatchOptions(batch_size=200,
                                  batch_number=0,
                                  train=do_training,
-                                 dtype='float32')
+                                 dtype=D_TYPE)
 
     data_source = data_source_generator.make_data_source(series_name)
 
@@ -57,12 +57,14 @@ def run_timed_benchmark_mnist(series_name, flags, do_training):
     train_time = mid_time - start_time
     print("Training complete.")
 
-    metrics = evaluate_network(topology, series_name, bin_distribution=None)
+    metrics = evaluate_network(topology, series_name, bin_dist=None)
     eval_time = timer() - mid_time
 
     print('Metrics:')
-    print_MNIST_accuracy(metrics)
+    accuracy = print_MNIST_accuracy(metrics)
     print_time_info(train_time, eval_time)
+
+    return accuracy, metrics
 
 
 def print_time_info(train_time, eval_time):
@@ -85,21 +87,20 @@ def run_timed_benchmark_time_series(series_name, flags, do_training=True):
     batch_options = BatchOptions(batch_size=template_sample_size,
                                  batch_number=0,
                                  train=do_training,
-                                 dtype='float32')
+                                 dtype=D_TYPE)
 
     data_source = data_source_generator.make_data_source(series_name)
 
     _, labels = io.load_batch(batch_options, data_source)
 
-    bin_distribution = cl.make_template_distribution(labels, topology.n_classification_bins)
-    bin_edges = bin_distribution["bin_edges"]
+    bin_dist = BinDistribution(labels, topology.n_classification_bins)
 
     start_time = timer()
 
     execution_time = datetime.datetime.now()
 
     if do_training:
-        crocubot_train.train(topology, series_name, execution_time, bin_edges=bin_edges)
+        crocubot_train.train(topology, series_name, execution_time, bin_edges=bin_dist.bin_edges)
     else:
         tf.reset_default_graph()
         model = CrocuBotModel(topology)
@@ -109,20 +110,20 @@ def run_timed_benchmark_time_series(series_name, flags, do_training=True):
     train_time = mid_time - start_time
     print("Training complete.")
 
-    evaluate_network(topology, series_name, bin_distribution)
+    evaluate_network(topology, series_name, bin_dist)
     eval_time = timer() - mid_time
 
     print('Metrics:')
     print_time_info(train_time, eval_time)
 
 
-def evaluate_network(topology, series_name, bin_distribution):
+def evaluate_network(topology, series_name, bin_dist):  # bin_dist not used in MNIST case
 
     # Get the test data
-    batch_options = BatchOptions(batch_size=100,
+    batch_options = BatchOptions(batch_size=FLAGS.batch_size,
                                  batch_number=1,
                                  train=False,
-                                 dtype='float32')
+                                 dtype=D_TYPE)
 
     data_source = data_source_generator.make_data_source(series_name)
 
@@ -130,17 +131,46 @@ def evaluate_network(topology, series_name, bin_distribution):
     save_file = io.load_file_name(series_name, topology)
 
     binned_outputs = eval.eval_neural_net(test_features, topology, save_file)
+    n_samples = binned_outputs.shape[1]
 
-    if series_name == 'mnist':
+    if series_name in {'mnist', 'mnist_reshaped'}:
         binned_outputs = np.mean(binned_outputs, axis=0)  # Average over passes
         predicted_indices = np.argmax(binned_outputs, axis=2)
         true_indices = np.argmax(test_labels, axis=2)
 
-        metric = np.equal(predicted_indices, true_indices)
-        return metric
+        print("Example forecasts:", binned_outputs[0:5, 0, :])
+        print("Example outcomes", test_labels[0:5, 0, :])
+        print("Total test samples:", n_samples)
+
+        results = np.equal(predicted_indices, true_indices)
+        forecasts = np.zeros(n_samples)
+        p_success = []
+        p_fail = []
+        for i in range(n_samples):
+            true_index = true_indices[i]
+            forecasts[i] = binned_outputs[i, 0, true_index]
+
+            if true_index == predicted_indices[i]:
+                p_success.append(forecasts[i])
+            else:
+                p_fail.append(forecasts[i])
+
+        log_likelihood_per_sample = np.mean(np.log(forecasts))
+        median_probability = np.median(forecasts)
+
+        metrics = {}
+        metrics["results"] = results
+        metrics["log_likelihood_per_sample"] = log_likelihood_per_sample
+        metrics["median_probability"] = median_probability
+        metrics["mean_p_success"] = np.mean(np.stack(p_success))
+        metrics["mean_p_fail"] = np.mean(np.stack(p_fail))
+        metrics["mean_p"] = np.mean(np.stack(forecasts))
+        metrics["min_p_fail"] = np.min(np.stack(p_fail))
+
+        return metrics
 
     else:
-        estimated_means, estimated_covariance = eval.forecast_means_and_variance(binned_outputs, bin_distribution)
+        estimated_means, estimated_covariance = eval.forecast_means_and_variance(binned_outputs, bin_dist)
         test_labels = np.squeeze(test_labels)
 
         model_metrics.evaluate_sample_performance(data_source, test_labels, estimated_means, estimated_covariance)
@@ -149,6 +179,11 @@ def evaluate_network(topology, series_name, bin_distribution):
 def load_default_topology(series_name):
     """The input and output layers must adhere to the dimensions of the features and labels.
     """
+
+    layer_types = ['full', 'full', 'full', 'full']
+    layer_heights = None,
+    layer_widths = None,
+    activation_functions = None
 
     if series_name == 'low_noise':
         n_input_series = 1
@@ -161,38 +196,76 @@ def load_default_topology(series_name):
         n_classification_bins = 12
         n_output_series = 10
     elif series_name == 'mnist':
+        if FLAGS.use_convolution:
+            layer_types[0] = ['conv1d', 'full', 'full', 'full']
+            layer_heights = [784, 1, 1, 1]
+            layer_widths = [1, 1, 1, 1]
+            activation_functions = ['linear', 'relu', 'relu', 'relu', 'linear']
         n_input_series = 1
         n_features_per_series = 784
+        n_classification_bins = 10
+        n_output_series = 1
+    elif series_name == 'mnist_reshaped':
+        if FLAGS.use_convolution:
+            layer_types = ['conv2d', 'full', 'full', 'full', 'full']
+            layer_heights = [28, 28, 28, 400, 10]
+            layer_widths = [28, 28, 28, 1, 1]
+            activation_functions = ['linear', 'relu', 'relu', 'relu', 'linear']
+        n_input_series = 28
+        n_features_per_series = 28
         n_classification_bins = 10
         n_output_series = 1
     else:
         raise NotImplementedError
 
-    return topo.Topology(layers=None, n_series=n_input_series, n_features_per_series=n_features_per_series, n_forecasts=n_output_series,
-                         n_classification_bins=n_classification_bins)
+    topology = topo.Topology(layers=None, n_series=n_input_series, n_features_per_series=n_features_per_series,
+                             n_forecasts=n_output_series,
+                             n_classification_bins=n_classification_bins, layer_types=layer_types,
+                             layer_heights=layer_heights, layer_widths=layer_widths,
+                             activation_functions=activation_functions)
+
+    return topology
 
 
 def print_MNIST_accuracy(metrics):
 
-    total_tests = len(metrics)
-    correct = np.sum(metrics)
+    results = metrics["results"]
 
-    accuracy = correct / total_tests * 100
+    total_tests = len(results)
+    correct = np.sum(results)
+    accuracy = correct / total_tests
 
-    print('MNIST accuracy of ', accuracy, '%')
+    theoretical_max_log_likelihood_per_sample = np.log(0.5)*(1 - accuracy)
+
+    print('MNIST accuracy of ', accuracy * 100, '%')
+    print('Log Likelihood per sample of ', metrics["log_likelihood_per_sample"])
+    print('Theoretical limit for given accuracy ', theoretical_max_log_likelihood_per_sample)
+    print('Median probability assigned to true outcome:', metrics["median_probability"])
+    print('Mean probability assigned to forecasts:', metrics["mean_p"])
+    print('Mean probability assigned to successful forecast:', metrics["mean_p_success"])
+    print('Mean probability assigned to unsuccessful forecast:', metrics["mean_p_fail"])
+    print('Min probability assigned to unsuccessful forecast:', metrics["min_p_fail"])
 
     return accuracy
 
 
-def run_mnist_test(train_path, tensorboard_log_path):
+def run_mnist_test(train_path, tensorboard_log_path, method='GDO', use_full_train_set=True, reshape_to_2d=False):
+
+    if use_full_train_set:
+        n_training_samples = 60000
+        n_epochs = 10
+    else:
+        n_training_samples = 500
+        n_epochs = 100
 
     config = load_default_config()
-    config["n_epochs"] = 10
-    config["learning_rate"] = 3e-3   # Use high learning rate for testing purposes
+    config["n_epochs"] = n_epochs
+    config["learning_rate"] = 1e-3   # Use high learning rate for testing purposes
     config["cost_type"] = 'bayes'  # 'bayes'; 'softmax'; 'hellinger'
     config['batch_size'] = 200
-    config['n_training_samples_benchmark'] = 50000
+    config['n_training_samples_benchmark'] = n_training_samples
     config['n_series'] = 1
+    config['optimisation_method'] = method
     config['n_features_per_series'] = 784
     config['resume_training'] = False  # Make sure we start from scratch
     config['activation_functions'] = ['linear', 'selu', 'selu']
@@ -200,12 +273,23 @@ def run_mnist_test(train_path, tensorboard_log_path):
     config['train_path'] = train_path
     config['model_save_path'] = train_path
     config['n_retrain_epochs'] = 5
-    config['n_train_passes'] = 8
-    config['n_eval_passes'] = 8
+    config['n_train_passes'] = 1
+    config['n_eval_passes'] = 40
+    config['use_convolution'] = True
 
     fl.set_training_flags(config)
+    # this flag is only used in benchmark.
+    tf.app.flags.DEFINE_integer('n_training_samples_benchmark', config['n_training_samples_benchmark'],
+                                """Number of samples for benchmarking.""")
+    FLAGS._parse_flags()
     print("Epochs to evaluate:", FLAGS.n_epochs)
-    run_timed_benchmark_mnist(series_name="mnist", flags=FLAGS, do_training=True)
+
+    if reshape_to_2d:
+        series_name = "mnist_reshaped"
+    else:
+        series_name = "mnist"
+
+    return run_timed_benchmark_mnist(series_name=series_name, do_training=True)
 
 
 def run_stochastic_test(train_path, tensorboard_log_path):
@@ -226,8 +310,13 @@ def run_stochastic_test(train_path, tensorboard_log_path):
     config['train_path'] = train_path
     config['model_save_path'] = train_path
     config['n_retrain_epochs'] = 5
+    config['use_convolution'] = False
 
     fl.set_training_flags(config)
+    # this flag is only used in benchmark.
+    tf.app.flags.DEFINE_integer('n_training_samples_benchmark', config['n_training_samples_benchmark'],
+                                """Number of samples for benchmarking.""")
+    FLAGS._parse_flags()
     print("Epochs to evaluate:", FLAGS.n_epochs)
     run_timed_benchmark_time_series(series_name='stochastic_walk', flags=FLAGS, do_training=True)
 
@@ -257,7 +346,7 @@ def load_default_config():
         'covariance_method': 'NERCOME',
         'covariance_ndays': 9,
         'model_save_path': '/tmp/crocubot/',
-        'd_type': 'float32',
+        'd_type': D_TYPE,
         'tf_type': 32,
         'random_seed': 0,
         'predict_single_shares': False,
@@ -282,17 +371,17 @@ def load_default_config():
         'activation_functions': ['relu', 'relu', 'relu'],
 
         # Initial conditions
-        'INITIAL_ALPHA': 0.2,
-        'INITIAL_WEIGHT_UNCERTAINTY': 0.05,
-        'INITIAL_BIAS_UNCERTAINTY': 0.005,
-        'INITIAL_WEIGHT_DISPLACEMENT': 0.02,
-        'INITIAL_BIAS_DISPLACEMENT': 0.0005,
+        'INITIAL_ALPHA': 0.8,
+        'INITIAL_WEIGHT_UNCERTAINTY': 0.02,
+        'INITIAL_BIAS_UNCERTAINTY': 0.02,
+        'INITIAL_WEIGHT_DISPLACEMENT': 0.1,
+        'INITIAL_BIAS_DISPLACEMENT': 0.1,
         'USE_PERFECT_NOISE': False,
 
         # Priors
-        'double_gaussian_weights_prior': False,
-        'wide_prior_std': 1.2,
-        'narrow_prior_std': 0.05,
+        'double_gaussian_weights_prior': True,
+        'wide_prior_std': 0.8,
+        'narrow_prior_std': 0.001,
         'spike_slab_weighting': 0.5
     }
 
@@ -306,8 +395,8 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
 
     # change the following lines according to your machine
-    train_path = 'D:\\tmp'
-    tensorboard_log_path = 'D:\\tmp\\tensorboard'
+    train_path = '/tmp/'
+    tensorboard_log_path = '/tmp/'
 
-    run_stochastic_test(train_path, tensorboard_log_path)
-    run_mnist_test(train_path, tensorboard_log_path)
+    # run_stochastic_test(train_path, tensorboard_log_path)
+    run_mnist_test(train_path, tensorboard_log_path,  use_full_train_set=True)
