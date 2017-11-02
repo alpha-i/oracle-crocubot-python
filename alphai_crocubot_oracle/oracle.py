@@ -190,7 +190,6 @@ class CrocubotOracle:
         start_time = timer()
         predict_x = self._preprocess_inputs(predict_x)
 
-
         if self._topology is None:
             features_per_series = predict_x.shape[1]
             self.initialise_topology(features_per_series)
@@ -398,8 +397,8 @@ class CrocubotOracle:
             for batch in range(n_batches):
                 # Series ordering may differ between batches - so we need the correlations for each batch
                 batch_data = train_x[batch, :, :]
-                neg_correlation_matrix = - np.corrcoef(batch_data, rowvar=False)  # False since each col represents a var
-                correlation_indices = neg_correlation_matrix.argsort(axis=1)  # Sort negative corr to get descending order
+                neg_correlation_matrix = - np.corrcoef(batch_data, rowvar=False)  # False -> each col represents a var
+                correlation_indices = neg_correlation_matrix.argsort(axis=1)  # Sort negative corr to get descending
 
                 for series_index in range(n_series):
                     if correlation_indices[series_index, [0]] != series_index:
