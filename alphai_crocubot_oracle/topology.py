@@ -11,7 +11,7 @@ ACTIVATION_FN_RELU = "relu"
 ALLOWED_ACTIVATION_FN = [ACTIVATION_FN_RELU, ACTIVATION_FN_SELU, ACTIVATION_FN_LINEAR]
 
 DEFAULT_N_SERIES = 28
-DEFAULT_FEAT_PER_SERIES = 28
+DEFAULT_TIMESTEPS = 28
 DEFAULT_BINS = 10
 DEFAULT_N_FORECASTS = 3
 DEFAULT_HIDDEN_LAYERS = 2
@@ -19,6 +19,10 @@ DEFAULT_HEIGHT = 400  # NB this is the dimension which gets shuffled
 DEFAULT_WIDTH = 1  # NB noise in this dimension is not shuffled
 DEFAULT_ACT_FUNCTION = 'relu'
 DEFAULT_LAYER_TYPE = 'full'
+DEFAULT_N_KERNELS = 4
+DEFAULT_N_FEATURES = 1
+DEFAULT_DEPTH = 1
+DEFAULT_N_OUTPUT_SERIES = 1
 
 
 class Topology(object):
@@ -27,14 +31,14 @@ class Topology(object):
     Run checks on the user input to verify that it defines a valid topology.
     """
 
-    def __init__(self, layers=None, n_series=DEFAULT_N_SERIES, n_features_per_series=DEFAULT_FEAT_PER_SERIES,
+    def __init__(self, layers=None, n_series=DEFAULT_N_SERIES, n_timesteps=DEFAULT_TIMESTEPS,
                  n_forecasts=DEFAULT_N_FORECASTS, n_classification_bins=DEFAULT_BINS, layer_heights=None,
-                 layer_widths=None, activation_functions=None, layer_types=None):
+                 layer_widths=None, layer_depths=None, activation_functions=None, layer_types=None, n_features=1):
         """
         Following info is required to construct a topology object
         :param layers: Full list of layers can be provided, or:
         :param n_series:
-        :param n_features_per_series:
+        :param n_timesteps:
         :param n_forecasts:
         :param n_classification_bins:
         :param layer_heights:
@@ -43,14 +47,22 @@ class Topology(object):
         """
 
         if layer_heights is None:
-            assert layer_widths is None and activation_functions is None
-            layer_heights, layer_widths, activation_functions = self.get_default_layers(DEFAULT_HIDDEN_LAYERS)
+            assert layer_widths is None and activation_functions is None and layer_depths is None
+            layer_depths, layer_heights, layer_widths, activation_functions = \
+                self.get_default_layers(DEFAULT_HIDDEN_LAYERS)
+        else:
+            if layer_depths is None:
+                layer_depths = [DEFAULT_DEPTH]*len(layer_heights)
+            else:
+                assert len(layer_depths) == len(layer_heights), "Length of depths array does not match height array"
+            assert len(layer_widths) == len(layer_heights), "Length of widths array does not match height array"
+            assert len(activation_functions) == len(layer_heights), "Length of act fns does not match height array"
 
         if layers is None:
-            layers = self._build_layers(layer_heights, layer_widths, activation_functions, layer_types)
+            layers = self._build_layers(layer_depths, layer_heights, layer_widths, activation_functions, layer_types)
             # FIXME Short term hack to ensure consistency - the following four lines should probably be assertions
-            layers[0]["width"] = n_features_per_series
-            layers[0]["height"] = n_series
+            # layers[0]["width"] = n_features_per_series
+            # layers[0]["height"] = n_series
             layers[-1]["height"] = n_forecasts
             layers[-1]["width"] = n_classification_bins
 
@@ -58,10 +70,12 @@ class Topology(object):
         self.layers = layers
         self.n_series = n_series
         self.n_layers = len(layers) - 1  # n layers of neurons are connected by n-1 sets of weights
-        self.n_features_per_series = n_features_per_series
+        self.n_timesteps = n_timesteps
+        self.n_features = n_features
         self.n_forecasts = n_forecasts
         self.n_classification_bins = n_classification_bins
         self.n_parameters = self._calculate_number_of_parameters(layers)
+        self.n_kernels = DEFAULT_N_KERNELS
 
     def _verify_layers(self, layers):
         """
@@ -114,11 +128,13 @@ class Topology(object):
 
         input_height = self.layers[layer_number]["height"]
         input_width = self.layers[layer_number]["width"]
+        input_depth = self.layers[layer_number]["depth"]
 
         output_height = self.layers[layer_number + 1]["height"]
         output_width = self.layers[layer_number + 1]["width"]
+        output_depth = self.layers[layer_number + 1]["depth"]
 
-        weight_shape = [input_height, input_width, output_height, output_width]
+        weight_shape = [input_depth, input_height, input_width, output_depth, output_height, output_width]
 
         return weight_shape
 
@@ -133,8 +149,8 @@ class Topology(object):
 
         height = self.layers[layer_number + 1]["height"]
         width = self.layers[layer_number + 1]["width"]
-
-        bias_shape = [height, width]
+        output_depth = self.layers[layer_number + 1]["depth"]
+        bias_shape = [output_depth, height, width]
 
         return bias_shape
 
@@ -157,7 +173,7 @@ class Topology(object):
         else:
             raise NotImplementedError
 
-    def _build_layers(self, layer_heights, layer_widths, activation_functions, layer_types=None):
+    def _build_layers(self, layer_depths, layer_heights, layer_widths, activation_functions, layer_types=None):
         """
         :param activation_functions:
         :param n_series:
@@ -177,24 +193,27 @@ class Topology(object):
             layer["activation_func"] = activation_functions[i]
             layer["trainable"] = True  # Just hardcode for now, will be configurable in future
             layer["cell_height"] = 1  # Just hardcode for now, will be configurable in future
+            layer["depth"] = layer_depths[i]
+            layer["height"] = layer_heights[i]
+            layer["width"] = layer_widths[i]
 
             if layer_types is None:
                 layer["type"] = DEFAULT_LAYER_TYPE
             else:
                 layer["type"] = layer_types[i]
 
-            layer["height"] = layer_heights[i]
-            layer["width"] = layer_widths[i]
+            if i > 0:  # Enforce consistent dimensions for subsequent layers
+                prev_layer = layers[i - 1]
+                previous_layer_type = prev_layer["type"]
 
-            if i > 0:  # Enforce consistent dimensions
-                previous_layer_type = layers[i - 1]["type"]
-
-                if previous_layer_type == 'pool2d':
-                    layer["height"] = int(layer_heights[i - 1] / 2)
-                    layer["width"] = int(layer_widths[i - 1] / 2)
-                elif previous_layer_type in {'conv2d', 'conv1d'}:
-                    layer["height"] = int(layer_heights[i - 1])
-                    layer["width"] = int(layer_widths[i - 1])
+                if previous_layer_type == 'pool2d':  # Pooling will rescale size of last layer
+                    layer["height"] = int(prev_layer['height'] / 2)
+                    layer["width"] = int(prev_layer['width'] / 2)
+                elif previous_layer_type in {'conv2d', 'conv1d', 'conv3d'}:
+                    # This will depend on choice of padding. Default for now is same, so easier.
+                    layer["depth"] = int(prev_layer["depth"])
+                    layer["height"] = int(prev_layer["height"])
+                    layer["width"] = int(prev_layer["width"]) * DEFAULT_N_KERNELS
 
             layers.append(layer)
 
@@ -207,8 +226,10 @@ class Topology(object):
         :return:
         """
 
+        layer_depths = [DEFAULT_N_FEATURES] + [DEFAULT_DEPTH] * n_hidden_layers + [DEFAULT_N_OUTPUT_SERIES]
         layer_heights = [DEFAULT_N_SERIES] + [DEFAULT_HEIGHT] * n_hidden_layers + [DEFAULT_N_FORECASTS]
-        layer_widths = [DEFAULT_FEAT_PER_SERIES] + [DEFAULT_WIDTH] * n_hidden_layers + [DEFAULT_BINS]
+        layer_widths = [DEFAULT_TIMESTEPS] + [DEFAULT_WIDTH] * n_hidden_layers + [DEFAULT_BINS]
+
         activation_functions = ['linear'] + [DEFAULT_ACT_FUNCTION] * n_hidden_layers + ['linear']
 
-        return layer_heights, layer_widths, activation_functions
+        return layer_depths, layer_heights, layer_widths, activation_functions

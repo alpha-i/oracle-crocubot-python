@@ -23,7 +23,6 @@ data_source_generator = DataSourceGenerator()
 batch_generator = BatchGenerator()
 model_metrics = Metrics()
 
-
 FLAGS = tf.app.flags.FLAGS
 TIME_LIMIT = 600
 D_TYPE = 'float32'
@@ -32,18 +31,15 @@ D_TYPE = 'float32'
 def run_timed_benchmark_mnist(series_name, do_training):
 
     topology = load_default_topology(series_name)
-
     batch_options = BatchOptions(batch_size=200,
                                  batch_number=0,
                                  train=do_training,
                                  dtype=D_TYPE)
 
     data_source = data_source_generator.make_data_source(series_name)
-
     _, labels = io.load_batch(batch_options, data_source)
 
     start_time = timer()
-
     execution_time = datetime.datetime.now()
 
     if do_training:
@@ -135,8 +131,8 @@ def evaluate_network(topology, series_name, bin_dist):  # bin_dist not used in M
 
     if series_name in {'mnist', 'mnist_reshaped'}:
         binned_outputs = np.mean(binned_outputs, axis=0)  # Average over passes
-        predicted_indices = np.argmax(binned_outputs, axis=2)
-        true_indices = np.argmax(test_labels, axis=2)
+        predicted_indices = np.argmax(binned_outputs, axis=-1).flatten()
+        true_indices = np.argmax(test_labels, axis=-1).flatten()
 
         print("Example forecasts:", binned_outputs[0:5, 0, :])
         print("Example outcomes", test_labels[0:5, 0, :])
@@ -184,15 +180,16 @@ def load_default_topology(series_name):
     layer_heights = None,
     layer_widths = None,
     activation_functions = None
+    n_features = 1
 
     if series_name == 'low_noise':
         n_input_series = 1
-        n_features_per_series = 100
+        n_timesteps = 100
         n_classification_bins = 12
         n_output_series = 1
     elif series_name == 'stochastic_walk':
         n_input_series = 10
-        n_features_per_series = 100
+        n_timesteps = 100
         n_classification_bins = 12
         n_output_series = 10
     elif series_name == 'mnist':
@@ -202,27 +199,34 @@ def load_default_topology(series_name):
             layer_widths = [1, 1, 1, 1]
             activation_functions = ['linear', 'relu', 'relu', 'relu', 'linear']
         n_input_series = 1
-        n_features_per_series = 784
+        n_timesteps = 784
         n_classification_bins = 10
         n_output_series = 1
     elif series_name == 'mnist_reshaped':
         if FLAGS.use_convolution:
-            layer_types = ['conv2d', 'full', 'full', 'full', 'full']
+            layer_types = ['conv3d', 'pool2d', 'conv3d', 'pool2d', 'full', 'full', 'full']
+            layer_heights = [28, 28, 28, 400, 400, 400,  10]
+            layer_widths = [28, 28, 28, 1, 1,  1, 1]
+
+            activation_functions = ['linear', 'relu', 'relu', 'relu',  'relu', 'relu', 'linear']
+        else:
+            layer_types = ['full', 'full', 'full', 'full', 'full']
             layer_heights = [28, 28, 28, 400, 10]
             layer_widths = [28, 28, 28, 1, 1]
             activation_functions = ['linear', 'relu', 'relu', 'relu', 'linear']
-        n_input_series = 28
-        n_features_per_series = 28
+        n_input_series = 1
+        n_features = 28
+        n_timesteps = 28
         n_classification_bins = 10
         n_output_series = 1
     else:
         raise NotImplementedError
 
-    topology = topo.Topology(layers=None, n_series=n_input_series, n_features_per_series=n_features_per_series,
+    topology = topo.Topology(layers=None, n_series=n_input_series, n_timesteps=n_timesteps,
                              n_forecasts=n_output_series,
                              n_classification_bins=n_classification_bins, layer_types=layer_types,
                              layer_heights=layer_heights, layer_widths=layer_widths,
-                             activation_functions=activation_functions)
+                             activation_functions=activation_functions, n_features=n_features)
 
     return topology
 
@@ -253,7 +257,7 @@ def run_mnist_test(train_path, tensorboard_log_path, method='GDO', use_full_trai
 
     if use_full_train_set:
         n_training_samples = 60000
-        n_epochs = 100
+        n_epochs = 50
     else:
         n_training_samples = 500
         n_epochs = 100
