@@ -249,6 +249,7 @@ class FinancialDataTransformation(DataTransformation):
                                                                      prediction_market_open, target_market_open)
             except Exception as e:
                 logging.error('Failed to build a set of features', exc_info=e)
+                raise e
 
             if self.check_x_batch_dimensions(feature_x_dict):
                 data_x_list.append(feature_x_dict)
