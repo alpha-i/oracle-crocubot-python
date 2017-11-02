@@ -6,7 +6,6 @@ import pandas as pd
 import pytest
 from numpy.testing import assert_almost_equal, assert_array_equal
 
-from alphai_crocubot_oracle.data.classifier import BinDistribution
 from alphai_crocubot_oracle.data.feature import (
     FinancialFeature,
     financial_features_factory,
@@ -282,11 +281,12 @@ class TestFinancialFeature(TestCase):
     #         else:
     #             with pytest.raises(AssertionError):
     #                 feature.calculate_bin_distribution(train_y)
-
+    #
     # def test_classify_train_data_y(self):
     #     feature_list = [self.feature_1, self.feature_2, self.feature_3]
     #     for feature in feature_list:
-    #         classified_train_y = feature.classify_train_data_y(SAMPLE_TRAIN_LABELS[list(SAMPLE_TRAIN_LABELS.keys())[0]])
+    #         classified_train_y \
+    #             = feature.classify_train_data_y(SAMPLE_TRAIN_LABELS[list(SAMPLE_TRAIN_LABELS.keys())[0]])
     #         if feature.nbins:
     #             assert isinstance(feature.bin_distribution, BinDistribution)
     #             assert classified_train_y.shape \

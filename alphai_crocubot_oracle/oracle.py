@@ -190,7 +190,6 @@ class CrocubotOracle:
         start_time = timer()
         predict_x = self._preprocess_inputs(predict_x)
 
-
         if self._topology is None:
             features_per_series = predict_x.shape[1]
             self.initialise_topology(features_per_series)

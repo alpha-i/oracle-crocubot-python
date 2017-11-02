@@ -330,8 +330,8 @@ class FinancialFeature(object):
             data_y = dataframe[symbol].values
 
             if symbol in self.bin_distribution_dict:
-                 symbol_binning = self.bin_distribution_dict[symbol]
-                 hot_dataframe[symbol] = np.squeeze(classify_labels(symbol_binning.bin_edges, data_y))
+                symbol_binning = self.bin_distribution_dict[symbol]
+                hot_dataframe[symbol] = np.squeeze(classify_labels(symbol_binning.bin_edges, data_y))
             else:
                 logging.warning("Symbol lacks clasification bins: {}", symbol)
                 dataframe.drop(symbol, axis=1, inplace=True)
