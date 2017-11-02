@@ -284,7 +284,7 @@ class CrocubotOracle:
         xmin, xmax = self.print_verification_report(testx, 'X_data')
 
         if xmax > CLIP_VALUE or xmin < -CLIP_VALUE:
-            n_clipped_elements = np.sum(xmax < np.abs(testx))
+            n_clipped_elements = np.sum(CLIP_VALUE < np.abs(testx))
             n_elements = len(testx)
             x_data = np.clip(x_data, a_min=-CLIP_VALUE, a_max=CLIP_VALUE)
             logging.warning("Large inputs detected: clip values exceeding {}".format(CLIP_VALUE))
@@ -394,7 +394,6 @@ class CrocubotOracle:
             corr_train_x = train_x.reshape(corr_shape)
             corr_train_x = np.swapaxes(corr_train_x, axis1=1, axis2=2)
         else:
-            # raise NotImplementedError('not yet fixed to use multiple correlated series')
             for batch in range(n_batches):
                 # Series ordering may differ between batches - so we need the correlations for each batch
                 batch_data = train_x[batch, :, :]
