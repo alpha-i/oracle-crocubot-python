@@ -284,7 +284,7 @@ class CrocubotOracle:
         xmin, xmax = self.print_verification_report(testx, 'X_data')
 
         if xmax > CLIP_VALUE or xmin < -CLIP_VALUE:
-            n_clipped_elements = np.sum(xmax < np.abs(testx))
+            n_clipped_elements = np.sum(CLIP_VALUE < np.abs(testx))
             n_elements = len(testx)
             x_data = np.clip(x_data, a_min=-CLIP_VALUE, a_max=CLIP_VALUE)
             logging.warning("Large inputs detected: clip values exceeding {}".format(CLIP_VALUE))
