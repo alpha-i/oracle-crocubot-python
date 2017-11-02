@@ -286,25 +286,6 @@ class FinancialFeature(object):
 
         return prediction_data_x, prediction_data_y
 
-    def calculate_bin_distribution(self, train_y):
-        """
-        Calculate bin distribution from training target values.
-        :param ndarray train_y: Training target labels to calculate bin distribution.
-        :return: Nothing.
-        """
-        assert isinstance(self.nbins, int) and self.nbins > 0
-
-        # if self.classify_per_series:
-        #     self.bin_distribution = []
-        #     for i in range(self.n_series):
-        #         series_data = train_y[:, i].flatten()
-        #         cleaned_data = series_data[np.isfinite(series_data)]
-        #         self.bin_distribution.append(BinDistribution(cleaned_data, self.nbins))
-        # else:
-        series_data = train_y.flatten()
-        cleaned_data = series_data[np.isfinite(series_data)]
-        return BinDistribution(cleaned_data, self.nbins)
-
     def fit_classification(self, symbol, symbol_data):
         """  Fill dict with classifiers
 
@@ -330,44 +311,14 @@ class FinancialFeature(object):
             data_y = dataframe[symbol].values
 
             if symbol in self.bin_distribution_dict:
-                 symbol_binning = self.bin_distribution_dict[symbol]
-                 hot_dataframe[symbol] = np.squeeze(classify_labels(symbol_binning.bin_edges, data_y))
+                symbol_binning = self.bin_distribution_dict[symbol]
+                hot_dataframe[symbol] = np.squeeze(classify_labels(symbol_binning.bin_edges, data_y))
             else:
                 logging.warning("Symbol lacks clasification bins: {}", symbol)
                 dataframe.drop(symbol, axis=1, inplace=True)
                 logging.warning("Dropping {} from dataframe.", symbol)
 
         return hot_dataframe
-
-    def classify_train_data_y(self, train_y):
-        """
-        Classify training target values.
-        :param ndarray train_y: Training target labels to calculate bin distribution. Of shape (batch_size, n_series)
-        :return ndarray: classified train_y. Of shape (batch_size, n_series, n_bins)
-        """
-
-        if self.nbins is None:
-            return train_y
-
-        self.bin_distribution = None
-        batch_size = train_y.shape[0]
-        self.n_series = train_y.shape[1]
-        self.calculate_bin_distribution(train_y)
-        logging.info("Classifying data of shape {} to {} bins ".format(
-            train_y.shape,
-            self.nbins
-        ))
-
-        if self.classify_per_series:
-            labels = np.zeros((batch_size, self.n_series, self.nbins))
-            for i in range(self.n_series):
-                bin_edges = self.bin_distribution[i].bin_edges
-                labels[:, i, :] = classify_labels(bin_edges, train_y[:, i])
-                # FIXME May have to use swapaxes if this assignment to dims 0,2 doesnt work
-        else:
-            labels = classify_labels(self.bin_distribution.bin_edges, train_y)
-
-        return labels
 
     def declassify_single_predict_y(self, predict_y):
         raise NotImplementedError('Declassification is only available for multi-pass prediction at the moment.')
