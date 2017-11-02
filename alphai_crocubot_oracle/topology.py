@@ -7,8 +7,12 @@ import alphai_crocubot_oracle.tensormaths as tm
 ACTIVATION_FN_LINEAR = "linear"
 ACTIVATION_FN_SELU = "selu"
 ACTIVATION_FN_RELU = "relu"
+LAYER_FULL = 'full'
+LAYER_CONV_3D = 'conv3d'
+LAYER_POOL = 'pool2d'
 
 ALLOWED_ACTIVATION_FN = [ACTIVATION_FN_RELU, ACTIVATION_FN_SELU, ACTIVATION_FN_LINEAR]
+ALLOWED_LAYER_TYPES = [LAYER_FULL, LAYER_CONV_3D, LAYER_POOL]
 
 DEFAULT_N_SERIES = 28
 DEFAULT_TIMESTEPS = 28
@@ -88,6 +92,9 @@ class Topology(object):
 
             if layer["activation_func"] not in ALLOWED_ACTIVATION_FN:
                 raise ValueError('Unexpected activation function ' + str(layer["activation_func"]))
+
+            if layer["type"] not in ALLOWED_LAYER_TYPES:
+                raise ValueError('Unexpected layer type ' + str(layer["type"]))
 
             for key in ['height', 'width']:
                 x = layer[key]

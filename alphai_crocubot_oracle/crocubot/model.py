@@ -279,9 +279,7 @@ class Estimator:
             activation=None,
             reuse=reuse_kernel)
 
-        pooled_signal = tf.layers.max_pooling1d(inputs=signal, pool_size=[4], strides=2)
-
-        return pooled_signal
+        return signal
 
     def convolutional_layer_2d(self, signal):
         """ Sets a convolutional layer with a two-dimensional kernel. """
@@ -322,6 +320,7 @@ class Estimator:
 
         signal = tf.expand_dims(signal, axis=-1)
         n_kernels = self._model._topology.n_kernels
+        # kernel_size = self.calculate_kernel_size(signal)
         op_name = CONVOLUTIONAL_LAYER_3D + str(layer_number)
 
         try:

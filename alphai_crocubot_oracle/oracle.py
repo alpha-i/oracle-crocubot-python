@@ -332,7 +332,9 @@ class CrocubotOracle:
         for key, value in train_x_dict.items():
             numpy_arrays.append(value)
 
-        train_x = np.concatenate(numpy_arrays, axis=1)
+        train_x = np.stack(numpy_arrays, axis=0)
+        # Stack will keep the features separate
+        # BUT DIMENSIONS of TIMESTEPS MUST MATCH
 
         # Expand dataset if requested
         if FLAGS.predict_single_shares:
@@ -414,13 +416,13 @@ class CrocubotOracle:
 
         return corr_train_x
 
-    def initialise_topology(self, features_per_series):
+    def initialise_topology(self, n_timesteps):
         """ Set up the network topology based upon the configuration file, and shape of input data. """
 
         self._topology = tp.Topology(
             layers=None,
             n_series=self._n_input_series,
-            n_features_per_series=features_per_series,
+            n_timesteps=n_timesteps,
             n_forecasts=self._n_forecasts,
             n_classification_bins=self._configuration['n_classification_bins'],
             layer_heights=self._configuration['layer_heights'],
