@@ -207,7 +207,7 @@ class FinancialDataTransformation(DataTransformation):
 
         training_dates = self.get_training_market_dates(raw_data_dict)
         train_x, train_y, _ = self._create_data(raw_data_dict, training_dates, historical_universes,
-                                             do_normalisation_fitting=True)
+                                                do_normalisation_fitting=True)
         return train_x, train_y
 
     def create_predict_data(self, raw_data_dict):
@@ -249,6 +249,7 @@ class FinancialDataTransformation(DataTransformation):
                                                                      prediction_market_open, target_market_open)
             except Exception as e:
                 logging.error('Failed to build a set of features', exc_info=e)
+                raise e
 
             if self.check_x_batch_dimensions(feature_x_dict):
                 data_x_list.append(feature_x_dict)

@@ -100,7 +100,7 @@ class TestFinancialDataTransformation(TestCase):
             assert feature_x_dict[key].shape == (expected_n_time_dict[key], expected_n_symbols)
 
         for key in feature_y_dict.keys():
-            assert feature_y_dict[key].shape == (expected_n_symbols,)
+            assert feature_y_dict[key].shape == (1, expected_n_symbols)
 
     def test_get_prediction_data_all_features_no_target(self):
         raw_data_dict = sample_hourly_ohlcv_data_dict
@@ -138,7 +138,7 @@ class TestFinancialDataTransformation(TestCase):
             assert train_x[key].shape == (expected_n_samples, expected_n_time_dict[key], expected_n_symbols)
 
         for key in train_y.keys():
-            assert train_y[key].shape == (expected_n_samples, expected_n_symbols, expected_n_bins)
+            assert train_y[key].shape == (expected_n_samples, expected_n_bins, expected_n_symbols)
 
         train_x, train_y = fintransform.create_train_data(sample_hourly_ohlcv_data_dict,
                                                           sample_historical_universes)
@@ -148,7 +148,7 @@ class TestFinancialDataTransformation(TestCase):
             assert train_x[key].shape == (expected_n_samples, expected_n_time_dict[key], expected_n_symbols)
 
         for key in train_y.keys():
-            assert train_y[key].shape == (expected_n_samples, expected_n_symbols, expected_n_bins)
+            assert train_y[key].shape == (expected_n_samples, expected_n_bins, expected_n_symbols)
 
     def load_default_config(self, expected_n_symbols):
 
