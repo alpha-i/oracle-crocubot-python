@@ -394,12 +394,12 @@ class CrocubotOracle:
             corr_train_x = train_x.reshape(corr_shape)
             corr_train_x = np.swapaxes(corr_train_x, axis1=1, axis2=2)
         else:
-            raise NotImplementedError('not yet fixed to use multiple correlated series')
+            # raise NotImplementedError('not yet fixed to use multiple correlated series')
             for batch in range(n_batches):
                 # Series ordering may differ between batches - so we need the correlations for each batch
                 batch_data = train_x[batch, :, :]
-                neg_correlation_matrix = - np.corrcoef(batch_data, rowvar=False)  # False since each col represents a var
-                correlation_indices = neg_correlation_matrix.argsort(axis=1)  # Sort negative corr to get descending order
+                neg_correlation_matrix = - np.corrcoef(batch_data, rowvar=False)
+                correlation_indices = neg_correlation_matrix.argsort(axis=1)
 
                 for series_index in range(n_series):
                     if correlation_indices[series_index, [0]] != series_index:
@@ -407,11 +407,12 @@ class CrocubotOracle:
                     sample_number = batch * n_series + series_index
                     for i in range(self._n_input_series):
                         corr_series_index = correlation_indices[series_index, i]
-                        corr_train_x[sample_number, :, i] = train_x[batch, :, corr_series_index]
+                        corr_train_x[sample_number, i, :] = train_x[batch, :, corr_series_index]
 
         if found_duplicates:
             logging.warning('Some NaNs or duplicate series were found in the data')
 
+        corr_train_x = np.swapaxes(corr_train_x, axis1=1, axis2=2)
         return corr_train_x
 
     def initialise_topology(self, features_per_series):
