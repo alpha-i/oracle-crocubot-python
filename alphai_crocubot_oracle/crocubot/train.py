@@ -20,7 +20,6 @@ PRINT_LOSS_INTERVAL = 20
 PRINT_SUMMARY_INTERVAL = 5
 MAX_GRADIENT = 7.0
 
-
 # TODO encapsulate the parameters in a ParameterObject
 # TODO remove FLAGS usage
 def train(topology, series_name, execution_time, train_x=None, train_y=None, bin_edges=None, save_path=None,
@@ -159,7 +158,6 @@ def extract_batch(x, y, batch_number):
 
     return batch_x, batch_y
 
-
 # TODO remove FLAGS
 def _set_cost_operator(crocubot_model, x, labels, n_batches):
     """
@@ -222,7 +220,6 @@ def get_tensorboard_log_dir_current_execution(execution_time):
     hyper_param_string = "lr={}_bs={}".format(FLAGS.learning_rate, FLAGS.batch_size)
     execution_string = execution_time.strftime(DATETIME_FORMAT_COMPACT)
     return os.path.join(FLAGS.tensorboard_log_path, hyper_param_string, execution_string)
-
 
 # TODO remove the usage of FLAGS. Create a Provider for training_operator
 def _set_training_operator(cost_operator, global_step):
