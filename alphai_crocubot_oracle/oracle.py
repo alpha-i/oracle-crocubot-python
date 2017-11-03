@@ -419,7 +419,6 @@ class CrocubotOracle:
         """ Set up the network topology based upon the configuration file, and shape of input data. """
 
         self._topology = tp.Topology(
-            layers=None,
             n_series=self._n_input_series,
             n_timesteps=n_timesteps,
             n_forecasts=self._n_forecasts,
