@@ -7,13 +7,14 @@ import logging
 import numpy as np
 import tensorflow as tf
 
+import alphai_crocubot_oracle.crocubot.train
 from alphai_crocubot_oracle.data.classifier import BinDistribution
 import alphai_crocubot_oracle.crocubot.evaluate as eval
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel
 import alphai_crocubot_oracle.flags as fl
 import alphai_crocubot_oracle.iotools as io
 import alphai_crocubot_oracle.topology as topo
-from alphai_crocubot_oracle.crocubot import train as crocubot_train
+from alphai_crocubot_oracle.crocubot import train_with_datasource
 
 from alphai_data_sources.data_sources import DataSourceGenerator
 from alphai_data_sources.generator import BatchOptions, BatchGenerator
@@ -40,14 +41,14 @@ def run_timed_benchmark_mnist(series_name, do_training):
 
     data_source = data_source_generator.make_data_source(series_name)
 
-    _, labels = io.load_batch(batch_options, data_source)
+    _, labels = train_with_datasource.get_batch_from_generator(batch_options, data_source)
 
     start_time = timer()
 
     execution_time = datetime.datetime.now()
 
     if do_training:
-        crocubot_train.train(topology, series_name, execution_time)
+        train_with_datasource.train_with_datasource(topology, series_name, execution_time)
     else:
         tf.reset_default_graph()
         model = CrocuBotModel(topology)
@@ -91,7 +92,7 @@ def run_timed_benchmark_time_series(series_name, flags, do_training=True):
 
     data_source = data_source_generator.make_data_source(series_name)
 
-    _, labels = io.load_batch(batch_options, data_source)
+    _, labels = train_with_datasource.get_batch_from_generator(batch_options, data_source)
 
     bin_dist = BinDistribution(labels, topology.n_classification_bins)
 
@@ -100,7 +101,7 @@ def run_timed_benchmark_time_series(series_name, flags, do_training=True):
     execution_time = datetime.datetime.now()
 
     if do_training:
-        crocubot_train.train(topology, series_name, execution_time, bin_edges=bin_dist.bin_edges)
+        train_with_datasource.train_with_datasource(topology, series_name, execution_time, bin_edges=bin_dist.bin_edges)
     else:
         tf.reset_default_graph()
         model = CrocuBotModel(topology)
@@ -127,8 +128,8 @@ def evaluate_network(topology, series_name, bin_dist):  # bin_dist not used in M
 
     data_source = data_source_generator.make_data_source(series_name)
 
-    test_features, test_labels = io.load_batch(batch_options, data_source)
-    save_file = io.load_file_name(series_name, topology)
+    test_features, test_labels = train_with_datasource.get_batch_from_generator(batch_options, data_source)
+    save_file = io.build_check_point_filename(series_name, topology)
 
     binned_outputs = eval.eval_neural_net(test_features, topology, save_file)
     n_samples = binned_outputs.shape[1]
@@ -228,10 +229,10 @@ def run_mnist_test(train_path, tensorboard_log_path, method='Adam', use_full_tra
 
     if use_full_train_set:
         n_training_samples = 60000
-        n_epochs = 200
+        n_epochs = 2
     else:
         n_training_samples = 500
-        n_epochs = 100
+        n_epochs = 2
 
     config = load_default_config()
     config["n_epochs"] = n_epochs
