@@ -416,12 +416,13 @@ class FinancialDataTransformation(DataTransformation):
         else:
             target_timestamp = target_market_open + timedelta(minutes=self.target_market_minute)
 
-        return self.get_prediction_data_all_features(
-            raw_data_dict,
-            prediction_timestamp,
-            universe,
-            target_timestamp,
-        )
+        feature_x_dict, feature_y_dict = self.get_prediction_data_all_features(raw_data_dict,
+                                                                               prediction_timestamp,
+                                                                               universe,
+                                                                               target_timestamp,
+                                                                               )
+
+        return feature_x_dict, feature_y_dict
 
     def stack_samples_for_each_feature(self, samples, reference_samples=None):
         """ Collate a list of samples (the training set) into a single dictionary
