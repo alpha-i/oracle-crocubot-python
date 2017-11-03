@@ -56,7 +56,8 @@ def train(topology, series_name, execution_time, train_x=None, train_y=None, bin
 
     # Placeholders for the inputs and outputs of neural networks
     # FIXME replace FLAGS.batch_size with None for greater flexibility
-    x = tf.placeholder(FLAGS.d_type, shape=[FLAGS.batch_size, topology.n_series, topology.n_timesteps, topology.n_features], name="x")
+    x_shape = [FLAGS.batch_size, topology.n_series, topology.n_timesteps, topology.n_features]
+    x = tf.placeholder(FLAGS.d_type, shape=x_shape, name="x")
     y = tf.placeholder(FLAGS.d_type, name="y")
 
     global_step = tf.Variable(0, trainable=False, name='global_step')
