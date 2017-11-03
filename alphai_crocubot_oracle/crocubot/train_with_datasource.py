@@ -9,13 +9,15 @@ from alphai_data_sources.generator import BatchOptions, BatchGenerator
 from alphai_crocubot_oracle import iotools as io
 from alphai_crocubot_oracle.crocubot.helpers import get_tensorboard_log_dir_current_execution
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel
-from alphai_crocubot_oracle.crocubot.train import _log_topology_parameters_size, FLAGS, _set_cost_operator, _set_training_operator
+from alphai_crocubot_oracle.crocubot.train import _log_topology_parameters_size, FLAGS, _set_cost_operator, \
+    _set_training_operator
 from alphai_crocubot_oracle.crocubot import PRINT_LOSS_INTERVAL, PRINT_SUMMARY_INTERVAL
 from alphai_crocubot_oracle.data.classifier import classify_labels
 
 
-def train_with_datasource(topology, series_name, execution_time, train_x=None, train_y=None, bin_edges=None, save_path=None,
-          restore_path=None):
+def train_with_datasource(topology, series_name, execution_time, train_x=None, train_y=None, bin_edges=None,
+                          save_path=None,
+                          restore_path=None):
     """ Train network on either MNIST or time series data
 
     FIXME
@@ -163,7 +165,6 @@ def shuffle_training_data(train_x, train_y):
 
 
 def get_batch_from_generator(batch_options, data_source, bin_edges=None):
-
     batch_generator = BatchGenerator()
     features, labels = batch_generator.get_batch(batch_options, data_source)
 

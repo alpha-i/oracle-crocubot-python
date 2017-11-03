@@ -18,7 +18,6 @@ import alphai_crocubot_oracle.tensormaths as tm
 
 
 class CrocuBotModel:
-
     VAR_WEIGHT_RHO = 'rho_w'
     VAR_WEIGHT_MU = 'mu_w'
     VAR_WEIGHT_NOISE = 'weight_noise'
@@ -71,7 +70,6 @@ class CrocuBotModel:
         initial_alpha = self._flags.INITIAL_ALPHA
 
         for layer_number in range(self._topology.n_layers):
-
             w_shape = self._topology.get_weight_shape(layer_number)
             b_shape = self._topology.get_bias_shape(layer_number)
 
@@ -159,7 +157,6 @@ class CrocuBotModel:
 
 
 class Estimator:
-
     def __init__(self, crocubot_model, flags):
         """
 

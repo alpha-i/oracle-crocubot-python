@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
+from alphai_crocubot_oracle.crocubot.helpers import TensorflowPath, TensorboardOptions, TrainDataProvider
 from alphai_crocubot_oracle.data.transformation import FinancialDataTransformation
 from alphai_time_series.transform import gaussianise
 
@@ -21,7 +22,7 @@ from alphai_crocubot_oracle.flags import set_training_flags
 import alphai_crocubot_oracle.topology as tp
 from alphai_crocubot_oracle import DATETIME_FORMAT_COMPACT
 from alphai_crocubot_oracle.covariance import estimate_covariance
-from alphai_crocubot_oracle.helpers import TrainFileManager
+from alphai_crocubot_oracle.helpers import TrainFileManager, logtime
 
 CLIP_VALUE = 5.0  # Largest number allowed to enter the network
 DEFAULT_N_CORRELATED_SERIES = 5
@@ -157,16 +158,23 @@ class CrocubotOracle:
         if FLAGS.resume_training:
             try:
                 resume_train_path = self._train_file_manager.latest_train_filename(execution_time)
-            except:
+            except ValueError:
                 pass
+
         train_path = self._train_file_manager.new_filename(execution_time)
-        data_source = 'financial_stuff'
-        start_time = timer()  # TODO replace this with timeit like decorator
-        crocubot.train(self._topology, data_source, execution_time, train_x, train_y, save_path=train_path,
-                       restore_path=resume_train_path)
-        end_time = timer()
-        train_time = end_time - start_time
-        logging.info("Training took: {} seconds".format(train_time))
+
+        tensorflow_path = TensorflowPath(train_path, resume_train_path)
+        tensorboard_options = TensorboardOptions(FLAGS.tensorboard_log_path,
+                                                 FLAGS.learning_rate,
+                                                 FLAGS.batch_size,
+                                                 execution_time
+                                                 )
+        data_provider = TrainDataProvider(train_x, train_y)
+        self._do_train(tensorflow_path, tensorboard_options, data_provider)
+
+    @logtime(message="Training the model.")
+    def _do_train(self, tensorflow_path, tensorboard_options, data_provider):
+        crocubot.train(self._topology, data_provider, tensorflow_path, tensorboard_options)
 
     def predict(self, predict_data, execution_time):
         """
