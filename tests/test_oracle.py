@@ -1,15 +1,15 @@
-import os
+# import os
 from datetime import datetime, timedelta
 from unittest import TestCase
 
 import pandas as pd
 
-from alphai_crocubot_oracle import DATETIME_FORMAT_COMPACT
-from alphai_crocubot_oracle.oracle import TRAIN_FILE_NAME_TEMPLATE
+# from alphai_crocubot_oracle import DATETIME_FORMAT_COMPACT
+# from alphai_crocubot_oracle.oracle import TRAIN_FILE_NAME_TEMPLATE
 
 from tests.helpers import (
     load_default_config,
-    FIXTURE_DESTINATION_DIR,
+    # FIXTURE_DESTINATION_DIR,
     FIXTURE_DATA_FULLPATH,
     create_fixtures,
     destroy_fixtures,

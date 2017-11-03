@@ -54,7 +54,8 @@ class TestTopology(unittest.TestCase):
     def test_get_weight_shape(self):
 
         weight_shape = self.topology.get_weight_shape(0)
-        assert weight_shape == [DEFAULT_DEPTH, DEFAULT_N_SERIES, DEFAULT_TIMESTEPS, DEFAULT_DEPTH, DEFAULT_HEIGHT, DEFAULT_WIDTH]
+        assert weight_shape == [DEFAULT_DEPTH, DEFAULT_N_SERIES, DEFAULT_TIMESTEPS, DEFAULT_DEPTH,
+                                DEFAULT_HEIGHT, DEFAULT_WIDTH]
 
     def test_get_bias_shape(self):
 

@@ -5,7 +5,6 @@ from alphai_crocubot_oracle.crocubot.model import CrocuBotModel, Estimator
 from alphai_crocubot_oracle.topology import (
     Topology,
     DEFAULT_HIDDEN_LAYERS,
-    DEFAULT_WIDTH,
     DEFAULT_DEPTH,
     DEFAULT_N_SERIES,
     DEFAULT_TIMESTEPS,
