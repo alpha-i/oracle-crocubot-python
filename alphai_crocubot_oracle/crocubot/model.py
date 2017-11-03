@@ -213,6 +213,34 @@ class Estimator:
 
         return stacked_output
 
+    def efficient_multiple_passes(self, input_signal, number_of_passes=50):
+        """
+        Collate outputs from many realisations of weights from a bayesian network.
+
+        :param tensor x:
+        :param int number_of_passes:
+        :return 4D tensor with dimensions [n_passes, batch_size, n_label_timesteps, n_categories]:
+        """
+
+        output_signal = tf.nn.log_softmax(self.forward_pass(input_signal, int(0)), dim=-1)
+        index_summation = (int(0), output_signal)
+
+        def condition(index, _):
+            return tf.less(index, number_of_passes)
+
+        def body(index, summation):
+            raw_output = self.forward_pass(input_signal, index)
+            log_p = tf.nn.log_softmax(raw_output, dim=-1)
+
+            stacked_p = tf.stack([log_p, summation], axis=0)
+            log_p_total = tf.reduce_logsumexp(stacked_p, axis=0)
+
+            return tf.add(index, 1), log_p_total
+
+        # We do not care about the index value here, return only the signal
+        output = tf.while_loop(condition, body, index_summation)[1]
+        return tf.expand_dims(output, axis=0)
+
     def forward_pass(self, signal, iteration=0):
         """
         Takes input data and returns predictions
