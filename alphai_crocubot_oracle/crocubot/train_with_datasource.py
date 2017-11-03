@@ -8,11 +8,13 @@ from alphai_data_sources.generator import BatchOptions, BatchGenerator
 
 from alphai_crocubot_oracle import iotools as io
 from alphai_crocubot_oracle.crocubot.helpers import get_tensorboard_log_dir_current_execution
+from alphai_crocubot_oracle.data.providers import TrainData, TrainDataProviderForDataSource
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel
 from alphai_crocubot_oracle.crocubot.train import _log_topology_parameters_size, FLAGS, _set_cost_operator, \
     _set_training_operator
 from alphai_crocubot_oracle.crocubot import PRINT_LOSS_INTERVAL, PRINT_SUMMARY_INTERVAL
 from alphai_crocubot_oracle.data.classifier import classify_labels
+
 
 
 def train_with_datasource(topology, series_name, execution_time, train_x=None, train_y=None, bin_edges=None,
@@ -33,18 +35,9 @@ def train_with_datasource(topology, series_name, execution_time, train_x=None, t
     model = CrocuBotModel(topology, FLAGS)
     model.build_layers_variables()
 
-    if train_x is None:
-        use_data_loader = True
-        n_training_samples = FLAGS.n_training_samples_benchmark
-    else:
-        use_data_loader = False
-        n_training_samples = train_x.shape[0]
+    n_training_samples = FLAGS.n_training_samples_benchmark
 
-    if use_data_loader:
-        data_source_generator = DataSourceGenerator()
-        batch_options = BatchOptions(FLAGS.batch_size, batch_number=0, train=True, dtype=FLAGS.d_type)
-        logging.info('Loading data series: {}'.format(series_name))
-        data_source = data_source_generator.make_data_source(series_name)
+    data_provider = TrainDataProviderForDataSource()
 
     # Placeholders for the inputs and outputs of neural networks
     x = tf.placeholder(FLAGS.d_type, shape=[None, topology.n_features_per_series, topology.n_series], name="x")
@@ -89,22 +82,15 @@ def train_with_datasource(topology, series_name, execution_time, train_x=None, t
 
         epoch_loss_list = []
         for epoch in range(n_epochs):
-            if train_x is not None:
-                train_x, train_y = shuffle_training_data(train_x, train_y)
-
             # TODO replace this timer with logtime like decorator
             epoch_loss = 0.
             start_time = timer()
 
             for batch_number in range(n_batches):  # The randomly sampled weights are fixed within single batch
 
-                # TODO implement a smarter version of DatasourceGenerator to remove the iotools dependency
-                # TODO and replace alphai_crocubot_oracle.iotools.get_batch_from_generator
-                if use_data_loader:
-                    batch_options.batch_number = batch_number
-                    batch_x, batch_y = get_batch_from_generator(batch_options, data_source, bin_edges=bin_edges)
-                else:
-                    batch_x, batch_y = get_batch(train_x, train_y, batch_number)
+                batch_data = data_provider.get_batch(batch_number, FLAGS.batch_size)
+                batch_x = batch_data.train_x
+                batch_y = batch_data.train_y
 
                 if batch_number == 0 and epoch == 0:
                     logging.info("Training {} batches of size {} and {}"
@@ -137,38 +123,11 @@ def train_with_datasource(topology, series_name, execution_time, train_x=None, t
     return epoch_loss_list
 
 
-def get_batch(x, y, batch_number):
-    """ Returns batch of features and labels from the full data set x and y
-
-    :param nparray x: Full set of training features
-    :param nparray y: Full set of training labels
-    :param int batch_number: Which batch
-    :return:
-    """
-    lo_index = batch_number * FLAGS.batch_size
-    hi_index = lo_index + FLAGS.batch_size
-    batch_x = x[lo_index:hi_index, :]
-    batch_y = y[lo_index:hi_index, :]
-
-    return batch_x, batch_y
-
-
-def shuffle_training_data(train_x, train_y):
-    """ Reorder the numpy arrays in a random but consistent manner """
-
-    rng_state = np.random.get_state()
-    np.random.shuffle(train_x)
-    np.random.set_state(rng_state)
-    np.random.shuffle(train_y)
-
-    return train_x, train_y
-
-
-def get_batch_from_generator(batch_options, data_source, bin_edges=None):
-    batch_generator = BatchGenerator()
-    features, labels = batch_generator.get_batch(batch_options, data_source)
-
-    if bin_edges is not None:
-        labels = classify_labels(bin_edges, labels)
-
-    return features, labels
+# def get_batch_from_generator(batch_options, data_source, bin_edges=None):
+#     batch_generator = BatchGenerator()
+#     features, labels = batch_generator.get_batch(batch_options, data_source)
+#
+#     if bin_edges is not None:
+#         labels = classify_labels(bin_edges, labels)
+#
+#     return features, labels

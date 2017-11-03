@@ -84,3 +84,19 @@ def logtime(message=None):
         return wrapped_f
 
     return wrap
+
+
+def printtime(message=None):
+    def wrap(method):
+        def wrapped_f(*args, **kw):
+            ts = time.time()
+            result = method(*args, **kw)
+            te = time.time()
+            duration = te - ts
+            msg = message if message else method.__name__
+            print("{}: Execution time: {} seconds".format(msg, duration))
+            return result
+
+        return wrapped_f
+
+    return wrap

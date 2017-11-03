@@ -9,11 +9,6 @@ import tensorflow as tf
 from alphai_data_sources.generator import BatchGenerator
 
 FLAGS = tf.app.flags.FLAGS
-batch_generator = BatchGenerator()
-
-
-def reset_mnist():
-    batch_generator.reset_mnist()
 
 
 def build_check_point_filename(series_name, topology):

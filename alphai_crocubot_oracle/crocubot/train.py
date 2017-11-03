@@ -19,8 +19,7 @@ def train(topology,
           data_provider,
           tensorflow_path,
           tensorboard_options,
-          bin_edges=None,
-          restore_path=None):
+          bin_edges=None):
     """
     :param Toplogy topology:
     :param TrainDataProvider data_provider:

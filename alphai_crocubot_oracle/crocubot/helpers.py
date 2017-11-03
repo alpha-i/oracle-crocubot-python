@@ -1,6 +1,5 @@
 import os
-import numpy as np
-from collections import namedtuple
+
 from alphai_crocubot_oracle import DATETIME_FORMAT_COMPACT
 from alphai_crocubot_oracle.flags import FLAGS
 
@@ -66,51 +65,3 @@ class TensorboardOptions:
         return os.path.join(self._tensorboard_log_path, hyper_param_string, execution_string)
 
 
-TrainData = namedtuple('TrainData', 'train_x train_y')
-
-
-class TrainDataProvider:
-    def __init__(self, train_x, train_y):
-        self._train_data = TrainData(train_x, train_y)
-
-    @property
-    def train_data(self):
-        return self._train_data
-
-    @property
-    def number_of_training_samples(self):
-        return self.train_data.train_x.shape[0]
-
-    def get_number_of_batches(self, batch_size):
-        return int(self.number_of_training_samples / batch_size) + 1
-
-    def shuffle_data(self):
-        """ Reorder the numpy arrays in a random but consistent manner """
-
-        train_x = self._train_data.train_x
-        train_y = self._train_data.train_y
-
-        rng_state = np.random.get_state()
-        np.random.shuffle(train_x)
-        np.random.set_state(rng_state)
-        np.random.shuffle(train_y)
-
-        self._train_data = TrainData(train_x, train_y)
-
-    def get_batch(self, batch_number, batch_size):
-        """ Returns batch of features and labels from the full data set x and y
-
-        :param nparray x: Full set of training features
-        :param nparray y: Full set of training labels
-        :param int batch_number: Which batch
-        :return:
-        """
-        train_x = self._train_data.train_x
-        train_y = self._train_data.train_y
-
-        lo_index = batch_number * batch_size
-        hi_index = lo_index + batch_size
-        batch_x = train_x[lo_index:hi_index, :]
-        batch_y = train_y[lo_index:hi_index, :]
-
-        return TrainData(batch_x, batch_y)
