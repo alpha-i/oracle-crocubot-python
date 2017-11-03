@@ -35,7 +35,7 @@ class Topology(object):
     Run checks on the user input to verify that it defines a valid topology.
     """
 
-    def __init__(self, layers=None, n_series=DEFAULT_N_SERIES, n_timesteps=DEFAULT_TIMESTEPS,
+    def __init__(self, n_series=DEFAULT_N_SERIES, n_timesteps=DEFAULT_TIMESTEPS,
                  n_forecasts=DEFAULT_N_FORECASTS, n_classification_bins=DEFAULT_BINS, layer_heights=None,
                  layer_widths=None, layer_depths=None, activation_functions=None, layer_types=None, n_features=1):
         """
@@ -62,13 +62,10 @@ class Topology(object):
             assert len(layer_widths) == len(layer_heights), "Length of widths array does not match height array"
             assert len(activation_functions) == len(layer_heights), "Length of act fns does not match height array"
 
-        if layers is None:
-            layers = self._build_layers(layer_depths, layer_heights, layer_widths, activation_functions, layer_types)
-            # FIXME Short term hack to ensure consistency - the following four lines should probably be assertions
-            # layers[0]["width"] = n_features_per_series
-            # layers[0]["height"] = n_series
-            layers[-1]["height"] = n_forecasts
-            layers[-1]["width"] = n_classification_bins
+        layers = self._build_layers(layer_depths, layer_heights, layer_widths, activation_functions, layer_types)
+        # FIXME Short term hack to ensure consistency - the following four lines should probably be assertions
+        layers[-1]["height"] = n_forecasts
+        layers[-1]["width"] = n_classification_bins
 
         self._verify_layers(layers)
         self.layers = layers
