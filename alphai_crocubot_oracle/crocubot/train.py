@@ -19,6 +19,7 @@ FLAGS = tf.app.flags.FLAGS
 PRINT_LOSS_INTERVAL = 20
 PRINT_SUMMARY_INTERVAL = 5
 MAX_GRADIENT = 7.0
+PRINT_KERNEL = True
 
 
 # TODO encapsulate the parameters in a ParameterObject
@@ -54,7 +55,9 @@ def train(topology, series_name, execution_time, train_x=None, train_y=None, bin
         data_source = data_source_generator.make_data_source(series_name)
 
     # Placeholders for the inputs and outputs of neural networks
-    x = tf.placeholder(FLAGS.d_type, shape=[None, topology.n_features_per_series, topology.n_series], name="x")
+    # FIXME replace FLAGS.batch_size with None for greater flexibility
+    x_shape = [FLAGS.batch_size, topology.n_series, topology.n_timesteps, topology.n_features]
+    x = tf.placeholder(FLAGS.d_type, shape=x_shape, name="x")
     y = tf.placeholder(FLAGS.d_type, name="y")
 
     global_step = tf.Variable(0, trainable=False, name='global_step')
@@ -65,7 +68,6 @@ def train(topology, series_name, execution_time, train_x=None, train_y=None, bin
     optimize = _set_training_operator(cost_operator, global_step)
 
     all_summaries = tf.summary.merge_all()
-
     model_initialiser = tf.global_variables_initializer()
 
     # TODO set save_path and restore path as required so we can remove the dependency
@@ -137,6 +139,14 @@ def train(topology, series_name, execution_time, train_x=None, train_y=None, bin
                                                                                    time_epoch)
                 logging.info(msg)
                 # accuracy_test
+
+                # Print convolutional kernel
+                if PRINT_KERNEL and FLAGS.use_convolution:
+                    gr = tf.get_default_graph()
+                    conv1_kernel_val = gr.get_tensor_by_name('conv3d0/kernel:0').eval()
+                    conv1_bias_val = gr.get_tensor_by_name('conv3d0/bias:0').eval()
+                    logging.info("Kernel values: {}".format(conv1_kernel_val.flatten()))
+                    logging.info("Kernel bias: {}".format(conv1_bias_val))
 
         out_path = saver.save(sess, save_path)
         logging.info("Model saved in file:{}".format(out_path))

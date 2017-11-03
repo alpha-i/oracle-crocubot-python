@@ -25,28 +25,38 @@ def eval_neural_net(data, topology, save_file):
     """
 
     logging.info("Evaluating with shape {}".format(data.shape))
+    x = tf.placeholder(FLAGS.d_type,
+                       shape=[data.shape[0], topology.n_series, topology.n_timesteps, topology.n_features], name="x")
 
     model = CrocuBotModel(topology, FLAGS)
-    try:
-        model.build_layers_variables()
-    except:
-        logging.info('Variables already initialised')
-
     saver = tf.train.Saver()
+
     estimator = Estimator(model, FLAGS)
-    y = estimator.collate_multiple_passes(data, FLAGS.n_eval_passes)
+    y = estimator.collate_multiple_passes(x, FLAGS.n_eval_passes)
 
     with tf.Session() as sess:
         logging.info("Attempting to recover trained network: {}".format(save_file))
         start_time = timer()
+
         saver.restore(sess, save_file)
+
         end_time = timer()
         delta_time = end_time - start_time
         logging.info("Loading the model from disk took:{}".format(delta_time))
 
-        log_p = y.eval()
+        graph = tf.get_default_graph()
+        # Finally we can retrieve tensors, operations, collections, etc.
+        try:
+            kernel = graph.get_tensor_by_name('conv3d0/kernel:0').eval()
+            logging.info("Evaluating conv3d with kernel: {}".format(kernel.flatten()))
+        except:
+            pass
 
-        return np.exp(log_p)
+        log_p = sess.run(y, feed_dict={x: data})
+
+    posterior = np.exp(log_p)
+
+    return np.squeeze(posterior, axis=2)
 
 
 def forecast_means_and_variance(outputs, bin_distribution):

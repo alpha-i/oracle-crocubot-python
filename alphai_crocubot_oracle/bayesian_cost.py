@@ -54,6 +54,16 @@ class BayesianCost(object):
         stack_of_passes = tf.stack(costs, axis=0)
         return - tf.reduce_logsumexp(- 0.5 * stack_of_passes, axis=0)
 
+    def calculate_output_prior(self, prediction):
+        """
+
+        :param prediction:
+        :return:
+        """
+        log_py = 0.5 * tf.reduce_sum(prediction + tf.log(1.0 - tf.exp(prediction)))
+
+        return log_py
+
     def calculate_priors(self, iteration=0):
         log_pw = 0.
         log_qw = 0.
