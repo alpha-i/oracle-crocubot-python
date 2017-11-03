@@ -94,7 +94,7 @@ class FinancialDataTransformation(DataTransformation):
 
         for feature_full_name, feature_array in feature_x_dict.items():
             if feature_full_name in TOTAL_TICKS_FINANCIAL_FEATURES:
-                if feature_array.shape[0] != self.get_total_ticks_x():
+                if feature_array.shape[0] != self.get_total_ticks_x() - 1:
                     correct_dimensions = False
             elif feature_full_name in TOTAL_TICKS_M1_FINANCIAL_FEATURES:
                 if feature_array.shape[0] != self.get_total_ticks_x() - 1:

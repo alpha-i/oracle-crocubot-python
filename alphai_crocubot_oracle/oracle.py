@@ -332,6 +332,7 @@ class CrocubotOracle:
         for key, value in train_x_dict.items():
             numpy_arrays.append(value)
 
+        # Now train_x will have dimensions [features; sampes; timesteps; symbols]
         train_x = np.stack(numpy_arrays, axis=0)
         # Stack will keep the features separate
         # BUT DIMENSIONS of TIMESTEPS MUST MATCH
@@ -353,7 +354,7 @@ class CrocubotOracle:
 
         if FLAGS.predict_single_shares:
             n_feat_y = train_y.shape[2]
-            train_y = np.reshape(train_y, [-1, 1, n_feat_y])  # , order='F'
+            train_y = np.reshape(train_y, [-1, 1, n_feat_y])
 
         self.verify_y_data(train_y)
 
@@ -382,24 +383,32 @@ class CrocubotOracle:
         :return: nparray The expanded training dataset, still in the format [batches, features, series]
         """
 
-        n_batches = train_x.shape[0]
-        n_feat_x = train_x.shape[1]
-        n_series = train_x.shape[2]
-        n_total_samples = n_batches * n_series
+        # Enters with dimensions  [features; samples; timesteps; series]
+        n_features = train_x.shape[0]
+        n_samples = train_x.shape[1]
+        n_timesteps = train_x.shape[2]
+        n_series = train_x.shape[3]
+        n_expanded_samples = n_samples * n_series
 
-        corr_shape = [n_total_samples, self._n_input_series, n_feat_x]
-        corr_train_x = np.zeros(shape=corr_shape)
+        source = [0, 1, 2, 3]
+        destination = [1, 3, 2, 0]
+        train_x = np.moveaxis(train_x, source, destination)
+        # Now with dimensions  [samples; series ; time; features]
+
+        target_shape = [n_expanded_samples, self._n_input_series, n_timesteps, n_features]
         found_duplicates = False
 
         if self._n_input_series == 1:
             train_x = np.swapaxes(train_x, axis1=1, axis2=2)
-            corr_train_x = train_x.reshape(corr_shape)
+            corr_train_x = train_x.reshape(target_shape)
             corr_train_x = np.swapaxes(corr_train_x, axis1=1, axis2=2)
         else:
             raise NotImplementedError('not yet fixed to use multiple correlated series')
-            for batch in range(n_batches):
+            corr_train_x = np.zeros(shape=target_shape)
+
+            for sample in range(n_samples):
                 # Series ordering may differ between batches - so we need the correlations for each batch
-                batch_data = train_x[batch, :, :]
+                batch_data = train_x[batch, :, :, :]
                 neg_correlation_matrix = - np.corrcoef(batch_data, rowvar=False)  # False since each col represents a var
                 correlation_indices = neg_correlation_matrix.argsort(axis=1)  # Sort negative corr to get descending order
 
@@ -409,7 +418,7 @@ class CrocubotOracle:
                     sample_number = batch * n_series + series_index
                     for i in range(self._n_input_series):
                         corr_series_index = correlation_indices[series_index, i]
-                        corr_train_x[sample_number, :, i] = train_x[batch, :, corr_series_index]
+                        corr_train_x[sample_number, :, i, :] = train_x[batch, :, corr_series_index, :]
 
         if found_duplicates:
             logging.warning('Some NaNs or duplicate series were found in the data')
