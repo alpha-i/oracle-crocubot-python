@@ -13,7 +13,6 @@ from alphai_crocubot_oracle.data.classifier import declassify_labels
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel, Estimator
 
 FLAGS = tf.app.flags.FLAGS
-PRINT_KERNEL = False
 
 
 def eval_neural_net(data, topology, save_file):
@@ -48,21 +47,12 @@ def eval_neural_net(data, topology, save_file):
         graph = tf.get_default_graph()
         # Finally we can retrieve tensors, operations, collections, etc.
         try:
-            kernel = graph.get_tensor_by_name('conv2d:0').eval()
-            logging.info("Evaluating conv2d with kernel: {}".format(kernel.flatten()))
+            kernel = graph.get_tensor_by_name('conv3d0/kernel:0').eval()
+            logging.info("Evaluating conv3d with kernel: {}".format(kernel.flatten()))
         except:
             pass
 
         log_p = sess.run(y, feed_dict={x: data})
-
-        # log_p = y.eval()
-
-        if PRINT_KERNEL:
-            gr = tf.get_default_graph()
-            conv1_kernel_val = gr.get_tensor_by_name('conv2d/kernel:0').eval()
-            conv1_bias_val = gr.get_tensor_by_name('conv2d/bias:0').eval()
-            logging.info("Kernel values: {}".format(conv1_kernel_val.flatten()))
-            logging.info("Kernel bias: {}".format(conv1_bias_val))
 
     posterior = np.exp(log_p)
 
