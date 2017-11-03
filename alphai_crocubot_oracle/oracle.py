@@ -75,11 +75,13 @@ class CrocubotOracle:
         logging.info('Initialising Crocubot Oracle.')
 
         configuration = self.update_configuration(configuration)
+        feature_list = configuration['data_transformation']['feature_config_list']
 
         self._data_transformation = FinancialDataTransformation(configuration['data_transformation'])
         self._train_path = configuration['train_path']
         self._covariance_method = configuration['covariance_method']
         self._covariance_ndays = configuration['covariance_ndays']
+        self._n_features = len(feature_list)
 
         # FIXME Temporary use default setting for tests to pass
         if 'use_historical_covariance' in configuration:
@@ -140,8 +142,8 @@ class CrocubotOracle:
 
         # Topology can either be directly constructed from layers, or build from sequence of parameters
         if self._topology is None:
-            features_per_series = train_x.shape[1]
-            self.initialise_topology(features_per_series)
+            n_timesteps = train_x.shape[2]
+            self.initialise_topology(n_timesteps)
 
         logging.info('Initialised network topology: {}.'.format(self._topology.layers))
 
@@ -191,11 +193,11 @@ class CrocubotOracle:
         predict_x = self._preprocess_inputs(predict_x)
 
         if self._topology is None:
-            features_per_series = predict_x.shape[1]
-            self.initialise_topology(features_per_series)
+            n_timesteps = predict_x.shape[2]
+            self.initialise_topology(n_timesteps)
 
         # Verify data is the correct shape
-        topology_shape = (self._topology.n_features_per_series, self._topology.n_series)
+        topology_shape = (self._topology.n_timesteps, self._topology.n_series)
 
         if predict_x.shape[-2:] != topology_shape:
             raise ValueError('Data shape' + str(predict_x.shape) + " doesnt match network input " + str(topology_shape))
@@ -398,9 +400,7 @@ class CrocubotOracle:
         found_duplicates = False
 
         if self._n_input_series == 1:
-            train_x = np.swapaxes(train_x, axis1=1, axis2=2)
             corr_train_x = train_x.reshape(target_shape)
-            corr_train_x = np.swapaxes(corr_train_x, axis1=1, axis2=2)
         else:
             raise NotImplementedError('not yet fixed to use multiple correlated series')
             corr_train_x = np.zeros(shape=target_shape)
@@ -434,5 +434,6 @@ class CrocubotOracle:
             n_classification_bins=self._configuration['n_classification_bins'],
             layer_heights=self._configuration['layer_heights'],
             layer_widths=self._configuration['layer_widths'],
-            activation_functions=self._configuration['activation_functions']
+            activation_functions=self._configuration['activation_functions'],
+            n_features=self._n_features
         )
