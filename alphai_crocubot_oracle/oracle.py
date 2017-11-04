@@ -75,11 +75,13 @@ class CrocubotOracle:
         logging.info('Initialising Crocubot Oracle.')
 
         configuration = self.update_configuration(configuration)
+        feature_list = configuration['data_transformation']['feature_config_list']
 
         self._data_transformation = FinancialDataTransformation(configuration['data_transformation'])
         self._train_path = configuration['train_path']
         self._covariance_method = configuration['covariance_method']
         self._covariance_ndays = configuration['covariance_ndays']
+        self._n_features = len(feature_list)
 
         # FIXME Temporary use default setting for tests to pass
         if 'use_historical_covariance' in configuration:
@@ -140,8 +142,8 @@ class CrocubotOracle:
 
         # Topology can either be directly constructed from layers, or build from sequence of parameters
         if self._topology is None:
-            features_per_series = train_x.shape[1]
-            self.initialise_topology(features_per_series)
+            n_timesteps = train_x.shape[2]
+            self.initialise_topology(n_timesteps)
 
         logging.info('Initialised network topology: {}.'.format(self._topology.layers))
 
@@ -192,11 +194,11 @@ class CrocubotOracle:
 
 
         if self._topology is None:
-            features_per_series = predict_x.shape[1]
-            self.initialise_topology(features_per_series)
+            n_timesteps = predict_x.shape[2]
+            self.initialise_topology(n_timesteps)
 
         # Verify data is the correct shape
-        topology_shape = (self._topology.n_features_per_series, self._topology.n_series)
+        topology_shape = (self._topology.n_timesteps, self._topology.n_series)
 
         if predict_x.shape[-2:] != topology_shape:
             raise ValueError('Data shape' + str(predict_x.shape) + " doesnt match network input " + str(topology_shape))
@@ -284,7 +286,7 @@ class CrocubotOracle:
         xmin, xmax = self.print_verification_report(testx, 'X_data')
 
         if xmax > CLIP_VALUE or xmin < -CLIP_VALUE:
-            n_clipped_elements = np.sum(xmax < np.abs(testx))
+            n_clipped_elements = np.sum(CLIP_VALUE < np.abs(testx))
             n_elements = len(testx)
             x_data = np.clip(x_data, a_min=-CLIP_VALUE, a_max=CLIP_VALUE)
             logging.warning("Large inputs detected: clip values exceeding {}".format(CLIP_VALUE))
@@ -332,7 +334,10 @@ class CrocubotOracle:
         for key, value in train_x_dict.items():
             numpy_arrays.append(value)
 
-        train_x = np.concatenate(numpy_arrays, axis=1)
+        # Now train_x will have dimensions [features; sampes; timesteps; symbols]
+        train_x = np.stack(numpy_arrays, axis=0)
+        # Stack will keep the features separate
+        # BUT DIMENSIONS of TIMESTEPS MUST MATCH
 
         # Expand dataset if requested
         if FLAGS.predict_single_shares:
@@ -351,7 +356,7 @@ class CrocubotOracle:
 
         if FLAGS.predict_single_shares:
             n_feat_y = train_y.shape[2]
-            train_y = np.reshape(train_y, [-1, 1, n_feat_y])  # , order='F'
+            train_y = np.reshape(train_y, [-1, 1, n_feat_y])
 
         self.verify_y_data(train_y)
 
@@ -380,24 +385,30 @@ class CrocubotOracle:
         :return: nparray The expanded training dataset, still in the format [batches, features, series]
         """
 
-        n_batches = train_x.shape[0]
-        n_feat_x = train_x.shape[1]
-        n_series = train_x.shape[2]
-        n_total_samples = n_batches * n_series
+        # Enters with dimensions  [features; samples; timesteps; series]
+        n_features = train_x.shape[0]
+        n_samples = train_x.shape[1]
+        n_timesteps = train_x.shape[2]
+        n_series = train_x.shape[3]
+        n_expanded_samples = n_samples * n_series
 
-        corr_shape = [n_total_samples, self._n_input_series, n_feat_x]
-        corr_train_x = np.zeros(shape=corr_shape)
+        source = [0, 1, 2, 3]
+        destination = [1, 3, 2, 0]
+        train_x = np.moveaxis(train_x, source, destination)
+        # Now with dimensions  [samples; series ; time; features]
+
+        target_shape = [n_expanded_samples, self._n_input_series, n_timesteps, n_features]
         found_duplicates = False
 
         if self._n_input_series == 1:
-            train_x = np.swapaxes(train_x, axis1=1, axis2=2)
-            corr_train_x = train_x.reshape(corr_shape)
-            corr_train_x = np.swapaxes(corr_train_x, axis1=1, axis2=2)
+            corr_train_x = train_x.reshape(target_shape)
         else:
             raise NotImplementedError('not yet fixed to use multiple correlated series')
-            for batch in range(n_batches):
+            corr_train_x = np.zeros(shape=target_shape)
+
+            for sample in range(n_samples):
                 # Series ordering may differ between batches - so we need the correlations for each batch
-                batch_data = train_x[batch, :, :]
+                batch_data = train_x[batch, :, :, :]
                 neg_correlation_matrix = - np.corrcoef(batch_data, rowvar=False)  # False since each col represents a var
                 correlation_indices = neg_correlation_matrix.argsort(axis=1)  # Sort negative corr to get descending order
 
@@ -407,23 +418,24 @@ class CrocubotOracle:
                     sample_number = batch * n_series + series_index
                     for i in range(self._n_input_series):
                         corr_series_index = correlation_indices[series_index, i]
-                        corr_train_x[sample_number, :, i] = train_x[batch, :, corr_series_index]
+                        corr_train_x[sample_number, :, i, :] = train_x[batch, :, corr_series_index, :]
 
         if found_duplicates:
             logging.warning('Some NaNs or duplicate series were found in the data')
 
         return corr_train_x
 
-    def initialise_topology(self, features_per_series):
+    def initialise_topology(self, n_timesteps):
         """ Set up the network topology based upon the configuration file, and shape of input data. """
 
         self._topology = tp.Topology(
             layers=None,
             n_series=self._n_input_series,
-            n_features_per_series=features_per_series,
+            n_timesteps=n_timesteps,
             n_forecasts=self._n_forecasts,
             n_classification_bins=self._configuration['n_classification_bins'],
             layer_heights=self._configuration['layer_heights'],
             layer_widths=self._configuration['layer_widths'],
-            activation_functions=self._configuration['activation_functions']
+            activation_functions=self._configuration['activation_functions'],
+            n_features=self._n_features
         )

@@ -18,12 +18,15 @@ import alphai_crocubot_oracle.tensormaths as tm
 
 CONVOLUTIONAL_LAYER_1D = 'conv1d'
 CONVOLUTIONAL_LAYER_2D = 'conv2d'
+CONVOLUTIONAL_LAYER_3D = 'conv3d'
 FULLY_CONNECTED_LAYER = 'full'
 RESIDUAL_LAYER = 'res'
 POOL_LAYER_2D = 'pool2d'
-KERNEL_HEIGHT = 3
-KERNEL_WIDTH = 3
-DEFAULT_N_KERNELS = 1
+KERNEL_HEIGHT = 3  # Size of kernel along time dimension. Hard coded for now
+KERNEL_WIDTH = 3  # Size of kernel along features dimension. Hard coded for now
+KERNEL_DEPTH = 1  # Size of kernel along series dimension. Hard coded for now
+DEFAULT_PADDING = 'same'  # TBC: add 'valid', will need to add support in topology.py
+DATA_FORMAT = 'channels_last'
 
 
 class CrocuBotModel:
@@ -207,7 +210,6 @@ class Estimator:
             outputs.append(result)
 
         stacked_output = tf.stack(outputs, axis=0)
-
         # Make sure we softmax across the 'bin' dimension, but not across all series!
         stacked_output = tf.nn.log_softmax(stacked_output, dim=-1)
 
@@ -236,17 +238,32 @@ class Estimator:
         if layer_type == CONVOLUTIONAL_LAYER_1D:
             signal = self.convolutional_layer_1d(signal)
         elif layer_type == CONVOLUTIONAL_LAYER_2D:
-            signal = self.convolutional_layer_2d(signal, iteration)
+            signal = self.convolutional_layer_2d(signal)
+        elif layer_type == CONVOLUTIONAL_LAYER_3D:
+            signal = self.convolutional_layer_3d(signal, layer_number)
         elif layer_type == FULLY_CONNECTED_LAYER:
-            weights = self._model.compute_weights(layer_number, iteration)
-            biases = self._model.compute_biases(layer_number, iteration)
-            signal = tf.tensordot(signal, weights, axes=2) + biases
+            signal = self.fully_connected_layer(signal, layer_number, iteration)
         elif layer_type == POOL_LAYER_2D:
             signal = self.pool_layer_2d(signal)
+        elif layer_type == RESIDUAL_LAYER:
+            signal += signal
         else:
             raise ValueError('Unknown layer type')
 
         return activation_function(signal)
+
+    def fully_connected_layer(self, signal, layer_number, iteration):
+        """ Propoagates signal through a fully connected set of weights
+
+        :param signal:
+        :param layer_number:
+        :param iteration:
+        :return:
+        """
+
+        weights = self._model.compute_weights(layer_number, iteration)
+        biases = self._model.compute_biases(layer_number, iteration)
+        return tf.tensordot(signal, weights, axes=3) + biases
 
     def convolutional_layer_1d(self, signal, iteration):
         """ Sets a convolutional layer with a one-dimensional kernel. """
@@ -257,44 +274,95 @@ class Estimator:
             inputs=signal,
             filters=6,
             kernel_size=(5,),
-            padding="same",
+            padding=DEFAULT_PADDING,
+            data_format=DATA_FORMAT,
             activation=None,
             reuse=reuse_kernel)
 
-        pooled_signal = tf.layers.max_pooling1d(inputs=signal, pool_size=[4], strides=2)
+        return signal
 
-        return pooled_signal
-
-    def convolutional_layer_2d(self, signal, iteration):
+    def convolutional_layer_2d(self, signal):
         """ Sets a convolutional layer with a two-dimensional kernel. """
 
-        signal = tf.expand_dims(signal, -1)
-
+        n_kernels = self._model._topology.n_kernels
         try:
             signal = tf.layers.conv2d(
                 inputs=signal,
-                filters=DEFAULT_N_KERNELS,
+                filters=n_kernels,
                 kernel_size=[KERNEL_HEIGHT, KERNEL_WIDTH],
-                padding="same",
+                padding=DEFAULT_PADDING,
                 activation=None,
+                data_format=DATA_FORMAT,
                 name='conv2d',
                 reuse=False)
         except:
             signal = tf.layers.conv2d(
                 inputs=signal,
-                filters=DEFAULT_N_KERNELS,
+                filters=n_kernels,
                 kernel_size=[KERNEL_HEIGHT, KERNEL_WIDTH],
-                padding="same",
+                padding=DEFAULT_PADDING,
                 activation=None,
+                data_format=DATA_FORMAT,
                 name='conv2d',
                 reuse=True)
 
-        return tf.squeeze(signal, axis=-1)
+        return signal
+
+    def convolutional_layer_3d(self, signal, layer_number):
+        """  Sets a convolutional layer with a three-dimensional kernel.
+        The ordering of the dimensions in the inputs: DATA_FORMAT = `channels_last` corresponds to inputs with shape
+        `(batch, depth, height, width, channels)` while DATA_FORMAT = `channels_first`
+        corresponds to inputs with shape `(batch, channels, depth, height, width)`.
+
+        :param signal: 5D tensor of dimensions [batch, series, time, features]
+        :return:  5D tensor of dimensions [batch, series, time, features * filters]
+        """
+
+        signal = tf.expand_dims(signal, axis=-1)
+        n_kernels = self._model._topology.n_kernels
+        # kernel_size = self.calculate_kernel_size(signal)
+        op_name = CONVOLUTIONAL_LAYER_3D + str(layer_number)
+
+        try:
+            signal = tf.layers.conv3d(
+                inputs=signal,
+                filters=n_kernels,
+                kernel_size=[KERNEL_DEPTH, KERNEL_HEIGHT, KERNEL_WIDTH],
+                padding=DEFAULT_PADDING,
+                activation=None,
+                data_format=DATA_FORMAT,
+                name=op_name,
+                reuse=True)
+        except:
+            signal = tf.layers.conv3d(
+                inputs=signal,
+                filters=n_kernels,
+                kernel_size=[KERNEL_DEPTH, KERNEL_HEIGHT, KERNEL_WIDTH],
+                padding=DEFAULT_PADDING,
+                activation=None,
+                data_format=DATA_FORMAT,
+                name=op_name,
+                reuse=False)
+
+        return self.flatten_last_dimension(signal)
 
     def pool_layer_2d(self, signal):
+        """
 
-        signal = tf.expand_dims(signal, -1)
+        :param signal:
+        :return:
+        """
 
-        pooled_signal = tf.layers.max_pooling2d(inputs=signal, pool_size=[2, 2], strides=2)
+        return tf.layers.max_pooling2d(inputs=signal, pool_size=[2, 2], strides=2, data_format='channels_first',)
 
-        return tf.squeeze(pooled_signal, axis=-1)
+    def flatten_last_dimension(self, signal):
+        """ Takes a tensor and squishes its last dimension into the penultimate dimension.
+
+        :param signal: Tensor of N dimensions, with N >= 2
+        :return:  Tensor of N-1 dimensions
+        """
+
+        shape = signal.get_shape().as_list()
+        shape[-2] *= shape[-1]
+        del shape[-1]
+        return tf.reshape(signal, shape)

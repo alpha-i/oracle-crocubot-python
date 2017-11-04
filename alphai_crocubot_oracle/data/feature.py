@@ -108,8 +108,6 @@ class FinancialFeature(object):
             processed_prediction_data_x = np.log(processed_prediction_data_x.pct_change() + 1). \
                 replace([np.inf, -np.inf], np.nan)
 
-            # Remove the zeros / nans associated with log return
-            processed_prediction_data_x = processed_prediction_data_x.iloc[1:]
 
         if self.transformation['name'] == 'stochastic_k':
 
@@ -136,6 +134,10 @@ class FinancialFeature(object):
 
             processed_prediction_data_x = direction / volatility
             processed_prediction_data_x.dropna(axis=0, inplace=True)
+
+        # Remove the zeros / nans associated with log return
+        # Assuming at least one feature has log return, all features should be trimmed to match
+        processed_prediction_data_x = processed_prediction_data_x.iloc[1:]
 
         return processed_prediction_data_x
 

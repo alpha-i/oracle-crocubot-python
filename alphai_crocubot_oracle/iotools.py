@@ -4,6 +4,7 @@
 # TODO move this iotools somewhere in the benchmark namespace
 
 import os
+import numpy as np
 import tensorflow as tf
 
 from alphai_data_sources.generator import BatchGenerator
@@ -24,6 +25,10 @@ def load_batch(batch_options, data_source, bin_edges=None):
     if bin_edges is not None:
         labels = classify_labels(bin_edges, labels)
 
+    # Kernel dimension, now that crocubot is 4D
+    features = np.expand_dims(features, axis=1)
+    labels = np.expand_dims(labels, axis=1)
+
     return features, labels
 
 
@@ -36,7 +41,7 @@ def load_file_name(series_name, topology):
     """
 
     depth_string = str(topology.n_layers)
-    breadth_string = str(topology.n_features_per_series)
+    breadth_string = str(topology.n_timesteps)
     series_string = str(topology.n_series)
 
     bitstring = str(FLAGS.TF_TYPE)

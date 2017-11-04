@@ -13,7 +13,6 @@ from alphai_crocubot_oracle.data.classifier import declassify_labels
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel, Estimator
 
 FLAGS = tf.app.flags.FLAGS
-PRINT_KERNEL = True
 
 
 def eval_neural_net(data, topology, save_file):
@@ -26,14 +25,14 @@ def eval_neural_net(data, topology, save_file):
     """
 
     logging.info("Evaluating with shape {}".format(data.shape))
+    x = tf.placeholder(FLAGS.d_type,
+                       shape=[data.shape[0], topology.n_series, topology.n_timesteps, topology.n_features], name="x")
 
     model = CrocuBotModel(topology, FLAGS)
-    # reuse_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="conv[2]d")
-    # reuse_vars_dict = dict([(var.op.name, var) for var in reuse_vars])
     saver = tf.train.Saver()
 
     estimator = Estimator(model, FLAGS)
-    y = estimator.collate_multiple_passes(data, FLAGS.n_eval_passes)
+    y = estimator.collate_multiple_passes(x, FLAGS.n_eval_passes)
 
     with tf.Session() as sess:
         logging.info("Attempting to recover trained network: {}".format(save_file))
@@ -48,23 +47,16 @@ def eval_neural_net(data, topology, save_file):
         graph = tf.get_default_graph()
         # Finally we can retrieve tensors, operations, collections, etc.
         try:
-            kernel = graph.get_tensor_by_name('conv2d:0').eval()
-            logging.info("Evaluating conv2d with kernel: {}".format(kernel.flatten()))
+            kernel = graph.get_tensor_by_name('conv3d0/kernel:0').eval()
+            logging.info("Evaluating conv3d with kernel: {}".format(kernel.flatten()))
         except:
             pass
 
-        log_p = y.eval()
-
-        if PRINT_KERNEL:
-            gr = tf.get_default_graph()
-            conv1_kernel_val = gr.get_tensor_by_name('conv2d/kernel:0').eval()
-            conv1_bias_val = gr.get_tensor_by_name('conv2d/bias:0').eval()
-            logging.info("Kernel values: {}".format(conv1_kernel_val.flatten()))
-            logging.info("Kernel bias: {}".format(conv1_bias_val))
+        log_p = sess.run(y, feed_dict={x: data})
 
     posterior = np.exp(log_p)
 
-    return posterior
+    return np.squeeze(posterior, axis=2)
 
 
 def forecast_means_and_variance(outputs, bin_distribution):
