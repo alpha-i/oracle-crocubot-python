@@ -13,6 +13,7 @@ from alphai_crocubot_oracle.data.classifier import declassify_labels
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel, Estimator
 
 FLAGS = tf.app.flags.FLAGS
+PRINT_KERNEL = True
 
 
 def eval_neural_net(data, topology, save_file):
@@ -29,6 +30,11 @@ def eval_neural_net(data, topology, save_file):
                        shape=[data.shape[0], topology.n_series, topology.n_timesteps, topology.n_features], name="x")
 
     model = CrocuBotModel(topology, FLAGS)
+    try:
+        model.build_layers_variables()
+    except:
+        logging.info('Variables already initialised')
+
     saver = tf.train.Saver()
 
     estimator = Estimator(model, FLAGS)
@@ -37,9 +43,7 @@ def eval_neural_net(data, topology, save_file):
     with tf.Session() as sess:
         logging.info("Attempting to recover trained network: {}".format(save_file))
         start_time = timer()
-
         saver.restore(sess, save_file)
-
         end_time = timer()
         delta_time = end_time - start_time
         logging.info("Loading the model from disk took:{}".format(delta_time))

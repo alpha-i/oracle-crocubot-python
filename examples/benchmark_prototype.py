@@ -257,7 +257,7 @@ def run_mnist_test(train_path, tensorboard_log_path, method='GDO', use_full_trai
 
     if use_full_train_set:
         n_training_samples = 60000
-        n_epochs = 50
+        n_epochs = 10
     else:
         n_training_samples = 500
         n_epochs = 100
