@@ -3,18 +3,7 @@ import tensorflow as tf
 from alphai_crocubot_oracle import topology as topo
 
 FLAGS = tf.app.flags.FLAGS
-TIME_LIMIT = 600
 D_TYPE = 'float32'
-
-
-def print_time_info(train_time, eval_time):
-
-    print('Training took', str.format('{0:.2f}', train_time), "seconds")
-    print('Evaluation took', str.format('{0:.2f}', eval_time), "seconds")
-
-    if train_time > TIME_LIMIT:
-        print('** Training took ', str.format('{0:.2f}', train_time - TIME_LIMIT),
-              ' seconds too long - DISQUALIFIED! **')
 
 
 def load_default_topology(series_name):

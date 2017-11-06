@@ -38,7 +38,7 @@ def train(topology,
     y = tf.placeholder(FLAGS.d_type, name="y")
 
     global_step = tf.Variable(0, trainable=False, name='global_step')
-    n_batches = data_provider.get_number_of_batches(FLAGS.batch_size)
+    n_batches = data_provider.number_of_batches
 
     cost_operator = _set_cost_operator(model, x, y, n_batches)
     tf.summary.scalar("cost", cost_operator)
@@ -81,7 +81,7 @@ def train(topology,
 
             for batch_number in range(n_batches):  # The randomly sampled weights are fixed within single batch
 
-                batch_data = data_provider.get_batch(batch_number, FLAGS.batch_size)
+                batch_data = data_provider.get_batch(batch_number)
                 batch_features = batch_data.features
                 batch_labels = batch_data.labels
 

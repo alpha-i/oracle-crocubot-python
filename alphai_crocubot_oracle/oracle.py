@@ -170,7 +170,7 @@ class CrocubotOracle:
                                                  FLAGS.batch_size,
                                                  execution_time
                                                  )
-        data_provider = TrainDataProvider(train_x, train_y)
+        data_provider = TrainDataProvider(train_x, train_y, FLAGS.batch_size)
         self._do_train(tensorflow_path, tensorboard_options, data_provider)
 
     @logtime(message="Training the model.")

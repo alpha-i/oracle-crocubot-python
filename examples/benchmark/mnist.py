@@ -3,27 +3,32 @@ import datetime
 import numpy as np
 import tensorflow as tf
 
+import alphai_crocubot_oracle.crocubot.evaluate as crocubot_eval
+import alphai_crocubot_oracle.crocubot.train as crocubot_train
 from alphai_crocubot_oracle import iotools as io
-from alphai_crocubot_oracle.crocubot import train as crocubot_train
 from alphai_crocubot_oracle.crocubot.helpers import TensorflowPath, TensorboardOptions
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel
-from alphai_crocubot_oracle.crocubot import evaluate as eval
 from alphai_crocubot_oracle.data.providers import TrainDataProviderForDataSource
-from alphai_crocubot_oracle.helpers import printtime
+from alphai_crocubot_oracle.helpers import printtime, execute_and_get_duration
 from examples.helpers import FLAGS, D_TYPE, load_default_topology
+from examples.benchmark.helpers import print_time_info, print_accuracy, _calculate_accuracy
 
 
 def run_timed_benchmark_mnist(series_name, do_training):
 
     topology = load_default_topology(series_name)
 
-    batch_size = 200
     execution_time = datetime.datetime.now()
 
-    @printtime(message="Training with do_train: {}".format(int(do_training)))
+    @printtime(message="Training MNIST with _do_training: {}".format(int(do_training)))
     def _do_training():
         if do_training:
-            data_provider = TrainDataProviderForDataSource(series_name, D_TYPE, batch_size, True)
+            data_provider = TrainDataProviderForDataSource(series_name,
+                                                           D_TYPE,
+                                                           FLAGS.n_training_samples_benchmark,
+                                                           FLAGS.batch_size,
+                                                           True
+                                                           )
             save_path = io.build_check_point_filename(series_name, topology)
             tensorflow_path = TensorflowPath(save_path)
             tensorboard_options = TensorboardOptions(FLAGS.tensorboard_log_path,
@@ -42,31 +47,30 @@ def run_timed_benchmark_mnist(series_name, do_training):
             model = CrocuBotModel(topology)
             model.build_layers_variables()
 
-    _do_training()
-
+    train_time, _ = execute_and_get_duration(_do_training)
     print("Training complete.")
-    metrics = evaluate_network(topology, series_name)
+
+    eval_time, metrics = execute_and_get_duration(evaluate_network, topology, series_name, FLAGS.batch_size)
 
     accuracy = _calculate_accuracy(metrics["results"])
-
     print('Metrics:')
     print_accuracy(metrics, accuracy)
 
-    return accuracy, metrics
+    print_time_info(train_time, eval_time)
 
 
 @printtime(message="Evaluation of Mnist Serie")
-def evaluate_network(topology, series_name):  # bin_dist not used in MNIST case
-    data_provider = TrainDataProviderForDataSource(series_name, D_TYPE, FLAGS.batch_size * 2, False)
+def evaluate_network(topology, series_name, batch_size):
 
-    test_features, test_labels = data_provider.get_batch(1, FLAGS.batch_size)
+    n_training_samples = batch_size * 2
+    data_provider = TrainDataProviderForDataSource(series_name, D_TYPE, n_training_samples, batch_size, False)
 
+    test_features, test_labels = data_provider.get_batch(1)
     save_file = io.build_check_point_filename(series_name, topology)
 
-    binned_outputs = eval.eval_neural_net(test_features, topology, save_file)
-    n_samples = binned_outputs.shape[1]
+    binned_outputs = crocubot_eval.eval_neural_net(test_features, topology, save_file)
 
-    return evaluate_mnist(binned_outputs, n_samples, test_labels)
+    return evaluate_mnist(binned_outputs, binned_outputs.shape[1], test_labels)
 
 
 def evaluate_mnist(binned_outputs, n_samples, test_labels):
@@ -102,25 +106,4 @@ def evaluate_mnist(binned_outputs, n_samples, test_labels):
 
     return metrics
 
-
-def print_accuracy(metrics, accuracy):
-
-    theoretical_max_log_likelihood_per_sample = np.log(0.5)*(1 - accuracy)
-
-    print('MNIST accuracy of ', accuracy * 100, '%')
-    print('Log Likelihood per sample of ', metrics["log_likelihood_per_sample"])
-    print('Theoretical limit for given accuracy ', theoretical_max_log_likelihood_per_sample)
-    print('Median probability assigned to true outcome:', metrics["median_probability"])
-    print('Mean probability assigned to forecasts:', metrics["mean_p"])
-    print('Mean probability assigned to successful forecast:', metrics["mean_p_success"])
-    print('Mean probability assigned to unsuccessful forecast:', metrics["mean_p_fail"])
-    print('Min probability assigned to unsuccessful forecast:', metrics["min_p_fail"])
-
-    return accuracy
-
-
-def _calculate_accuracy(results):
-    total_tests = len(results)
-    correct = np.sum(results)
-    return correct / total_tests
 

@@ -16,6 +16,8 @@ TrainData = namedtuple('TrainData', 'features labels')
 
 class AbstractTrainDataProvider(metaclass=ABCMeta):
 
+    _batch_size = None
+
     @property
     @abstractmethod
     def n_train_samples(self):
@@ -26,16 +28,22 @@ class AbstractTrainDataProvider(metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def get_batch(self, batch_number, batch_size):
+    def get_batch(self, batch_number):
         raise NotImplementedError
 
-    def get_number_of_batches(self, batch_size):
-        return int(self.n_train_samples / batch_size) + 1
+    @property
+    def batch_size(self):
+        return self._batch_size
+
+    @property
+    def number_of_batches(self):
+        return int(self.n_train_samples / self._batch_size) + 1
 
 
 class TrainDataProvider(AbstractTrainDataProvider):
-    def __init__(self, features, labels):
+    def __init__(self, features, labels, batch_size):
         self._train_data = TrainData(features, labels)
+        self._batch_size = batch_size
 
     @property
     def n_train_samples(self):
@@ -54,7 +62,7 @@ class TrainDataProvider(AbstractTrainDataProvider):
 
         self._train_data = TrainData(features, labels)
 
-    def get_batch(self, batch_number, batch_size):
+    def get_batch(self, batch_number):
         """ Returns batch of features and labels from the full data set x and y
 
         :param nparray x: Full set of training features
@@ -66,8 +74,8 @@ class TrainDataProvider(AbstractTrainDataProvider):
         features = self._train_data.features
         labels = self._train_data.labels
 
-        lo_index = batch_number * batch_size
-        hi_index = lo_index + batch_size
+        lo_index = batch_number * self.batch_size
+        hi_index = lo_index + self.batch_size
         batch_features = features[lo_index:hi_index, :]
         batch_labels = labels[lo_index:hi_index, :]
 
@@ -76,7 +84,8 @@ class TrainDataProvider(AbstractTrainDataProvider):
 
 class TrainDataProviderForDataSource(AbstractTrainDataProvider):
 
-    def __init__(self, series_name, dtype, n_train_samples, for_training, bin_edges=None):
+    def __init__(self, series_name, dtype, n_train_samples, batch_size, for_training,  bin_edges=None):
+        self._batch_size = batch_size
         self._batch_generator = BatchGenerator()
         self._n_train_samples = n_train_samples
         self._bin_edges = bin_edges
@@ -84,15 +93,11 @@ class TrainDataProviderForDataSource(AbstractTrainDataProvider):
         self._for_training = for_training
 
         data_source_generator = DataSourceGenerator()
-        logging.info('Loading data series: {}'.format(series_name))
         self._data_source = data_source_generator.make_data_source(series_name)
 
-    def get_batch(self, batch_number, batch_size):
-            batch_options = BatchOptions(batch_size,
-                                         batch_number=batch_number,
-                                         train=self._for_training,
-                                         dtype=self._dtype
-                                         )
+    def get_batch(self, batch_number):
+            batch_options = BatchOptions(self._batch_size, batch_number, self._for_training, self._dtype)
+
             features, labels = self._batch_generator.get_batch(batch_options, self._data_source)
 
             if self._bin_edges is not None:
