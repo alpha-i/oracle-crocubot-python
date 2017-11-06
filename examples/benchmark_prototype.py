@@ -194,10 +194,15 @@ def load_default_topology(series_name):
         n_output_series = 10
     elif series_name == 'mnist':
         if FLAGS.use_convolution:
-            layer_types[0] = ['conv1d', 'full', 'full', 'full']
-            layer_heights = [784, 1, 1, 1]
+            layer_types  = ['conv1d', 'full', 'full', 'full']
+            layer_heights = [784, 400, 400, 10]
             layer_widths = [1, 1, 1, 1]
             activation_functions = ['linear', 'relu', 'relu', 'relu', 'linear']
+        else:
+            layer_types = ['full', 'full', 'full', 'full']
+            layer_heights = [784, 400, 400, 10]
+            layer_widths = [1, 1, 1, 1]
+            activation_functions = ['linear', 'relu', 'relu', 'linear']
         n_input_series = 1
         n_timesteps = 784
         n_classification_bins = 10
@@ -279,7 +284,7 @@ def run_mnist_test(train_path, tensorboard_log_path, method='GDO', use_full_trai
     config['n_retrain_epochs'] = 5
     config['n_train_passes'] = 1
     config['n_eval_passes'] = 40
-    config['use_convolution'] = True
+    config['use_convolution'] = False
 
     fl.set_training_flags(config)
     # this flag is only used in benchmark.
