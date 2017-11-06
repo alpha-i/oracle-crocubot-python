@@ -222,7 +222,7 @@ def load_default_topology(series_name):
     else:
         raise NotImplementedError
 
-    topology = topo.Topology(layers=None, n_series=n_input_series, n_timesteps=n_timesteps,
+    topology = topo.Topology(n_series=n_input_series, n_timesteps=n_timesteps,
                              n_forecasts=n_output_series,
                              n_classification_bins=n_classification_bins, layer_types=layer_types,
                              layer_heights=layer_heights, layer_widths=layer_widths,
