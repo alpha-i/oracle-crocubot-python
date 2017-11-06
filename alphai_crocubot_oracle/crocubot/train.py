@@ -55,8 +55,8 @@ def train(topology, series_name, execution_time, train_x=None, train_y=None, bin
         data_source = data_source_generator.make_data_source(series_name)
 
     # Placeholders for the inputs and outputs of neural networks
-    # FIXME replace FLAGS.batch_size with None for greater flexibility
-    x_shape = [FLAGS.batch_size, topology.n_series, topology.n_timesteps, topology.n_features]
+
+    x_shape = [None, topology.n_series, topology.n_timesteps, topology.n_features]
     x = tf.placeholder(FLAGS.d_type, shape=x_shape, name="x")
     y = tf.placeholder(FLAGS.d_type, name="y")
 

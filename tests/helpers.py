@@ -114,7 +114,7 @@ def load_default_config():
         'n_features_per_series': 271,
         'n_forecasts': 1,
         'n_classification_bins': 12,
-        'layer_heights': [3, 271],
+        'layer_heights': [270, 270],
         'layer_widths': [3, 3],
         'activation_functions': ['relu', 'relu'],
 

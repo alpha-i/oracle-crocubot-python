@@ -25,6 +25,7 @@ from alphai_crocubot_oracle.helpers import TrainFileManager
 
 CLIP_VALUE = 5.0  # Largest number allowed to enter the network
 DEFAULT_N_CORRELATED_SERIES = 5
+FEATURE_TO_RANK_CORRELATIONS = 0  # Use the first feature to form correlation coefficients
 TRAIN_FILE_NAME_TEMPLATE = "{}_train_crocubot"
 FLAGS = tf.app.flags.FLAGS
 
@@ -331,12 +332,17 @@ class CrocubotOracle:
 
         numpy_arrays = []
         for key, value in train_x_dict.items():
+            # Shorten those entries which are not log-returns, to allow stacking of features
+            if key.startswith('volume'):
+                value = value[:, 1:, :]
+
             numpy_arrays.append(value)
+            print("Appending shape", value.shape)
 
         # Now train_x will have dimensions [features; sampes; timesteps; symbols]
         train_x = np.stack(numpy_arrays, axis=0)
-        # Stack will keep the features separate
-        # BUT DIMENSIONS of TIMESTEPS MUST MATCH
+
+        train_x = self.reorder_input_dimensions(train_x)
 
         # Expand dataset if requested
         if FLAGS.predict_single_shares:
@@ -376,25 +382,32 @@ class CrocubotOracle:
 
         return train_x
 
+    def reorder_input_dimensions(self, train_x):
+        """ Reassign ordering of dimensions.
+
+        :param train_x:  Enters with dimensions  [features; samples; timesteps; series]
+        :return: train_x  Now with dimensions  [samples; series ; time; features]
+        """
+
+        source = [0, 1, 2, 3]
+        destination = [3, 0, 2, 1]
+        return np.moveaxis(train_x, source, destination)
+
+
     def expand_input_data(self, train_x):
         """Converts to the form where each time series is predicted separately, though companion time series are
             included as auxilliary features
-        :param nparray train_x: The log returns in format [batches, features, series]. Ideally these have been
-            Gaussianised already
-        :return: nparray The expanded training dataset, still in the format [batches, features, series]
+        :param nparray train_x: [samples; series ; time; features]
+        :return: nparray The expanded training dataset, still in the format [samples; series ; time; features]
         """
 
-        # Enters with dimensions  [features; samples; timesteps; series]
-        n_features = train_x.shape[0]
-        n_samples = train_x.shape[1]
+        n_samples = train_x.shape[0]
+        n_series = train_x.shape[1]
         n_timesteps = train_x.shape[2]
-        n_series = train_x.shape[3]
+        n_features = train_x.shape[3]
         n_expanded_samples = n_samples * n_series
-
-        source = [0, 1, 2, 3]
-        destination = [1, 3, 2, 0]
-        train_x = np.moveaxis(train_x, source, destination)
-        # Now with dimensions  [samples; series ; time; features]
+        logging.info("Data found to hold {} samples, {} series, {} timesteps, {} features.".format(
+                n_samples, n_series, n_timesteps, n_features))
 
         target_shape = [n_expanded_samples, self._n_input_series, n_timesteps, n_features]
         found_duplicates = False
@@ -402,13 +415,12 @@ class CrocubotOracle:
         if self._n_input_series == 1:
             corr_train_x = train_x.reshape(target_shape)
         else:
-            raise NotImplementedError('not yet fixed to use multiple correlated series')
             corr_train_x = np.zeros(shape=target_shape)
 
             for sample in range(n_samples):
                 # Series ordering may differ between batches - so we need the correlations for each batch
-                batch_data = train_x[sample, :, :, :]
-                neg_correlation_matrix = - np.corrcoef(batch_data, rowvar=False)  # False since col represents a var
+                data_sample = train_x[sample, :, :, FEATURE_TO_RANK_CORRELATIONS]
+                neg_correlation_matrix = - np.corrcoef(data_sample, rowvar=False)  # False since col represents a var
                 correlation_indices = neg_correlation_matrix.argsort(axis=1)  # Sort negatives to get descending order
 
                 for series_index in range(n_series):
@@ -427,13 +439,16 @@ class CrocubotOracle:
     def initialise_topology(self, n_timesteps):
         """ Set up the network topology based upon the configuration file, and shape of input data. """
 
+        layer_widths = self._configuration['layer_widths']
+        layer_widths[0] = self._n_input_series  # Override to match data if necessary
+
         self._topology = tp.Topology(
             n_series=self._n_input_series,
             n_timesteps=n_timesteps,
             n_forecasts=self._n_forecasts,
             n_classification_bins=self._configuration['n_classification_bins'],
             layer_heights=self._configuration['layer_heights'],
-            layer_widths=self._configuration['layer_widths'],
+            layer_widths=layer_widths,
             activation_functions=self._configuration['activation_functions'],
             n_features=self._n_features
         )
