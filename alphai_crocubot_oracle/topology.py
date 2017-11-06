@@ -2,6 +2,7 @@
 # Used by oracle, crocubot_model, and crocubot_train
 
 import tensorflow as tf
+
 import alphai_crocubot_oracle.tensormaths as tm
 
 ACTIVATION_FN_LINEAR = "linear"
@@ -237,3 +238,14 @@ class Topology(object):
         activation_functions = ['linear'] + [DEFAULT_ACT_FUNCTION] * n_hidden_layers + ['linear']
 
         return layer_depths, layer_heights, layer_widths, activation_functions
+
+    def get_network_input_shape(self):
+        """ Returns the required shape of input data.
+
+        :return: 3D Numpy array
+        """
+
+        input_layer = self.layers[0]
+        input_shape = (input_layer["depth"], input_layer["height"], input_layer["width"])
+
+        return input_shape

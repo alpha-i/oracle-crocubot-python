@@ -198,10 +198,12 @@ class CrocubotOracle:
             self.initialise_topology(n_timesteps)
 
         # Verify data is the correct shape
-        topology_shape = (self._topology.n_timesteps, self._topology.n_series)
+        network_input_shape = self._topology.get_network_input_shape()
+        data_input_shape = predict_x.shape[-3:]
 
-        if predict_x.shape[-2:] != topology_shape:
-            raise ValueError('Data shape' + str(predict_x.shape) + " doesnt match network input " + str(topology_shape))
+        if data_input_shape != network_input_shape:
+            err_msg = 'Data shape' + str(data_input_shape) + " doesnt match network input " + str(network_input_shape)
+            raise ValueError(err_msg)
 
         predict_y = crocubot_eval.eval_neural_net(predict_x, topology=self._topology, save_file=latest_train)
 
@@ -213,6 +215,7 @@ class CrocubotOracle:
             predict_y = np.swapaxes(predict_y, axis1=1, axis2=2)
 
         predict_y = np.squeeze(predict_y, axis=1)
+
         means, forecast_covariance = self._data_transformation.inverse_transform_multi_predict_y(predict_y, symbols)
         if not np.isfinite(forecast_covariance).all():
             logging.warning('Prediction of forecast covariance failed. Contains non-finite values.')
@@ -224,15 +227,16 @@ class CrocubotOracle:
         else:
             logging.info('Samples from predicted means: {}'.format(means[0:10]))
 
-        means = pd.Series(np.squeeze(means), index=predict_data['close'].columns)  # FIXME check symbols match cols here
+        means = pd.Series(np.squeeze(means), index=symbols)
 
         if self.use_historical_covariance:
-            covariance = self.calculate_historical_covariance(predict_data)
-            logging.info('Samples from historical covariance: {}'.format(np.diag(covariance)[0:5]))
+            covariance_matrix = self.calculate_historical_covariance(predict_data, symbols)
+            logging.info('Samples from historical covariance: {}'.format(np.diag(covariance_matrix)[0:5]))
         else:
-            logging.info("Samples from forecast_covariance: {}".format(np.diag(forecast_covariance)[0:5]))
-            covariance = pd.DataFrame(data=forecast_covariance, columns=predict_data['close'].columns,
-                                      index=predict_data['close'].columns)
+            covariance_matrix = forecast_covariance
+            logging.info("Samples from forecast_covariance: {}".format(np.diag(covariance_matrix)[0:5]))
+
+        covariance = pd.DataFrame(data=covariance_matrix, columns=symbols, index=symbols)
 
         return means, covariance
 
@@ -294,7 +298,7 @@ class CrocubotOracle:
 
         return x_data
 
-    def calculate_historical_covariance(self, predict_data):
+    def calculate_historical_covariance(self, predict_data, symbols):
 
         # Call the covariance library
         logging.info('Estimating historical covariance matrix.')
@@ -305,17 +309,19 @@ class CrocubotOracle:
             self._data_transformation.target_market_minute,
             self._covariance_method,
             self._data_transformation.exchange_calendar,
-            self._data_transformation.target_delta_ndays
+            self._data_transformation.target_delta_ndays,
+            symbols
         )
         end_time = timer()
         cov_time = end_time - start_time
         logging.info("Historical covariance estimation took:{}".format(cov_time))
+        logging.info("Cov shape:{}".format(cov.shape))
         if not np.isfinite(cov).all():
             logging.warning('Covariance matrix computation failed. Contains non-finite values.')
             logging.warning('Problematic data: {}'.format(predict_data))
             logging.warning('Derived covariance: {}'.format(cov))
 
-        return pd.DataFrame(data=cov, columns=predict_data['close'].columns, index=predict_data['close'].columns)
+        return pd.DataFrame(data=cov, columns=symbols, index=symbols)
 
     def update_configuration(self, config):
         """ Pass on some config entries to data_transformation"""
@@ -337,7 +343,7 @@ class CrocubotOracle:
                 value = value[:, 1:, :]
 
             numpy_arrays.append(value)
-            print("Appending shape", value.shape)
+            logging.info("Appending feature of shape".format(value.shape))
 
         # Now train_x will have dimensions [features; sampes; timesteps; symbols]
         train_x = np.stack(numpy_arrays, axis=0)

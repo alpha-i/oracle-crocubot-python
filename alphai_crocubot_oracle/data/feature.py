@@ -356,6 +356,7 @@ class FinancialFeature(object):
         assert self.is_target
 
         n_symbols = len(symbols)
+        print("new symbols:", n_symbols)
         means = np.zeros(shape=(n_symbols,))
         variances = np.zeros(shape=(n_symbols,))
         assert predict_y.shape[1] == n_symbols, "Weird shape - predict y not equal to n symbols"

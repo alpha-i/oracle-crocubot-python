@@ -267,10 +267,13 @@ class FinancialDataTransformation(DataTransformation):
         if target_market_open is None:
             y_dict = None
             x_dict, x_symbols = self.stack_samples_for_each_feature(data_x_list)
+            logging.info("Assembled prediction dict with {} symbols".format(len(x_symbols)))
         else:
+            logging.info("{} out of {} samples were found to be valid".format(n_valid_samples, n_samples))
             y_list = self._make_classified_y_list(data_y_list)
             x_dict, x_symbols = self.stack_samples_for_each_feature(data_x_list, y_list)
             y_dict, _ = self.stack_samples_for_each_feature(y_list)
+            logging.info("Assembled training dict with {} symbols".format(len(x_symbols)))
 
         return x_dict, y_dict, x_symbols
 
@@ -424,6 +427,7 @@ class FinancialDataTransformation(DataTransformation):
         """ Collate a list of samples (the training set) into a single dictionary
 
         :param samples: List of dicts, each dict should be holding the same set of keys
+        :param reference_samples: cross-checks samples match shape of reference samples
         :return: Single dictionary with the values stacked together
         """
         if len(samples) == 0:
@@ -433,6 +437,7 @@ class FinancialDataTransformation(DataTransformation):
         label_name = self.get_target_feature().full_name
 
         stacked_samples = {}
+        valid_symbols = []
         total_samples = 0
         unusual_samples = 0
         for feature_name in feature_names:
@@ -440,10 +445,10 @@ class FinancialDataTransformation(DataTransformation):
             reference_shape = reference_sample[feature_name].shape
             if len(samples) == 1:
                 stacked_samples[feature_name] = np.expand_dims(reference_sample[feature_name], axis=0)
-                symbols = reference_sample[feature_name].columns
+                valid_symbols = reference_sample[feature_name].columns
             else:
                 feature_list = []
-                for i, sample in enumerate(samples):   # [sample[feature_name] for sample in samples]
+                for i, sample in enumerate(samples):
                     feature = sample[feature_name]
                     symbols = list(feature.columns)
 
@@ -458,6 +463,7 @@ class FinancialDataTransformation(DataTransformation):
 
                     if is_shape_ok and columns_match and dates_match:  # Make sure shape is OK
                         feature_list.append(sample[feature_name].values)
+                        valid_symbols = symbols
                     else:
                         unusual_samples += 1
                         if not columns_match:
@@ -471,7 +477,7 @@ class FinancialDataTransformation(DataTransformation):
         if len(samples) > 1:
             logging.info("Found {} unusual samples out of {}".format(unusual_samples, total_samples))
 
-        return stacked_samples, symbols
+        return stacked_samples, valid_symbols
 
     def inverse_transform_multi_predict_y(self, predict_y, symbols):
         """
