@@ -332,7 +332,7 @@ class CrocubotOracle:
 
         numpy_arrays = []
         for key, value in train_x_dict.items():
-            # Shorten those entries which are not log-returns, to allow stacking of features
+            # Trim entries which are not log-returns, to allow stacking of features
             if key.startswith('volume'):
                 value = value[:, 1:, :]
 
@@ -438,8 +438,14 @@ class CrocubotOracle:
     def initialise_topology(self, n_timesteps):
         """ Set up the network topology based upon the configuration file, and shape of input data. """
 
+        layer_heights = self._configuration['layer_heights']
         layer_widths = self._configuration['layer_widths']
-        layer_widths[0] = self._n_input_series  # Override to match data if necessary
+        layer_depths = np.ones(len(layer_heights), dtype=np.int)
+
+        # Override input layer to match data
+        layer_depths[0] = int(self._n_input_series)
+        layer_heights[0] = n_timesteps
+        layer_widths[0] = self._n_features
 
         self._topology = tp.Topology(
             n_series=self._n_input_series,
@@ -448,6 +454,7 @@ class CrocubotOracle:
             n_classification_bins=self._configuration['n_classification_bins'],
             layer_heights=self._configuration['layer_heights'],
             layer_widths=layer_widths,
+            layer_depths=layer_depths,
             activation_functions=self._configuration['activation_functions'],
             n_features=self._n_features
         )

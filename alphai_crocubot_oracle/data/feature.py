@@ -175,9 +175,9 @@ class FinancialFeature(object):
                     data_x[nan_mask.mask] = np.nan
                     dataframe[symbol] = data_x.reshape(original_shape)
                 else:
-                    logging.warning("Symbol lacks normalisation scaler: {}", symbol)
+                    logging.warning("Symbol lacks normalisation scaler: {}".format(symbol))
+                    logging.warning("Dropping symbol from dataframe: {}".format(symbol))
                     dataframe.drop(symbol, axis=1, inplace=True)
-                    logging.warning("Dropping symbol from dataframe: {}", symbol)
             else:
                 data_x = self.scaler.transform(nan_mask.data)
                 # Put the nans back in so we know to avoid them
@@ -313,9 +313,9 @@ class FinancialFeature(object):
                 symbol_binning = self.bin_distribution_dict[symbol]
                 hot_dataframe[symbol] = np.squeeze(classify_labels(symbol_binning.bin_edges, data_y))
             else:
-                logging.warning("Symbol lacks clasification bins: {}", symbol)
+                logging.warning("Symbol lacks clasification bins: {}".format(symbol))
                 dataframe.drop(symbol, axis=1, inplace=True)
-                logging.warning("Dropping {} from dataframe.", symbol)
+                logging.warning("Dropping {} from dataframe.".format(symbol))
 
         return hot_dataframe
 
