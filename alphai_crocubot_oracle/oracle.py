@@ -393,7 +393,6 @@ class CrocubotOracle:
         destination = [3, 0, 2, 1]
         return np.moveaxis(train_x, source, destination)
 
-
     def expand_input_data(self, train_x):
         """Converts to the form where each time series is predicted separately, though companion time series are
             included as auxilliary features
