@@ -10,7 +10,7 @@ logger.addHandler(logging.StreamHandler())
 logging.basicConfig(level=logging.DEBUG)
 
 FLAGS = tf.app.flags.FLAGS
-N_CYCLES = 10
+N_CYCLES = 1
 
 
 def run_mnist_tests(optimisation_method):
@@ -20,9 +20,11 @@ def run_mnist_tests(optimisation_method):
 
     tensor_path = '/tmp/'
     train_path = '/tmp/'
+    do_2D = True
 
     for i in range(N_CYCLES):
-        accuracy_array[i], metrics = bench.run_mnist_test(train_path, tensor_path, optimisation_method)
+        accuracy_array[i], metrics = bench.run_mnist_test(train_path, tensor_path, optimisation_method,
+                                                          reshape_to_2d=do_2D)
         likeli_array[i] = metrics['log_likelihood_per_sample']
 
     print(optimisation_method, 'accuracy:', accuracy_array)
@@ -30,8 +32,7 @@ def run_mnist_tests(optimisation_method):
     print('Mean accuracy:', np.mean(accuracy_array))
     print('Log likelihood:', np.mean(likeli_array))
 
-
-opt_methods = ['GDO', 'Adam']  # GDO Adam
+opt_methods = ['GDO']  # GDO Adam
 
 for method in opt_methods:
     run_mnist_tests(method)
@@ -77,5 +78,7 @@ for method in opt_methods:
 # -> -0.070477
 
 
+# Results: 200 epoch no extra cost term but new initialisation (40 eval pass, 1 train, lr = 1e-3)
+# GDO [ 0.981   0.9814  0.9808  0.9801  0.9817] -> 0.981
+    # Likeli -0.074672919459
 # Adam:
-#

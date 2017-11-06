@@ -15,4 +15,4 @@ exclude=
     examples/,
     setup.py
 
-max-complexity = 15
+max-complexity = 16

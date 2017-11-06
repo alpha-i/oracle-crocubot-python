@@ -54,6 +54,7 @@ class TestCrocubot(TestCase):
         historical_universes, data = self._prepare_data_for_test()
 
         configuration = load_default_config()
+        configuration['n_correlated_series'] = 1
         model = DummyCrocubotOracle(configuration)
 
         train_time = datetime(2017, 6, 7, 9) + timedelta(minutes=60)

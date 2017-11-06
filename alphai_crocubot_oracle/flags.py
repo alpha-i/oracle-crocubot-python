@@ -15,6 +15,12 @@ def set_training_flags(config):
     if 'optimisation_method' not in config:
         config['optimisation_method'] = 'GDO'
 
+    if 'use_convolution' not in config:
+        config['use_convolution'] = 'False'
+
+    tf.app.flags.DEFINE_boolean('use_convolution', config['use_convolution'],
+                                """Whether to set the first layer to a convolutional layer""")
+
     tf.app.flags.DEFINE_boolean('predict_single_shares', config['predict_single_shares'],
                                 """Whether the network predicts one share at a time.""")
 
