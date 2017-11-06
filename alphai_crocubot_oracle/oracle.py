@@ -407,17 +407,17 @@ class CrocubotOracle:
 
             for sample in range(n_samples):
                 # Series ordering may differ between batches - so we need the correlations for each batch
-                batch_data = train_x[batch, :, :, :]
-                neg_correlation_matrix = - np.corrcoef(batch_data, rowvar=False)  # False since each col represents a var
-                correlation_indices = neg_correlation_matrix.argsort(axis=1)  # Sort negative corr to get descending order
+                batch_data = train_x[sample, :, :, :]
+                neg_correlation_matrix = - np.corrcoef(batch_data, rowvar=False)  # False since col represents a var
+                correlation_indices = neg_correlation_matrix.argsort(axis=1)  # Sort negatives to get descending order
 
                 for series_index in range(n_series):
                     if correlation_indices[series_index, [0]] != series_index:
                         found_duplicates = True
-                    sample_number = batch * n_series + series_index
+                    sample_number = sample * n_series + series_index
                     for i in range(self._n_input_series):
                         corr_series_index = correlation_indices[series_index, i]
-                        corr_train_x[sample_number, :, i] = train_x[batch, :, corr_series_index]
+                        corr_train_x[sample_number, :, i] = train_x[sample, :, corr_series_index]
 
         if found_duplicates:
             logging.warning('Some NaNs or duplicate series were found in the data')
