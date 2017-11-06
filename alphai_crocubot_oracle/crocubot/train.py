@@ -13,27 +13,17 @@ from alphai_crocubot_oracle.crocubot.model import CrocuBotModel, Estimator
 FLAGS = tf.app.flags.FLAGS
 
 
-# TODO encapsulate the parameters in a ParameterObject
 # TODO remove FLAGS usage
 def train(topology,
           data_provider,
           tensorflow_path,
-          tensorboard_options,
-          bin_edges=None):
+          tensorboard_options):
     """
     :param Toplogy topology:
     :param TrainDataProvider data_provider:
     :param TensorflowPath tensorflow_path:
     :param TensorboardOptions tensorboard_options:
-    :param bin_edges:
-
     :return:
-    """
-    """ Train network on either MNIST or time series data
-    FIXME
-    :param Topology topology:
-    :param str series_name:
-    :return: epoch_loss_list
     """
 
     _log_topology_parameters_size(topology)
@@ -92,18 +82,18 @@ def train(topology,
             for batch_number in range(n_batches):  # The randomly sampled weights are fixed within single batch
 
                 batch_data = data_provider.get_batch(batch_number, FLAGS.batch_size)
-                batch_x = batch_data.train_x
-                batch_y = batch_data.train_y
+                batch_features = batch_data.features
+                batch_labels = batch_data.labels
 
                 if batch_number == 0 and epoch == 0:
                     logging.info("Training {} batches of size {} and {}".format(
                         n_batches,
-                        batch_x.shape,
-                        batch_y.shape
+                        batch_features.shape,
+                        batch_labels.shape
                     ))
 
                 _, batch_loss, summary_results = sess.run([optimize, cost_operator, all_summaries],
-                                                          feed_dict={x: batch_x, y: batch_y})
+                                                          feed_dict={x: batch_features, y: batch_labels})
                 epoch_loss += batch_loss
 
                 is_time_to_save_summary = epoch * batch_number % PRINT_SUMMARY_INTERVAL

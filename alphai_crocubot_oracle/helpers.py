@@ -100,3 +100,11 @@ def printtime(message=None):
         return wrapped_f
 
     return wrap
+
+
+def execute_and_get_duration(method, *args, **kw):
+    ts = time.time()
+    result = method(*args, **kw)
+    te = time.time()
+    duration = te - ts
+    return duration, result

@@ -11,7 +11,7 @@ from alphai_crocubot_oracle.flags import FLAGS
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
-TrainData = namedtuple('TrainData', 'train_x train_y')
+TrainData = namedtuple('TrainData', 'features labels')
 
 
 class AbstractTrainDataProvider(metaclass=ABCMeta):
@@ -34,25 +34,25 @@ class AbstractTrainDataProvider(metaclass=ABCMeta):
 
 
 class TrainDataProvider(AbstractTrainDataProvider):
-    def __init__(self, train_x, train_y):
-        self._train_data = TrainData(train_x, train_y)
+    def __init__(self, features, labels):
+        self._train_data = TrainData(features, labels)
 
     @property
     def n_train_samples(self):
-        return self._train_data.train_x.shape[0]
+        return self._train_data.features.shape[0]
 
     def shuffle_data(self):
         """ Reorder the numpy arrays in a random but consistent manner """
 
-        train_x = self._train_data.train_x
-        train_y = self._train_data.train_y
+        features = self._train_data.features
+        labels = self._train_data.labels
 
         rng_state = np.random.get_state()
-        np.random.shuffle(train_x)
+        np.random.shuffle(features)
         np.random.set_state(rng_state)
-        np.random.shuffle(train_y)
+        np.random.shuffle(labels)
 
-        self._train_data = TrainData(train_x, train_y)
+        self._train_data = TrainData(features, labels)
 
     def get_batch(self, batch_number, batch_size):
         """ Returns batch of features and labels from the full data set x and y
@@ -63,15 +63,15 @@ class TrainDataProvider(AbstractTrainDataProvider):
         :param batch_size:
         :return:
         """
-        train_x = self._train_data.train_x
-        train_y = self._train_data.train_y
+        features = self._train_data.features
+        labels = self._train_data.labels
 
         lo_index = batch_number * batch_size
         hi_index = lo_index + batch_size
-        batch_x = train_x[lo_index:hi_index, :]
-        batch_y = train_y[lo_index:hi_index, :]
+        batch_features = features[lo_index:hi_index, :]
+        batch_labels = labels[lo_index:hi_index, :]
 
-        return TrainData(batch_x, batch_y)
+        return TrainData(batch_features, batch_labels)
 
 
 class TrainDataProviderForDataSource(AbstractTrainDataProvider):
@@ -88,15 +88,14 @@ class TrainDataProviderForDataSource(AbstractTrainDataProvider):
         self._data_source = data_source_generator.make_data_source(series_name)
 
     def get_batch(self, batch_number, batch_size):
-            batch_generator = BatchGenerator()
             batch_options = BatchOptions(batch_size,
                                          batch_number=batch_number,
                                          train=self._for_training,
                                          dtype=self._dtype
                                          )
-            features, labels = batch_generator.get_batch(batch_options, self._data_source)
+            features, labels = self._batch_generator.get_batch(batch_options, self._data_source)
 
-            if self._bin_edges:
+            if self._bin_edges is not None:
                 labels = classify_labels(self._bin_edges, labels)
 
             return TrainData(features, labels)
