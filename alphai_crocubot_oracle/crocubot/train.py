@@ -55,13 +55,12 @@ def train(topology, series_name, execution_time, train_x=None, train_y=None, bin
         data_source = data_source_generator.make_data_source(series_name)
 
     # Placeholders for the inputs and outputs of neural networks
-
-    x_shape = [None, topology.n_series, topology.n_timesteps, topology.n_features]
+    x_shape = (None, topology.n_series, topology.n_timesteps, topology.n_features)
     x = tf.placeholder(FLAGS.d_type, shape=x_shape, name="x")
     y = tf.placeholder(FLAGS.d_type, name="y")
 
     global_step = tf.Variable(0, trainable=False, name='global_step')
-    n_batches = int(n_training_samples / FLAGS.batch_size) + 1
+    n_batches = int(np.ceil(n_training_samples / FLAGS.batch_size))
 
     cost_operator = _set_cost_operator(model, x, y, n_batches)
     tf.summary.scalar("cost", cost_operator)
