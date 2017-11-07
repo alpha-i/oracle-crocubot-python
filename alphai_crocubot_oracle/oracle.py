@@ -124,7 +124,6 @@ class CrocubotOracle:
 
         self.verify_pricing_data(train_data)
         train_x_dict, train_y_dict = self._data_transformation.create_train_data(train_data, historical_universes)
-
         logging.info("Preprocessing training data")
         train_x = self._preprocess_inputs(train_x_dict)
         train_y = self._preprocess_outputs(train_y_dict)
