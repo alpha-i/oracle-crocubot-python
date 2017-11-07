@@ -7,7 +7,6 @@ from alphai_data_sources.data_sources import DataSourceGenerator
 from alphai_data_sources.generator import BatchGenerator, BatchOptions
 
 from alphai_crocubot_oracle.data.classifier import classify_labels
-from alphai_crocubot_oracle.flags import FLAGS
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 

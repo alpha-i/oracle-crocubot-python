@@ -1,7 +1,6 @@
 import os
 
 from alphai_crocubot_oracle import DATETIME_FORMAT_COMPACT
-from alphai_crocubot_oracle.flags import FLAGS
 
 
 class TensorflowPath:
@@ -42,5 +41,3 @@ class TensorboardOptions:
         execution_string = self.execution_time.strftime(DATETIME_FORMAT_COMPACT)
 
         return os.path.join(self._tensorboard_log_path, hyper_param_string, execution_string)
-
-
