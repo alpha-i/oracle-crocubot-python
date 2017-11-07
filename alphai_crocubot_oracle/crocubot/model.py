@@ -22,8 +22,8 @@ CONVOLUTIONAL_LAYER_3D = 'conv3d'
 FULLY_CONNECTED_LAYER = 'full'
 RESIDUAL_LAYER = 'res'
 POOL_LAYER_2D = 'pool2d'
-KERNEL_HEIGHT = 3  # Size of kernel along time dimension. Hard coded for now
-KERNEL_WIDTH = 3  # Size of kernel along features dimension. Hard coded for now
+KERNEL_HEIGHT = 5  # Size of kernel along time dimension. Hard coded for now
+KERNEL_WIDTH = 2  # Size of kernel along features dimension. Hard coded for now
 KERNEL_DEPTH = 1  # Size of kernel along series dimension. Hard coded for now
 DEFAULT_PADDING = 'same'  # TBC: add 'valid', will need to add support in topology.py
 DATA_FORMAT = 'channels_last'
@@ -390,7 +390,9 @@ class Estimator:
         :return:  Tensor of N-1 dimensions
         """
 
-        shape = signal.get_shape().as_list()
-        shape[-2] *= shape[-1]
-        del shape[-1]
-        return tf.reshape(signal, shape)
+        partial_new_shape = tf.shape(signal)[0:3]
+        end_value = tf.multiply(tf.shape(signal)[-1], tf.shape(signal)[-2])
+        end_tiled = tf.expand_dims(end_value, axis=0)
+        new_shape = tf.concat([partial_new_shape, end_tiled], 0)
+
+        return tf.reshape(signal, new_shape)
