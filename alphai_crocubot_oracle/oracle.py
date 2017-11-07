@@ -483,6 +483,7 @@ class CrocubotOracle:
             for key, value in y_dict.items():
                 resulting_bool_array = resulting_bool_array & ~np.isnan(value).sum(axis=2).sum(axis=1).astype(bool)
 
+
         logging.info("Found {} examples with Nans, removing examples"
                      " from all dicts".format((~resulting_bool_array).sum()))
         logging.info("{} examples still left in the dicts".format(resulting_bool_array.sum()))
