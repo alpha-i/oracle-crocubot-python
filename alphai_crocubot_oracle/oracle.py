@@ -456,4 +456,3 @@ class CrocubotOracle:
             activation_functions=self._configuration['activation_functions'],
             n_features=self._n_features
         )
-
