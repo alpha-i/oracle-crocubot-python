@@ -494,7 +494,7 @@ class FinancialDataTransformation(DataTransformation):
         """
         Inverse-transform multi-pass predict_y data
         :param ndarray predict_y: target multi-pass prediction data
-        :param list of symbols
+        :param symbols : list of symbols
         :return ndarray: inversely transformed multi-pass predict_y data
         """
         target_feature = self.get_target_feature()
@@ -536,6 +536,7 @@ def get_unique_symbols(data_list):
             symbols.update(feat_symbols)
 
     return symbols
+
 
 def remove_nans_from_dict(x_dict, y_dict=None):
     """
