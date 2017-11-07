@@ -124,7 +124,6 @@ class CrocubotOracle:
 
         self.verify_pricing_data(train_data)
         train_x_dict, train_y_dict = self._data_transformation.create_train_data(train_data, historical_universes)
-        train_x_dict, train_y_dict = self.remove_nans_from_dict(train_x_dict, train_y_dict)
         logging.info("Preprocessing training data")
         train_x = self._preprocess_inputs(train_x_dict)
         train_y = self._preprocess_outputs(train_y_dict)
@@ -179,7 +178,6 @@ class CrocubotOracle:
         self.verify_pricing_data(predict_data)
         latest_train = self._train_file_manager.latest_train_filename(execution_time)
         predict_x, symbols = self._data_transformation.create_predict_data(predict_data)
-        predict_x = self.remove_nans_from_dict(predict_x)
 
         logging.info('Predicting mean values.')
         start_time = timer()
@@ -459,42 +457,3 @@ class CrocubotOracle:
             n_features=self._n_features
         )
 
-    @staticmethod
-    def remove_nans_from_dict(x_dict, y_dict=None):
-        """
-        looks for any of the examples in the dictionaries that have NaN and removes all those
-
-        :param x_dict: x_dict with features
-        :param y_dict: y_dict with targets
-        :return: X_dict and y_dict
-        """
-
-        for key, value in x_dict.items():
-            n_examples = value.shape[0]
-            break
-
-        resulting_bool_array = np.ones(n_examples, dtype=bool)
-
-        for key, value in x_dict.items():
-
-            resulting_bool_array = resulting_bool_array & ~np.isnan(value).sum(axis=2).sum(axis=1).astype(bool)
-
-        if y_dict:
-            for key, value in y_dict.items():
-                resulting_bool_array = resulting_bool_array & ~np.isnan(value).sum(axis=2).sum(axis=1).astype(bool)
-
-
-        logging.info("Found {} examples with Nans, removing examples"
-                     " from all dicts".format((~resulting_bool_array).sum()))
-        logging.info("{} examples still left in the dicts".format(resulting_bool_array.sum()))
-
-        # apply selection to all dicts
-        for key, value in x_dict.items():
-            x_dict[key] = value[resulting_bool_array]
-
-        if y_dict:
-            for key, value in y_dict.items():
-                y_dict[key] = value[resulting_bool_array]
-            return x_dict, y_dict
-        else:
-            return x_dict

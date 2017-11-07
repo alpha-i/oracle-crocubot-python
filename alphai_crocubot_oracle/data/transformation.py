@@ -52,6 +52,7 @@ class FinancialDataTransformation(DataTransformation):
         self.features = self._financial_features_factory(configuration['feature_config_list'],
                                                          configuration['n_classification_bins'])
         self.n_series = configuration['nassets']
+        self.configuration = configuration
 
     @staticmethod
     def _assert_input(configuration):
@@ -208,6 +209,10 @@ class FinancialDataTransformation(DataTransformation):
         training_dates = self.get_training_market_dates(raw_data_dict)
         train_x, train_y, _ = self._create_data(raw_data_dict, training_dates, historical_universes,
                                                 do_normalisation_fitting=True)
+        clean_nan_from_dict = self.configuration.get('clean_nan_from_dict', False)
+        if clean_nan_from_dict:
+            train_x, train_y = remove_nans_from_dict(train_x, train_y)
+
         return train_x, train_y
 
     def create_predict_data(self, raw_data_dict):
@@ -219,6 +224,11 @@ class FinancialDataTransformation(DataTransformation):
 
         current_market_open = self.get_current_market_date(raw_data_dict)
         predict_x, _, symbols = self._create_data(raw_data_dict, simulated_market_dates=current_market_open)
+
+        clean_nan_from_dict = self.configuration.get('clean_nan_from_dict', False)
+        if clean_nan_from_dict:
+            predict_x = remove_nans_from_dict(predict_x)
+
         return predict_x, symbols
 
     def _create_data(self, raw_data_dict, simulated_market_dates,
@@ -526,3 +536,40 @@ def get_unique_symbols(data_list):
             symbols.update(feat_symbols)
 
     return symbols
+
+def remove_nans_from_dict(x_dict, y_dict=None):
+    """
+    looks for any of the examples in the dictionaries that have NaN and removes all those
+
+    :param x_dict: x_dict with features
+    :param y_dict: y_dict with targets
+    :return: X_dict and y_dict
+    """
+
+    for key, value in x_dict.items():
+        n_examples = value.shape[0]
+        break
+
+    resulting_bool_array = np.ones(n_examples, dtype=bool)
+
+    for key, value in x_dict.items():
+        resulting_bool_array = resulting_bool_array & ~np.isnan(value).sum(axis=2).sum(axis=1).astype(bool)
+
+    if y_dict:
+        for key, value in y_dict.items():
+            resulting_bool_array = resulting_bool_array & ~np.isnan(value).sum(axis=2).sum(axis=1).astype(bool)
+
+    logging.info("Found {} examples with Nans, removing examples"
+                 " from all dicts".format((~resulting_bool_array).sum()))
+    logging.info("{} examples still left in the dicts".format(resulting_bool_array.sum()))
+
+    # apply selection to all dicts
+    for key, value in x_dict.items():
+        x_dict[key] = value[resulting_bool_array]
+
+    if y_dict:
+        for key, value in y_dict.items():
+            y_dict[key] = value[resulting_bool_array]
+        return x_dict, y_dict
+    else:
+        return x_dict
