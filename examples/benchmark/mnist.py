@@ -5,13 +5,15 @@ import tensorflow as tf
 
 import alphai_crocubot_oracle.crocubot.evaluate as crocubot_eval
 import alphai_crocubot_oracle.crocubot.train as crocubot_train
-from alphai_crocubot_oracle import iotools as io
+
 from alphai_crocubot_oracle.crocubot.helpers import TensorflowPath, TensorboardOptions
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel
 from alphai_crocubot_oracle.data.providers import TrainDataProviderForDataSource
 from alphai_crocubot_oracle.helpers import printtime, execute_and_get_duration
-from examples.helpers import FLAGS, D_TYPE, load_default_topology
+
+import examples.iotools as io
 from examples.benchmark.helpers import print_time_info, print_accuracy, _calculate_accuracy
+from examples.helpers import FLAGS, D_TYPE, load_default_topology
 
 
 def run_timed_benchmark_mnist(series_name, do_training):
@@ -19,6 +21,7 @@ def run_timed_benchmark_mnist(series_name, do_training):
     topology = load_default_topology(series_name)
 
     execution_time = datetime.datetime.now()
+    save_file = io.build_check_point_filename(series_name, topology)
 
     @printtime(message="Training MNIST with _do_training: {}".format(int(do_training)))
     def _do_training():
@@ -29,8 +32,8 @@ def run_timed_benchmark_mnist(series_name, do_training):
                                                            FLAGS.batch_size,
                                                            True
                                                            )
-            save_path = io.build_check_point_filename(series_name, topology)
-            tensorflow_path = TensorflowPath(save_path)
+
+            tensorflow_path = TensorflowPath(save_file)
             tensorboard_options = TensorboardOptions(FLAGS.tensorboard_log_path,
                                                      FLAGS.learning_rate,
                                                      FLAGS.batch_size,
@@ -50,7 +53,7 @@ def run_timed_benchmark_mnist(series_name, do_training):
     train_time, _ = execute_and_get_duration(_do_training)
     print("Training complete.")
 
-    eval_time, metrics = execute_and_get_duration(evaluate_network, topology, series_name, FLAGS.batch_size)
+    eval_time, metrics = execute_and_get_duration(evaluate_network, topology, series_name, FLAGS.batch_size, save_file)
 
     accuracy = _calculate_accuracy(metrics["results"])
     print('Metrics:')
@@ -60,13 +63,12 @@ def run_timed_benchmark_mnist(series_name, do_training):
 
 
 @printtime(message="Evaluation of Mnist Serie")
-def evaluate_network(topology, series_name, batch_size):
+def evaluate_network(topology, series_name, batch_size, save_file):
 
     n_training_samples = batch_size * 2
     data_provider = TrainDataProviderForDataSource(series_name, D_TYPE, n_training_samples, batch_size, False)
 
     test_features, test_labels = data_provider.get_batch(1)
-    save_file = io.build_check_point_filename(series_name, topology)
 
     binned_outputs = crocubot_eval.eval_neural_net(test_features, topology, save_file)
 

@@ -2,7 +2,7 @@ import tensorflow as tf
 import logging
 
 from alphai_crocubot_oracle import flags as fl
-from examples.benchmark.minst import run_timed_benchmark_mnist
+from examples.benchmark.mnist import run_timed_benchmark_mnist
 from examples.helpers import load_default_config, FLAGS
 
 

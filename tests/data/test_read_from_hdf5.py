@@ -2,11 +2,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from alphai_crocubot_oracle.data.read_from_hdf5 import (
-    read_symbol_data_dict_from_hdf5,
-    read_feature_data_dict_from_hdf5,
-    get_all_table_names_in_hdf5,
-)
+from alphai_crocubot_oracle.test.hdf5_reader import read_symbol_data_dict_from_hdf5, read_feature_data_dict_from_hdf5, \
+    get_all_table_names_in_hdf5
 from tests.data.helpers import (
     SAMPLE_START_DATE,
     SAMPLE_END_DATE,

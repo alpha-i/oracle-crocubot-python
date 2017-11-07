@@ -4,17 +4,18 @@ import numpy as np
 import tensorflow as tf
 from alphai_time_series.performance_trials.performance import Metrics
 
-from alphai_crocubot_oracle import iotools as io
 import alphai_crocubot_oracle.crocubot.evaluate as crocubot_eval
 import alphai_crocubot_oracle.crocubot.train as crocubot_train
+
 from alphai_crocubot_oracle.crocubot.helpers import TensorflowPath, TensorboardOptions
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel
 from alphai_crocubot_oracle.data.classifier import BinDistribution
 from alphai_crocubot_oracle.data.providers import TrainDataProviderForDataSource
 from alphai_crocubot_oracle.helpers import printtime, execute_and_get_duration
 
+import examples.iotools as io
+from examples.benchmark.helpers import print_time_info
 from examples.helpers import D_TYPE, load_default_topology, FLAGS
-from examples.benchmark.helpers import print_time_info, print_accuracy, _calculate_accuracy
 
 
 def run_timed_benchmark_time_series(series_name, flags, do_training=True):
@@ -26,6 +27,7 @@ def run_timed_benchmark_time_series(series_name, flags, do_training=True):
 
     bin_distribution = _create_bin_distribution(series_name, n_train_samples, topology)
     batch_size = FLAGS.batch_size
+    save_path = io.build_check_point_filename(series_name, topology)
 
     @printtime(message="Training {} with do_train: {}".format(series_name, int(do_training)))
     def _do_training():
@@ -40,7 +42,7 @@ def run_timed_benchmark_time_series(series_name, flags, do_training=True):
                 True,
                 bin_distribution.bin_edges
             )
-            save_path = io.build_check_point_filename(series_name, topology)
+
             tensorflow_path = TensorflowPath(save_path, FLAGS.model_save_path)
             tensorboard_options = TensorboardOptions(FLAGS.tensorboard_log_path,
                                                      FLAGS.learning_rate,
@@ -61,7 +63,8 @@ def run_timed_benchmark_time_series(series_name, flags, do_training=True):
 
     print("Training complete.")
 
-    eval_time, _ = execute_and_get_duration(evaluate_network, topology, series_name, batch_size, bin_distribution)
+    eval_time, _ = execute_and_get_duration(evaluate_network, topology, series_name, batch_size,
+                                            save_path, bin_distribution)
 
     print('Metrics:')
     print_time_info(train_time, eval_time)
@@ -75,15 +78,14 @@ def _create_bin_distribution(series_name, n_training_samples, topology):
 
 
 @printtime(message="Evaluation of Stocastic Serie")
-def evaluate_network(topology, series_name, batch_size, bin_dist):
+def evaluate_network(topology, series_name, batch_size, save_path, bin_dist):
 
     n_training_samples = batch_size * 2
     data_provider = TrainDataProviderForDataSource(series_name, D_TYPE, n_training_samples, batch_size, False)
 
     test_features, test_labels = data_provider.get_batch(1)
-    save_file = io.build_check_point_filename(series_name, topology)
 
-    binned_outputs = crocubot_eval.eval_neural_net(test_features, topology, save_file)
+    binned_outputs = crocubot_eval.eval_neural_net(test_features, topology, save_path)
 
     estimated_means, estimated_covariance = crocubot_eval.forecast_means_and_variance(binned_outputs, bin_dist)
     test_labels = np.squeeze(test_labels)
