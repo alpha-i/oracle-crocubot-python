@@ -26,8 +26,7 @@ def eval_neural_net(data, topology, save_file):
     """
 
     logging.info("Evaluating with shape {}".format(data.shape))
-    x = tf.placeholder(FLAGS.d_type,
-                       shape=[data.shape[0], topology.n_series, topology.n_timesteps, topology.n_features], name="x")
+    x = tf.placeholder(FLAGS.d_type,  shape=data.shape, name="x")
 
     model = CrocuBotModel(topology, FLAGS)
     try:
@@ -36,7 +35,6 @@ def eval_neural_net(data, topology, save_file):
         logging.info('Variables already initialised')
 
     saver = tf.train.Saver()
-
     estimator = Estimator(model, FLAGS)
     y = estimator.collate_multiple_passes(x, FLAGS.n_eval_passes)
 

@@ -28,7 +28,7 @@ def estimate_covariance(data, ndays, minutes_after_open, estimation_method,
         data = data[target_symbols]
 
     nd = data.shape[1]
-    sampling_days = nd * DEFAULT_NUM_REALISATIONS_MULTIPLICATION_FACTOR
+    sampling_days = np.maximum(ndays, nd * DEFAULT_NUM_REALISATIONS_MULTIPLICATION_FACTOR)
     data_points = data.values[-sampling_days:, :]
 
     covariance_matrix, _ = estimate_cov(data_points, method=estimation_method, is_dynamic=False)

@@ -84,17 +84,8 @@ class CrocubotOracle:
         self._covariance_ndays = configuration['covariance_ndays']
         self._n_features = len(feature_list)
 
-        # FIXME Temporary use default setting for tests to pass
-        if 'use_historical_covariance' in configuration:
-            self.use_historical_covariance = configuration['use_historical_covariance']
-        else:
-            self.use_historical_covariance = False
-
-        # FIXME use n_correlated_series configuration.get('n_correlated_series', DEFAULT_N_CORRELATED_SERIES)
-        if 'n_correlated_series' in configuration:
-            n_correlated_series = configuration['n_correlated_series']
-        else:
-            n_correlated_series = DEFAULT_N_CORRELATED_SERIES
+        self.use_historical_covariance = configuration.get('use_historical_covariance', False)
+        n_correlated_series = configuration.get('n_correlated_series', DEFAULT_N_CORRELATED_SERIES)
 
         self._configuration = configuration
         self._train_file_manager = TrainFileManager(
@@ -299,18 +290,17 @@ class CrocubotOracle:
         return x_data
 
     def calculate_historical_covariance(self, predict_data, symbols):
-
         # Call the covariance library
         logging.info('Estimating historical covariance matrix.')
         start_time = timer()
         cov = estimate_covariance(
-            predict_data,
-            self._covariance_ndays,
-            self._data_transformation.target_market_minute,
-            self._covariance_method,
-            self._data_transformation.exchange_calendar,
-            self._data_transformation.target_delta_ndays,
-            symbols
+            data=predict_data,
+            ndays=self._covariance_ndays,
+            minutes_after_open=self._data_transformation.target_market_minute,
+            estimation_method=self._covariance_method,
+            exchange_calendar=self._data_transformation.exchange_calendar,
+            forecast_interval_in_days=self._data_transformation.target_delta_ndays,
+            target_symbols=symbols
         )
         end_time = timer()
         cov_time = end_time - start_time
@@ -447,6 +437,8 @@ class CrocubotOracle:
         layer_heights = self._configuration['layer_heights']
         layer_widths = self._configuration['layer_widths']
         layer_depths = np.ones(len(layer_heights), dtype=np.int)
+        default_layer_types = ['full'] * len(layer_heights)
+        layer_types = self._configuration.get('layer_types', default_layer_types)
 
         # Override input layer to match data
         layer_depths[0] = int(self._n_input_series)
@@ -458,9 +450,10 @@ class CrocubotOracle:
             n_timesteps=n_timesteps,
             n_forecasts=self._n_forecasts,
             n_classification_bins=self._configuration['n_classification_bins'],
-            layer_heights=self._configuration['layer_heights'],
+            layer_heights=layer_heights,
             layer_widths=layer_widths,
             layer_depths=layer_depths,
+            layer_types=layer_types,
             activation_functions=self._configuration['activation_functions'],
             n_features=self._n_features
         )
