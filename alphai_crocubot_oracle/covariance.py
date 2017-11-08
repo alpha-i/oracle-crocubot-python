@@ -12,7 +12,7 @@ MAX_LOG_RETURN_AMPLITUDE = 1
 
 
 def estimate_covariance(data, n_days, minutes_after_open, estimation_method,
-                                  exchange_calendar, forecast_interval_in_days, target_symbols=None):
+                        exchange_calendar, forecast_interval_in_days, target_symbols=None):
     """
     :param data: OHLCV data
     :param ndays: number of historical days expected for the covariance estimate
