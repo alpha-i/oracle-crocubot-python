@@ -6,7 +6,6 @@ import pandas as pd
 import pytest
 from numpy.testing import assert_almost_equal, assert_array_equal
 
-from alphai_crocubot_oracle.data.classifier import BinDistribution
 from alphai_crocubot_oracle.data.feature import (
     FinancialFeature,
     financial_features_factory,
@@ -271,37 +270,6 @@ class TestFinancialFeature(TestCase):
         for feature, expected_length in zip(feature_list, expected_length_list):
             self.run_get_prediction_data_test(feature, expected_length)
 
-    def test_calculate_bin_distribution(self):
-        n_train = 20
-        feature_list = [self.feature_1, self.feature_2, self.feature_3]
-        train_y = np.linspace(0, 1, n_train)
-        for feature in feature_list:
-            if feature.nbins:
-                feature.calculate_bin_distribution(train_y)
-                assert isinstance(feature.bin_distribution, BinDistribution)
-            else:
-                with pytest.raises(AssertionError):
-                    feature.calculate_bin_distribution(train_y)
-
-    def test_classify_train_data_y(self):
-        feature_list = [self.feature_1, self.feature_2, self.feature_3]
-        for feature in feature_list:
-            classified_train_y = feature.classify_train_data_y(SAMPLE_TRAIN_LABELS[list(SAMPLE_TRAIN_LABELS.keys())[0]])
-            if feature.nbins:
-                assert isinstance(feature.bin_distribution, BinDistribution)
-                assert classified_train_y.shape \
-                    == SAMPLE_TRAIN_LABELS[list(SAMPLE_TRAIN_LABELS.keys())[0]].shape + (feature.nbins,)
-                assert_almost_equal(
-                    classified_train_y.sum(axis=1),
-                    (SAMPLE_TRAIN_LABELS[list(SAMPLE_TRAIN_LABELS.keys())[0]].shape[1] /
-                     feature.nbins * np.ones(shape=(len(SAMPLE_TRAIN_LABELS[list(SAMPLE_TRAIN_LABELS.keys())[0]]),
-                                                    feature.nbins))),
-                    ASSERT_NDECIMALS)
-            else:
-                assert_almost_equal(classified_train_y,
-                                    SAMPLE_TRAIN_LABELS[list(SAMPLE_TRAIN_LABELS.keys())[0]],
-                                    ASSERT_NDECIMALS)
-
     def test_declassify_single_predict_y(self):
         feature_list = [self.feature_1, self.feature_2, self.feature_3]
         for feature in feature_list:
@@ -312,69 +280,6 @@ class TestFinancialFeature(TestCase):
                 predict_y = SAMPLE_PREDICT_LABELS
             with pytest.raises(NotImplementedError):
                 feature.declassify_single_predict_y(predict_y)
-
-    def test_declassify_multi_predict_y(self):
-        n_passes = 10
-        n_train = 20
-        n_series = 5
-        feature_list = [self.feature_1, self.feature_2, self.feature_3]
-        train_y = {'open': np.expand_dims(np.linspace(0, 1, n_train), 0)}
-        expected_means = n_series * [0.5]
-        expected_variances_list = [
-            n_series * [0.07666667],
-            n_series * [0.08166667],
-            n_series * [0.10185185],
-        ]
-        for idx, feature in enumerate(feature_list):
-            feature.classify_train_data_y(train_y[list(train_y.keys())[0]])
-            if feature.nbins:
-                predict_y = np.zeros((n_passes, n_series, feature.nbins))
-                for i in range(n_passes):
-                    for j in range(n_series):
-                        predict_y[i, j, i % feature.nbins] = 1
-            else:
-                predict_y = np.stack(n_series * [np.linspace(0, 1, n_passes)]).transpose()
-
-            means, variances = feature.declassify_multi_predict_y(predict_y)
-
-            assert_almost_equal(means, expected_means, ASSERT_NDECIMALS)
-            assert_almost_equal(variances, expected_variances_list[idx], ASSERT_NDECIMALS)
-
-    def test_inverse_transform_multi_predict_y(self):
-        n_passes = 10
-        n_train = 20
-        n_series = 5
-        feature_list = [self.feature_1, self.feature_2, self.feature_3]
-        train_y = {'open': np.expand_dims(np.linspace(0, 1, n_train), 0)}
-        expected_means_list = [
-            n_series * [0.5],
-            n_series * [0.5],
-            n_series * [0.5],
-        ]
-        expected_variances_list = [
-            n_series * [0.07666667],
-            n_series * [0.08166667],
-            n_series * [0.10185185],
-        ]
-        for idx, feature in enumerate(feature_list):
-
-            feature.classify_train_data_y(train_y[list(train_y.keys())[0]])
-
-            data_frame_x = sample_hourly_ohlcv_data_dict[feature.name]
-            feature.process_prediction_data_x(data_frame_x)
-
-            if feature.nbins:
-                predict_y = np.zeros((n_passes, n_series, feature.nbins))
-                for i in range(n_passes):
-                    for j in range(n_series):
-                        predict_y[i, j, i % feature.nbins] = 1
-            else:
-                predict_y = np.stack(n_series * [np.linspace(0, 1, n_passes)]).transpose()
-
-            means, cov_matrix = feature.inverse_transform_multi_predict_y(predict_y)
-
-            assert_almost_equal(means, expected_means_list[idx], ASSERT_NDECIMALS)
-            assert_almost_equal(cov_matrix, np.diag(expected_variances_list[idx]), ASSERT_NDECIMALS)
 
 
 def test_financial_features_factory_successful_call():

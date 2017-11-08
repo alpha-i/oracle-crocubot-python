@@ -16,7 +16,7 @@ setup(
         'alphai-data-sources>=1.0.1',
         'tensorflow>=1.3.0',
         'numpy>=1.11.3',
-        'pandas>=0.18.1',
+        'pandas==0.18.1',
         'scikit-learn'
     ],
     dependency_links=[

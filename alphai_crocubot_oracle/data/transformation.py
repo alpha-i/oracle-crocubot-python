@@ -52,6 +52,7 @@ class FinancialDataTransformation(DataTransformation):
         self.features = self._financial_features_factory(configuration['feature_config_list'],
                                                          configuration['n_classification_bins'])
         self.n_series = configuration['nassets']
+        self.configuration = configuration
 
     @staticmethod
     def _assert_input(configuration):
@@ -185,11 +186,11 @@ class FinancialDataTransformation(DataTransformation):
             )
 
             if feature_x is not None:
-                feature_x_dict[feature.full_name] = feature_x.values
+                feature_x_dict[feature.full_name] = feature_x
 
             if feature_y is not None:
-                feature_y_dict[feature.full_name] = feature_y.values
-
+                feature_y_dict[feature.full_name] = feature_y.to_frame().transpose()
+                feature_y_dict[feature.full_name].set_index(pd.DatetimeIndex([target_timestamp]), inplace=True)
         if len(feature_y_dict) > 0:
             assert len(feature_y_dict) == 1, 'Only one target is allowed'
         else:
@@ -206,7 +207,13 @@ class FinancialDataTransformation(DataTransformation):
         """
 
         training_dates = self.get_training_market_dates(raw_data_dict)
-        return self._create_data(raw_data_dict, training_dates, historical_universes, do_normalisation_fitting=True)
+        train_x, train_y, _ = self._create_data(raw_data_dict, training_dates, historical_universes,
+                                                do_normalisation_fitting=True)
+        clean_nan_from_dict = self.configuration.get('clean_nan_from_dict', False)
+        if clean_nan_from_dict:
+            train_x, train_y = remove_nans_from_dict(train_x, train_y)
+
+        return train_x, train_y
 
     def create_predict_data(self, raw_data_dict):
         """
@@ -216,8 +223,13 @@ class FinancialDataTransformation(DataTransformation):
         """
 
         current_market_open = self.get_current_market_date(raw_data_dict)
-        predict_x, _ = self._create_data(raw_data_dict, simulated_market_dates=current_market_open)
-        return predict_x
+        predict_x, _, symbols = self._create_data(raw_data_dict, simulated_market_dates=current_market_open)
+
+        clean_nan_from_dict = self.configuration.get('clean_nan_from_dict', False)
+        if clean_nan_from_dict:
+            predict_x = remove_nans_from_dict(predict_x)
+
+        return predict_x, symbols
 
     def _create_data(self, raw_data_dict, simulated_market_dates,
                      historical_universes=None, do_normalisation_fitting=False):
@@ -242,8 +254,12 @@ class FinancialDataTransformation(DataTransformation):
             else:
                 target_market_open = None
 
-            feature_x_dict, feature_y_dict = self.build_features(raw_data_dict, historical_universes,
-                                                                 prediction_market_open, target_market_open)
+            try:
+                feature_x_dict, feature_y_dict = self.build_features(raw_data_dict, historical_universes,
+                                                                     prediction_market_open, target_market_open)
+            except Exception as e:
+                logging.error('Failed to build a set of features', exc_info=e)
+                raise e
 
             if self.check_x_batch_dimensions(feature_x_dict):
                 data_x_list.append(feature_x_dict)
@@ -256,14 +272,20 @@ class FinancialDataTransformation(DataTransformation):
             if n_valid_samples == 0:
                 self.print_diagnostics(feature_x_dict, feature_y_dict)
 
-        x_dict = self._make_normalised_x_dict(data_x_list, do_normalisation_fitting)
+        data_x_list = self._make_normalised_x_list(data_x_list, do_normalisation_fitting)
 
         if target_market_open is None:
             y_dict = None
+            x_dict, x_symbols = self.stack_samples_for_each_feature(data_x_list)
+            logging.info("Assembled prediction dict with {} symbols".format(len(x_symbols)))
         else:
-            y_dict = self._make_classified_y_dict(data_y_list)
+            logging.info("{} out of {} samples were found to be valid".format(n_valid_samples, n_samples))
+            y_list = self._make_classified_y_list(data_y_list)
+            x_dict, x_symbols = self.stack_samples_for_each_feature(data_x_list, y_list)
+            y_dict, _ = self.stack_samples_for_each_feature(y_list)
+            logging.info("Assembled training dict with {} symbols".format(len(x_symbols)))
 
-        return x_dict, y_dict
+        return x_dict, y_dict, x_symbols
 
     def print_diagnostics(self, xdict, ydict):
         """
@@ -284,7 +306,7 @@ class FinancialDataTransformation(DataTransformation):
             logging.info("Last rejected ydict: {}".format(y_sample.shape))
             logging.info("y_expected_shape: {}".format(y_expected_shape))
 
-    def _make_normalised_x_dict(self, x_list, do_normalisation_fitting):
+    def _make_normalised_x_list(self, x_list, do_normalisation_fitting):
         """ Collects sample of x into a dictionary, and applies normalisation
 
         :param x_list: List of unnormalised dictionaries
@@ -295,20 +317,62 @@ class FinancialDataTransformation(DataTransformation):
         if len(x_list) == 0:
             raise ValueError("No valid x samples found.")
 
-        x_dict = self.stack_samples_for_each_feature(x_list)
+        symbols = get_unique_symbols(x_list)
 
+        # Fitting
+        if do_normalisation_fitting:
+            for feature in self.features:
+                if feature.scaler:
+                    logging.info("Fitting normalisation to: {}".format(feature.full_name))
+                    if self.normalise_per_series:
+                        for symbol in symbols:
+                            symbol_data = self.extract_data_by_symbol(x_list, symbol, feature.full_name)
+                            feature.fit_normalisation(symbol_data, symbol)
+                    else:
+                        all_data = self.extract_all_data(x_list, feature.full_name)
+                        feature.fit_normalisation(all_data)
+                else:
+                    logging.info("Skipping normalisation to: {}".format(feature.full_name))
+
+        # Applying
         for feature in self.features:
-            if feature.full_name in x_dict:
-                x_data = x_dict[feature.full_name]
-                normalised_feature = feature.apply_normalisation(x_data, do_normalisation_fitting)
-                x_dict[feature.full_name] = normalised_feature
-            else:
-                logging.info("Failed to find {} in dict: {}".format(feature.full_name, list(x_dict.keys())))
-                logging.info("x_list: {}".format(x_list))
+            if feature.scaler:
+                logging.info("Applying normalisation to: {}".format(feature.full_name))
+                for x_dict in x_list:
+                    if feature.full_name in x_dict:
+                        x_dict[feature.full_name] = feature.apply_normalisation(x_dict[feature.full_name])
+                    else:
+                        logging.info("Failed to find {} in dict: {}".format(feature.full_name, list(x_dict.keys())))
+                        logging.info("x_list: {}".format(x_list))
 
-        return x_dict
+        return x_list
 
-    def _make_classified_y_dict(self, y_list):
+    @staticmethod
+    def extract_data_by_symbol(x_list, symbol, feature_name):
+        """ Collect all data from a list of dicts of features, for a given symbol """
+
+        collated_data = []
+        for x_dict in x_list:
+            if symbol in x_dict[feature_name].columns:
+                sample = x_dict[feature_name][symbol]
+                collated_data.extend(sample.dropna().values)
+
+        return np.asarray(collated_data)
+
+    @staticmethod
+    def extract_all_data(x_list, feature_name):
+        """ Extracts all finite values from list of dictionaries"""
+
+        collated_data = []
+        for x_dict in x_list:
+            sample = x_dict[feature_name]
+            values = sample.values.flatten()
+            finite_values = values[np.isfinite(values)]
+            collated_data.extend(finite_values)
+
+        return np.asarray(collated_data)
+
+    def _make_classified_y_list(self, y_list):
         """ Takes list of dictionaries, and classifies them based on the full sample
 
         :param y_list:  List of unnormalised dictionaries
@@ -318,17 +382,26 @@ class FinancialDataTransformation(DataTransformation):
         if len(y_list) == 0:
             raise ValueError("No valid y samples found.")
 
-        y_dict = self.stack_samples_for_each_feature(y_list)
         target_feature = self.get_target_feature()
-        if target_feature.nbins:
-            y_key_list = list(y_dict.keys())
-            y_train_data = y_dict[y_key_list[0]]
-            y_dict = {target_feature.full_name: target_feature.classify_train_data_y(y_train_data)}
-        else:
-            raise NotImplementedError('If not using a classifier, we need to implement an inverse y transformation.'
-                                      ' Take care with the discintion between the '
-                                      'timescale for the x and y log returns')
-        return y_dict
+        target_name = target_feature.full_name
+        symbols = get_unique_symbols(y_list)
+
+        # Fitting of bins
+        logging.info("Fitting y classification to: {}".format(target_name))
+        for symbol in symbols:
+            symbol_data = self.extract_data_by_symbol(y_list, symbol, target_name)
+            target_feature.fit_classification(symbol, symbol_data)
+
+        # Applying
+        logging.info("Applying y classification to: {}".format(target_name))
+        for y_dict in y_list:
+            if target_name in y_dict:
+                y_dict[target_name] = target_feature.apply_classification(y_dict[target_name])
+            else:
+                logging.info("Failed to find {} in dict: {}".format(target_name, list(y_dict.keys())))
+                logging.info("y_list: {}".format(y_list))
+
+        return y_list
 
     def build_features(self, raw_data_dict, historical_universes, prediction_market_open, target_market_open):
         """ Creates dictionaries of features and labels for a single window
@@ -353,26 +426,29 @@ class FinancialDataTransformation(DataTransformation):
         else:
             target_timestamp = target_market_open + timedelta(minutes=self.target_market_minute)
 
-        return self.get_prediction_data_all_features(
-            raw_data_dict,
-            prediction_timestamp,
-            universe,
-            target_timestamp,
-        )
+        feature_x_dict, feature_y_dict = self.get_prediction_data_all_features(raw_data_dict,
+                                                                               prediction_timestamp,
+                                                                               universe,
+                                                                               target_timestamp,
+                                                                               )
 
-    @staticmethod
-    def stack_samples_for_each_feature(samples):
+        return feature_x_dict, feature_y_dict
+
+    def stack_samples_for_each_feature(self, samples, reference_samples=None):
         """ Collate a list of samples (the training set) into a single dictionary
 
         :param samples: List of dicts, each dict should be holding the same set of keys
+        :param reference_samples: cross-checks samples match shape of reference samples
         :return: Single dictionary with the values stacked together
         """
         if len(samples) == 0:
             raise ValueError("At least one sample required for stacking samples.")
 
         feature_names = samples[0].keys()
+        label_name = self.get_target_feature().full_name
 
         stacked_samples = {}
+        valid_symbols = []
         total_samples = 0
         unusual_samples = 0
         for feature_name in feature_names:
@@ -380,15 +456,29 @@ class FinancialDataTransformation(DataTransformation):
             reference_shape = reference_sample[feature_name].shape
             if len(samples) == 1:
                 stacked_samples[feature_name] = np.expand_dims(reference_sample[feature_name], axis=0)
+                valid_symbols = reference_sample[feature_name].columns
             else:
                 feature_list = []
-                for sample in samples:   # [sample[feature_name] for sample in samples]
+                for i, sample in enumerate(samples):
                     feature = sample[feature_name]
+                    symbols = list(feature.columns)
+
                     total_samples += 1
-                    if feature.shape == reference_shape:  # Make sure shape is OK
-                        feature_list.append(sample[feature_name])
+                    is_shape_ok = (feature.shape == reference_shape)
+
+                    if reference_samples:
+                        columns_match = (symbols == list(reference_samples[i][label_name].columns))
+                    else:
+                        columns_match = True
+                    dates_match = True  # FIXME add dates check
+
+                    if is_shape_ok and columns_match and dates_match:  # Make sure shape is OK
+                        feature_list.append(sample[feature_name].values)
+                        valid_symbols = symbols
                     else:
                         unusual_samples += 1
+                        if not columns_match:
+                            logging.warning("Oi, your columns dont match")
 
                 if len(feature_list) > 0:
                     stacked_samples[feature_name] = np.stack(feature_list, axis=0)
@@ -398,16 +488,17 @@ class FinancialDataTransformation(DataTransformation):
         if len(samples) > 1:
             logging.info("Found {} unusual samples out of {}".format(unusual_samples, total_samples))
 
-        return stacked_samples
+        return stacked_samples, valid_symbols
 
-    def inverse_transform_multi_predict_y(self, predict_y):
+    def inverse_transform_multi_predict_y(self, predict_y, symbols):
         """
         Inverse-transform multi-pass predict_y data
         :param ndarray predict_y: target multi-pass prediction data
+        :param symbols : list of symbols
         :return ndarray: inversely transformed multi-pass predict_y data
         """
         target_feature = self.get_target_feature()
-        means, cov_matrix = target_feature.inverse_transform_multi_predict_y(predict_y)
+        means, cov_matrix = target_feature.inverse_transform_multi_predict_y(predict_y, symbols)
 
         return means, cov_matrix
 
@@ -432,3 +523,54 @@ def _get_universe_from_date(date, historical_universes):
     universe_idx = historical_universes[(date >= historical_universes.start_date) &
                                         (date < historical_universes.end_date)].index[0]
     return historical_universes.assets[universe_idx]
+
+
+def get_unique_symbols(data_list):
+    """Returns a list of all unique symbols in the dict of dataframes"""
+
+    symbols = set()
+
+    for data_dict in data_list:
+        for feature in data_dict:
+            feat_symbols = data_dict[feature].columns
+            symbols.update(feat_symbols)
+
+    return symbols
+
+
+def remove_nans_from_dict(x_dict, y_dict=None):
+    """
+    looks for any of the examples in the dictionaries that have NaN and removes all those
+
+    :param x_dict: x_dict with features
+    :param y_dict: y_dict with targets
+    :return: X_dict and y_dict
+    """
+
+    for key, value in x_dict.items():
+        n_examples = value.shape[0]
+        break
+
+    resulting_bool_array = np.ones(n_examples, dtype=bool)
+
+    for key, value in x_dict.items():
+        resulting_bool_array = resulting_bool_array & ~np.isnan(value).sum(axis=2).sum(axis=1).astype(bool)
+
+    if y_dict:
+        for key, value in y_dict.items():
+            resulting_bool_array = resulting_bool_array & ~np.isnan(value).sum(axis=2).sum(axis=1).astype(bool)
+
+    logging.info("Found {} examples with Nans, removing examples"
+                 " from all dicts".format((~resulting_bool_array).sum()))
+    logging.info("{} examples still left in the dicts".format(resulting_bool_array.sum()))
+
+    # apply selection to all dicts
+    for key, value in x_dict.items():
+        x_dict[key] = value[resulting_bool_array]
+
+    if y_dict:
+        for key, value in y_dict.items():
+            y_dict[key] = value[resulting_bool_array]
+        return x_dict, y_dict
+    else:
+        return x_dict

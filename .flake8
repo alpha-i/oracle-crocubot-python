@@ -12,7 +12,7 @@ exclude=
     build,
     dist,
     alphai_crocubot_oracle/flags.py,
-    examples/benchmark_prototype.py
+    examples/,
     setup.py
 
-max-complexity = 15
+max-complexity = 16

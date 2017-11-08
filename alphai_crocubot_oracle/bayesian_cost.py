@@ -37,7 +37,34 @@ class BayesianCost(object):
 
         return (log_qw - log_pw) * self._epoch_fraction - log_likelihood
 
-    def calculate_priors(self):
+    def get_hellinger_cost(self, features, truth, n_passes, estimator):
+        """ Perform similar sum to bayesian cost, but different weighting over different passes"""
+
+        costs = []
+        for i in range(n_passes):
+            prediction = estimator.forward_pass(features, iteration=i)
+            prediction = tf.nn.log_softmax(prediction, dim=-1)
+
+            log_likelihood = self.calculate_likelihood(truth, prediction)
+            log_pw, log_qw = self.calculate_priors(iteration=i)
+
+            single_pass_cost = (log_qw - log_pw) * self._epoch_fraction - log_likelihood
+            costs.append(single_pass_cost)
+
+        stack_of_passes = tf.stack(costs, axis=0)
+        return - tf.reduce_logsumexp(- 0.5 * stack_of_passes, axis=0)
+
+    def calculate_output_prior(self, prediction):
+        """
+
+        :param prediction:
+        :return:
+        """
+        log_py = 0.5 * tf.reduce_sum(prediction + tf.log(1.0 - tf.exp(prediction)))
+
+        return log_py
+
+    def calculate_priors(self, iteration=0):
         log_pw = 0.
         log_qw = 0.
 
@@ -48,8 +75,8 @@ class BayesianCost(object):
             rho_b = self._model.get_variable(layer, self._model.VAR_BIAS_RHO)
 
             # Only want to consider independent weights, not the full set, so do_tile_weights=False
-            weights = self._model.compute_weights(layer, iteration=0)
-            biases = self._model.compute_biases(layer, iteration=0)
+            weights = self._model.compute_weights(layer, iteration=iteration)
+            biases = self._model.compute_biases(layer, iteration=iteration)
 
             log_pw += self.calculate_log_weight_prior(weights, layer)  # not needed if we're using many passes
             log_pw += self.calculate_log_bias_prior(biases, layer)
