@@ -3,15 +3,14 @@ import numpy as np
 
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel, Estimator
 from alphai_crocubot_oracle.topology import Topology
-from alphai_crocubot_oracle.flags import FLAGS
-from tests.helpers import default as initialize_default_flags
+from tests.helpers import get_default_flags
 
 
 class TestCrocuBotModel(tf.test.TestCase):
 
     def test_create_model(self):
 
-        initialize_default_flags()
+        flags = get_default_flags()
 
         layer_dict = [
             {"activation_func": "relu", "trainable": False, "height": 20, "width": 10, "cell_height": 1},
@@ -20,7 +19,7 @@ class TestCrocuBotModel(tf.test.TestCase):
         ]
         topology = Topology(layer_dict)
 
-        model = CrocuBotModel(topology, FLAGS)
+        model = CrocuBotModel(topology, flags)
 
         self.assertEqual(model.number_of_layers, 2)
         self.assertEqual(model.topology, topology)
@@ -52,7 +51,7 @@ class TestEstimator(tf.test.TestCase):
 
     def setUp(self):
 
-        initialize_default_flags()
+        self._flags = get_default_flags()
         tf.reset_default_graph()
 
         layer_number = [
@@ -62,11 +61,11 @@ class TestEstimator(tf.test.TestCase):
         ]
         topology = Topology(layer_number)
 
-        self.crocubot_model = CrocuBotModel(topology, FLAGS)
+        self.crocubot_model = CrocuBotModel(topology, self._flags)
 
     def test_forward_pass(self):
 
-        estimator = Estimator(self.crocubot_model, FLAGS)
+        estimator = Estimator(self.crocubot_model, self._flags)
 
         self.crocubot_model.build_layers_variables()
 
@@ -81,7 +80,7 @@ class TestEstimator(tf.test.TestCase):
 
     def test_collate_multiple_passes(self):
 
-        estimator = Estimator(self.crocubot_model, FLAGS)
+        estimator = Estimator(self.crocubot_model, self._flags)
 
         self.crocubot_model.build_layers_variables()
 
@@ -98,7 +97,7 @@ class TestEstimator(tf.test.TestCase):
 
     def test_average_multiple_passes(self):
 
-        estimator = Estimator(self.crocubot_model, FLAGS)
+        estimator = Estimator(self.crocubot_model, self._flags)
 
         self.crocubot_model.build_layers_variables()
 

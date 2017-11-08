@@ -15,19 +15,19 @@ from alphai_crocubot_oracle.helpers import printtime, execute_and_get_duration
 
 import examples.iotools as io
 from examples.benchmark.helpers import print_time_info
-from examples.helpers import D_TYPE, load_default_topology, FLAGS
+from examples.helpers import D_TYPE, load_default_topology
 
 
-def run_timed_benchmark_time_series(series_name, flags, do_training=True):
+def run_timed_benchmark_time_series(series_name, tf_flags, do_training=True):
 
     topology = load_default_topology(series_name)
 
     #  First need to establish bin edges using full training set
-    n_train_samples = np.minimum(flags.n_training_samples_benchmark, 10000)
+    n_train_samples = np.minimum(tf_flags.n_training_samples_benchmark, 10000)
 
     bin_distribution = _create_bin_distribution(series_name, n_train_samples, topology)
-    batch_size = FLAGS.batch_size
-    save_path = io.build_check_point_filename(series_name, topology)
+    batch_size = tf_flags.batch_size
+    save_path = io.build_check_point_filename(series_name, topology, tf_flags)
 
     @printtime(message="Training {} with do_train: {}".format(series_name, int(do_training)))
     def _do_training():
@@ -43,16 +43,17 @@ def run_timed_benchmark_time_series(series_name, flags, do_training=True):
                 bin_distribution.bin_edges
             )
 
-            tensorflow_path = TensorflowPath(save_path, FLAGS.model_save_path)
-            tensorboard_options = TensorboardOptions(FLAGS.tensorboard_log_path,
-                                                     FLAGS.learning_rate,
+            tensorflow_path = TensorflowPath(save_path, tf_flags.model_save_path)
+            tensorboard_options = TensorboardOptions(tf_flags.tensorboard_log_path,
+                                                     tf_flags.learning_rate,
                                                      batch_size,
                                                      execution_time
                                                      )
             crocubot_train.train(topology,
                                  data_provider,
                                  tensorflow_path,
-                                 tensorboard_options
+                                 tensorboard_options,
+                                 tf_flags
                                  )
         else:
             tf.reset_default_graph()
@@ -64,7 +65,7 @@ def run_timed_benchmark_time_series(series_name, flags, do_training=True):
     print("Training complete.")
 
     eval_time, _ = execute_and_get_duration(evaluate_network, topology, series_name, batch_size,
-                                            save_path, bin_distribution)
+                                            save_path, bin_distribution, tf_flags)
 
     print('Metrics:')
     print_time_info(train_time, eval_time)
@@ -78,16 +79,17 @@ def _create_bin_distribution(series_name, n_training_samples, topology):
 
 
 @printtime(message="Evaluation of Stocastic Serie")
-def evaluate_network(topology, series_name, batch_size, save_path, bin_dist):
+def evaluate_network(topology, series_name, batch_size, save_path, bin_dist, tf_flags):
 
     n_training_samples = batch_size * 2
     data_provider = TrainDataProviderForDataSource(series_name, D_TYPE, n_training_samples, batch_size, False)
 
     test_features, test_labels = data_provider.get_batch(1)
 
-    binned_outputs = crocubot_eval.eval_neural_net(test_features, topology, save_path)
+    binned_outputs = crocubot_eval.eval_neural_net(test_features, topology, tf_flags, save_path)
 
-    estimated_means, estimated_covariance = crocubot_eval.forecast_means_and_variance(binned_outputs, bin_dist)
+    estimated_means, estimated_covariance = crocubot_eval.forecast_means_and_variance(
+        binned_outputs, bin_dist, tf_flags)
     test_labels = np.squeeze(test_labels)
 
     model_metrics = Metrics()

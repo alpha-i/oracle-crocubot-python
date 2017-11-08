@@ -1,13 +1,11 @@
 # Sets the crocubot hyperparameters as flags in tensorflow, based on a configuration dictionary
 # Used by oracle.py
-# TODO replace this singleton FLAGS with another configuration class
 
 import tensorflow as tf
 import argparse
-FLAGS = tf.app.flags.FLAGS
 
 
-def set_training_flags(config):
+def build_tensorflow_flags(config):
     """ Assigns flags based on entries in dictionary"""
 
     tf.flags._global_parser = argparse.ArgumentParser()
@@ -52,7 +50,9 @@ def set_training_flags(config):
     tf.app.flags.DEFINE_float('narrow_prior_std', config['narrow_prior_std'], """Initial standard deviation on weights.""")
     tf.app.flags.DEFINE_float('spike_slab_weighting', config['spike_slab_weighting'], """Initial standard deviation on weights.""")
 
-    FLAGS._parse_flags()
+    tf.app.flags.FLAGS._parse_flags()
+
+    return tf.app.flags.FLAGS
 
 
 def dtype_from_tf_type(tf_dtype):

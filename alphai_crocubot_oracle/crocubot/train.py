@@ -10,19 +10,18 @@ import alphai_crocubot_oracle.bayesian_cost as cost
 from alphai_crocubot_oracle.crocubot import PRINT_LOSS_INTERVAL, PRINT_SUMMARY_INTERVAL, MAX_GRADIENT
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel, Estimator
 
-FLAGS = tf.app.flags.FLAGS
 
-
-# TODO remove FLAGS usage
 def train(topology,
           data_provider,
           tensorflow_path,
-          tensorboard_options):
+          tensorboard_options,
+          tf_flags):
     """
     :param Toplogy topology:
     :param TrainDataProvider data_provider:
     :param TensorflowPath tensorflow_path:
     :param TensorboardOptions tensorboard_options:
+    :param tf_flags:
     :return:
     """
 
@@ -30,19 +29,19 @@ def train(topology,
 
     # Start from a clean graph
     tf.reset_default_graph()
-    model = CrocuBotModel(topology, FLAGS)
+    model = CrocuBotModel(topology, tf_flags)
     model.build_layers_variables()
 
     # Placeholders for the inputs and outputs of neural networks
-    x = tf.placeholder(FLAGS.d_type, shape=[None, topology.n_features_per_series, topology.n_series], name="x")
-    y = tf.placeholder(FLAGS.d_type, name="y")
+    x = tf.placeholder(tf_flags.d_type, shape=[None, topology.n_features_per_series, topology.n_series], name="x")
+    y = tf.placeholder(tf_flags.d_type, name="y")
 
     global_step = tf.Variable(0, trainable=False, name='global_step')
     n_batches = data_provider.number_of_batches
 
-    cost_operator = _set_cost_operator(model, x, y, n_batches)
+    cost_operator = _set_cost_operator(model, x, y, n_batches, tf_flags)
     tf.summary.scalar("cost", cost_operator)
-    optimize = _set_training_operator(cost_operator, global_step)
+    optimize = _set_training_operator(cost_operator, global_step, tf_flags)
 
     all_summaries = tf.summary.merge_all()
 
@@ -53,14 +52,14 @@ def train(topology,
     with tf.Session() as sess:
 
         is_model_ready = False
-        number_of_epochs = FLAGS.n_epochs
+        number_of_epochs = tf_flags.n_epochs
 
         if tensorflow_path.can_restore_model():
             try:
                 logging.info("Attempting to load model from {}".format(tensorflow_path.model_restore_path))
                 saver.restore(sess, tensorflow_path.model_restore_path)
                 logging.info("Model restored.")
-                number_of_epochs = FLAGS.n_retrain_epochs
+                number_of_epochs = tf_flags.n_retrain_epochs
                 is_model_ready = True
             except Exception as e:
                 logging.warning("Restore file not recovered. reason {}. Training from scratch".format(e))
@@ -130,31 +129,32 @@ def _log_epoch_loss_if_needed(epoch, epoch_loss, n_epochs, time_epoch):
         logging.info(msg.format(epoch + 1, n_epochs, epoch_loss, time_epoch))
 
 
-# TODO remove FLAGS
-def _set_cost_operator(crocubot_model, x, labels, n_batches):
+def _set_cost_operator(crocubot_model, x, labels, n_batches, tf_flags):
+
     """
     Set the cost operator
-
-    :param CrocubotModel crocubot_model:
-    :param data x:
+    :param crocubot_model:
+    :param x:
     :param labels:
+    :param n_batches:
+    :param tf_flags:
     :return:
     """
 
     cost_object = cost.BayesianCost(crocubot_model,
-                                    FLAGS.double_gaussian_weights_prior,
-                                    FLAGS.wide_prior_std,
-                                    FLAGS.narrow_prior_std,
-                                    FLAGS.spike_slab_weighting,
+                                    tf_flags.double_gaussian_weights_prior,
+                                    tf_flags.wide_prior_std,
+                                    tf_flags.narrow_prior_std,
+                                    tf_flags.spike_slab_weighting,
                                     n_batches
                                     )
 
-    estimator = Estimator(crocubot_model, FLAGS)
-    log_predictions = estimator.average_multiple_passes(x, FLAGS.n_train_passes)
+    estimator = Estimator(crocubot_model, tf_flags)
+    log_predictions = estimator.average_multiple_passes(x, tf_flags.n_train_passes)
 
-    if FLAGS.cost_type == 'bayes':
+    if tf_flags.cost_type == 'bayes':
         operator = cost_object.get_bayesian_cost(log_predictions, labels)
-    elif FLAGS.cost_type == 'softmax':
+    elif tf_flags.cost_type == 'softmax':
         operator = tf.nn.softmax_cross_entropy_with_logits(logits=log_predictions, labels=labels)
     else:
         raise NotImplementedError
@@ -173,21 +173,21 @@ def _log_topology_parameters_size(topology):
         logging.info("Number of parameters: {}".format(topology.n_parameters))
 
 
-# TODO remove the usage of FLAGS. Create a Provider for training_operator
-def _set_training_operator(cost_operator, global_step):
+# TODO Create a Provider for training_operator
+def _set_training_operator(cost_operator, global_step, tf_flags):
     """ Define the algorithm for updating the trainable variables. """
 
-    if FLAGS.optimisation_method == 'Adam':
-        optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate)
+    if tf_flags.optimisation_method == 'Adam':
+        optimizer = tf.train.AdamOptimizer(tf_flags.learning_rate)
         gradients, variables = zip(*optimizer.compute_gradients(cost_operator))
         gradients, _ = tf.clip_by_global_norm(gradients, MAX_GRADIENT)
         optimize = optimizer.apply_gradients(zip(gradients, variables), global_step=global_step)
-    elif FLAGS.optimisation_method == 'GDO':
-        optimizer = tf.train.GradientDescentOptimizer(FLAGS.learning_rate)
+    elif tf_flags.optimisation_method == 'GDO':
+        optimizer = tf.train.GradientDescentOptimizer(tf_flags.learning_rate)
         grads_and_vars = optimizer.compute_gradients(cost_operator)
         clipped_grads_and_vars = [(tf.clip_by_value(g, -MAX_GRADIENT, MAX_GRADIENT), v) for g, v in grads_and_vars]
         optimize = optimizer.apply_gradients(clipped_grads_and_vars)
     else:
-        raise NotImplementedError("Unknown optimisation method: ", FLAGS.optimisation_method)
+        raise NotImplementedError("Unknown optimisation method: ", tf_flags.optimisation_method)
 
     return optimize

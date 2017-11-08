@@ -33,14 +33,14 @@ def run_mnist_test(train_path, tensorboard_log_path, method='Adam', use_full_tra
     config['n_train_passes'] = 1
     config['n_eval_passes'] = 40
 
-    fl.set_training_flags(config)
+    fl.build_tensorflow_flags(config)
     # this flag is only used in benchmark.
     tf.app.flags.DEFINE_integer('n_training_samples_benchmark', config['n_training_samples_benchmark'],
                                 """Number of samples for benchmarking.""")
     FLAGS._parse_flags()
     print("Epochs to evaluate:", FLAGS.n_epochs)
 
-    run_timed_benchmark_mnist(series_name="mnist", do_training=True)
+    run_timed_benchmark_mnist("mnist", FLAGS, do_training=True)
 
 
 if __name__ == '__main__':
