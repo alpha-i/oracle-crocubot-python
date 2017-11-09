@@ -294,7 +294,7 @@ class CrocubotOracle:
         start_time = timer()
         cov = estimate_covariance(
             data=predict_data,
-            ndays=self._covariance_ndays,
+            n_days=self._covariance_ndays,
             minutes_after_open=self._data_transformation.target_market_minute,
             estimation_method=self._covariance_method,
             exchange_calendar=self._data_transformation.exchange_calendar,

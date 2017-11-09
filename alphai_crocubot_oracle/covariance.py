@@ -15,7 +15,7 @@ def estimate_covariance(data, n_days, minutes_after_open, estimation_method,
                         exchange_calendar, forecast_interval_in_days, target_symbols=None):
     """
     :param data: OHLCV data
-    :param ndays: number of historical days expected for the covariance estimate
+    :param n_days: number of historical days expected for the covariance estimate
     :param minutes_after_open: minutes after the covariance should be calculated
     :param estimation_method: covariance estimation method either NERCOME or Ledoit
     :param exchange_calendar: pandas_market_calendars
