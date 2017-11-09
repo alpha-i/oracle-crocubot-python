@@ -356,7 +356,7 @@ class CrocubotOracle:
 
         if FLAGS.predict_single_shares:
             n_feat_y = train_y.shape[2]
-            train_y = np.reshape(train_y, [-1, 1, n_feat_y])
+            train_y = np.reshape(train_y, [-1, 1, 1, n_feat_y])
 
         self.verify_y_data(train_y)
 
