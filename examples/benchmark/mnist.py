@@ -18,7 +18,7 @@ from examples.helpers import D_TYPE, load_default_topology
 
 def run_timed_benchmark_mnist(series_name, tf_flags, do_training):
 
-    topology = load_default_topology(series_name)
+    topology = load_default_topology(series_name, tf_flags)
 
     execution_time = datetime.datetime.now()
     save_file = io.build_check_point_filename(series_name, topology, tf_flags)
@@ -67,8 +67,7 @@ def run_timed_benchmark_mnist(series_name, tf_flags, do_training):
 @printtime(message="Evaluation of Mnist Serie")
 def evaluate_network(topology, series_name, batch_size, save_file, tf_flags):
 
-    n_training_samples = batch_size * 2
-    data_provider = TrainDataProviderForDataSource(series_name, D_TYPE, n_training_samples, batch_size, False)
+    data_provider = TrainDataProviderForDataSource(series_name, D_TYPE, tf_flags.n_prediction_sample, batch_size, False)
 
     test_features, test_labels = data_provider.get_batch(1)
 
@@ -79,11 +78,13 @@ def evaluate_network(topology, series_name, batch_size, save_file, tf_flags):
 
 def evaluate_mnist(binned_outputs, n_samples, test_labels):
     binned_outputs = np.mean(binned_outputs, axis=0)  # Average over passes
-    predicted_indices = np.argmax(binned_outputs, axis=2)
-    true_indices = np.argmax(test_labels, axis=2)
+    predicted_indices = np.argmax(binned_outputs, axis=2).flatten()
+    true_indices = np.argmax(test_labels, axis=1).flatten()
+
     print("Example forecasts:", binned_outputs[0:5, 0, :])
     print("Example outcomes", test_labels[0:5, 0, :])
     print("Total test samples:", n_samples)
+
     results = np.equal(predicted_indices, true_indices)
     forecasts = np.zeros(n_samples)
     p_success = []
@@ -96,6 +97,7 @@ def evaluate_mnist(binned_outputs, n_samples, test_labels):
             p_success.append(forecasts[i])
         else:
             p_fail.append(forecasts[i])
+
     log_likelihood_per_sample = np.mean(np.log(forecasts))
     median_probability = np.median(forecasts)
 
@@ -109,5 +111,4 @@ def evaluate_mnist(binned_outputs, n_samples, test_labels):
     metrics["min_p_fail"] = np.min(np.stack(p_fail))
 
     return metrics
-
 

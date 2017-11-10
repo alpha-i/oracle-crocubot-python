@@ -9,12 +9,13 @@ def build_check_point_filename(series_name, topology, tf_flags):
 
     :param str series_name: Identify the data on which the network was trained: MNIST, low_noise, randomwalk, etc
     :param Topology topology: Info on network shape
-    :type model_save_path: object
+    :param tf_flags:
+
     :return:
     """
 
     depth_string = str(topology.n_layers)
-    breadth_string = str(topology.n_features_per_series)
+    breadth_string = str(topology.n_timesteps)
     series_string = str(topology.n_series)
 
     bitstring = str(tf_flags.TF_TYPE)

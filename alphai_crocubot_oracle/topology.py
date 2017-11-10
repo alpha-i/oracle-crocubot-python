@@ -41,7 +41,6 @@ class Topology(object):
                  layer_widths=None, layer_depths=None, activation_functions=None, layer_types=None, n_features=1):
         """
         Following info is required to construct a topology object
-        :param layers: Full list of layers can be provided, or:
         :param n_series:
         :param n_timesteps:
         :param n_forecasts:
@@ -65,6 +64,10 @@ class Topology(object):
 
         layers = self._build_layers(layer_depths, layer_heights, layer_widths, activation_functions, layer_types)
         # FIXME Short term hack to ensure consistency - the following four lines should probably be assertions
+        layers[0]["depth"] = n_series
+        layers[0]["height"] = n_timesteps
+        layers[0]["width"] = n_features
+
         layers[-1]["height"] = n_forecasts
         layers[-1]["width"] = n_classification_bins
 

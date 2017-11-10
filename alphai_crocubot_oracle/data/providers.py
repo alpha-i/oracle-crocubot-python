@@ -36,7 +36,7 @@ class AbstractTrainDataProvider(metaclass=ABCMeta):
 
     @property
     def number_of_batches(self):
-        return int(self.n_train_samples / self._batch_size) + 1
+        return int(np.ceil(self.n_train_samples / self._batch_size))
 
 
 class TrainDataProvider(AbstractTrainDataProvider):
@@ -95,14 +95,23 @@ class TrainDataProviderForDataSource(AbstractTrainDataProvider):
         self._data_source = data_source_generator.make_data_source(series_name)
 
     def get_batch(self, batch_number):
-            batch_options = BatchOptions(self._batch_size, batch_number, self._for_training, self._dtype)
+        batch_options = BatchOptions(self._batch_size, batch_number, self._for_training, self._dtype)
 
-            features, labels = self._batch_generator.get_batch(batch_options, self._data_source)
+        features, labels = self._batch_generator.get_batch(batch_options, self._data_source)
 
-            if self._bin_edges is not None:
-                labels = classify_labels(self._bin_edges, labels)
+        if self._bin_edges is not None:
+            labels = classify_labels(self._bin_edges, labels)
 
-            return TrainData(features, labels)
+        features = np.swapaxes(features, axis1=1, axis2=2)
+        labels = np.swapaxes(labels, axis1=1, axis2=2)
+
+        # Kernel dimension, now that crocubot is 4D
+        features = np.expand_dims(features, axis=-1)
+
+        if self._bin_edges is None:
+            labels = np.expand_dims(labels, axis=-1)
+
+        return TrainData(features, labels)
 
     @property
     def n_train_samples(self):

@@ -8,19 +8,11 @@ from examples.helpers import load_default_config, FLAGS
 
 def run_mnist_test(train_path, tensorboard_log_path, method='Adam', use_full_train_set=True):
 
-    if use_full_train_set:
-        n_training_samples = 60000
-        n_epochs = 2
-    else:
-        n_training_samples = 500
-        n_epochs = 2
-
     config = load_default_config()
-    config["n_epochs"] = n_epochs
+    config["n_epochs"] = 2
     config["learning_rate"] = 1e-3   # Use high learning rate for testing purposes
     config["cost_type"] = 'bayes'  # 'bayes'; 'softmax'; 'hellinger'
     config['batch_size'] = 200
-    config['n_training_samples_benchmark'] = n_training_samples
     config['n_series'] = 1
     config['optimisation_method'] = method
     config['n_features_per_series'] = 784
@@ -31,12 +23,14 @@ def run_mnist_test(train_path, tensorboard_log_path, method='Adam', use_full_tra
     config['model_save_path'] = train_path
     config['n_retrain_epochs'] = 5
     config['n_train_passes'] = 1
-    config['n_eval_passes'] = 40
+    config['n_eval_passes'] = 10
 
     fl.build_tensorflow_flags(config)
+
     # this flag is only used in benchmark.
-    tf.app.flags.DEFINE_integer('n_training_samples_benchmark', config['n_training_samples_benchmark'],
-                                """Number of samples for benchmarking.""")
+    tf.app.flags.DEFINE_integer('n_training_samples_benchmark', 60000, """Number of samples for benchmarking.""")
+    tf.app.flags.DEFINE_integer('n_prediction_sample', 10000, """Number of samples for benchmarking.""")
+
     FLAGS._parse_flags()
     print("Epochs to evaluate:", FLAGS.n_epochs)
 

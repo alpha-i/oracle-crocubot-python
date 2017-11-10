@@ -7,8 +7,10 @@ from timeit import default_timer as timer
 import tensorflow as tf
 
 import alphai_crocubot_oracle.bayesian_cost as cost
-from alphai_crocubot_oracle.crocubot import PRINT_LOSS_INTERVAL, PRINT_SUMMARY_INTERVAL, MAX_GRADIENT, PRINT_KERNEL
+from alphai_crocubot_oracle.crocubot import PRINT_LOSS_INTERVAL, PRINT_SUMMARY_INTERVAL, MAX_GRADIENT
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel, Estimator
+
+PRINT_KERNEL = True
 
 
 def train(topology,
@@ -136,6 +138,7 @@ def _log_epoch_loss_if_needed(epoch, epoch_loss, n_epochs, time_epoch, use_convo
             conv1_bias_val = gr.get_tensor_by_name('conv3d0/bias:0').eval()
             logging.info("Kernel values: {}".format(conv1_kernel_val.flatten()))
             logging.info("Kernel bias: {}".format(conv1_bias_val))
+
 
 def _set_cost_operator(crocubot_model, x, labels, n_batches, tf_flags):
 

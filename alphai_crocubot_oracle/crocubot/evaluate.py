@@ -14,6 +14,7 @@ from alphai_crocubot_oracle.crocubot.model import CrocuBotModel, Estimator
 
 PRINT_KERNEL = True
 
+
 def eval_neural_net(data, topology, tf_flags, last_train_file):
     """ Multiple passes allow us to estimate the posterior distribution.
 
@@ -22,7 +23,7 @@ def eval_neural_net(data, topology, tf_flags, last_train_file):
     :param tf_flags:
     :param last_train_file:
 
-    :return: 3D array with dimensions [n_passes, n_samples, n_labels]
+    :return: 3D array with dimensions [n_passes, n_samples, n_labels, n_bins]
     """
 
     logging.info("Evaluating with shape {}".format(data.shape))

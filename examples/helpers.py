@@ -6,13 +6,13 @@ FLAGS = tf.app.flags.FLAGS
 D_TYPE = 'float32'
 
 
-def load_default_topology(series_name):
+def load_default_topology(series_name, tf_flags):
     """The input and output layers must adhere to the dimensions of the features and labels.
     """
 
     layer_types = ['full', 'full', 'full', 'full']
-    layer_heights = None,
-    layer_widths = None,
+    layer_heights = None
+    layer_widths = None
     activation_functions = None
     n_features = 1
 
@@ -27,7 +27,7 @@ def load_default_topology(series_name):
         n_classification_bins = 12
         n_output_series = 10
     elif series_name == 'mnist':
-        if FLAGS.use_convolution:
+        if tf_flags.use_convolution:
             layer_types = ['conv1d', 'full', 'full', 'full']
             layer_heights = [784, 400, 400, 10]
             layer_widths = [1, 1, 1, 1]
@@ -42,7 +42,7 @@ def load_default_topology(series_name):
         n_classification_bins = 10
         n_output_series = 1
     elif series_name == 'mnist_reshaped':
-        if FLAGS.use_convolution:
+        if tf_flags.use_convolution:
             layer_types = ['conv3d', 'pool2d', 'conv3d', 'pool2d', 'full', 'full', 'full']
             layer_heights = [28, 28, 28, 400, 400, 400, 10]
             layer_widths = [28, 28, 28, 1, 1, 1, 1]
@@ -102,7 +102,6 @@ def load_default_config():
 
         # Training specific
         'n_epochs': 1,
-        'n_training_samples_benchmark': 1000,
         'learning_rate': 2e-3,
         'batch_size': 100,
         'cost_type': 'bayes',

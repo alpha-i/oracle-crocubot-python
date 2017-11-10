@@ -20,7 +20,7 @@ from examples.helpers import D_TYPE, load_default_topology
 
 def run_timed_benchmark_time_series(series_name, tf_flags, do_training=True):
 
-    topology = load_default_topology(series_name)
+    topology = load_default_topology(series_name, tf_flags)
 
     #  First need to establish bin edges using full training set
     n_train_samples = np.minimum(tf_flags.n_training_samples_benchmark, 10000)

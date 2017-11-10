@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel, Estimator
+
 from alphai_crocubot_oracle.topology import (
     Topology,
     DEFAULT_HIDDEN_LAYERS,
@@ -11,11 +12,10 @@ from alphai_crocubot_oracle.topology import (
     DEFAULT_BINS,
     DEFAULT_N_FORECASTS
 )
-
-from alphai_crocubot_oracle.topology import Topology
 from tests.helpers import get_default_flags
 
 DEFAULT_BATCH_SIZE = 100
+
 
 class TestCrocuBotModel(tf.test.TestCase):
 
