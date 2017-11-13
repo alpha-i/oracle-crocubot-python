@@ -78,8 +78,8 @@ def evaluate_network(topology, series_name, batch_size, save_file, tf_flags):
 
 def evaluate_mnist(binned_outputs, n_samples, test_labels):
     binned_outputs = np.mean(binned_outputs, axis=0)  # Average over passes
-    predicted_indices = np.argmax(binned_outputs, axis=2).flatten()
-    true_indices = np.argmax(test_labels, axis=1).flatten()
+    predicted_indices = np.argmax(binned_outputs, axis=-1).flatten()
+    true_indices = np.argmax(test_labels, axis=-1).flatten()
 
     print("Example forecasts:", binned_outputs[0:5, 0, :])
     print("Example outcomes", test_labels[0:5, 0, :])
