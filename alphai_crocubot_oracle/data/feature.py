@@ -32,7 +32,7 @@ class FinancialFeature(object):
         :param bool is_target: if True the feature is a target.
         :param pandas_market_calendar exchange_calendar: exchange calendar.
         """
-        # FIXME the default args are temporary. We need to load a default config in the unit tests.
+        # FIXME the get_default_flags args are temporary. We need to load a get_default_flags config in the unit tests.
 
         self._assert_input(name, transformation, normalization, nbins, ndays, resample_minutes, start_market_minute,
                            is_target)
