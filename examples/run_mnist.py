@@ -9,7 +9,7 @@ from examples.helpers import load_default_config, FLAGS
 def run_mnist_test(train_path, tensorboard_log_path, method='Adam', use_full_train_set=True):
 
     config = load_default_config()
-    config["n_epochs"] = 2
+    config["n_epochs"] = 10
     config["learning_rate"] = 1e-3   # Use high learning rate for testing purposes
     config["cost_type"] = 'bayes'  # 'bayes'; 'softmax'; 'hellinger'
     config['batch_size'] = 200
@@ -17,7 +17,7 @@ def run_mnist_test(train_path, tensorboard_log_path, method='Adam', use_full_tra
     config['optimisation_method'] = method
     config['n_features_per_series'] = 784
     config['resume_training'] = False  # Make sure we start from scratch
-    config['activation_functions'] = ['linear', 'selu', 'selu']
+    config['activation_functions'] = ['linear', 'relu', 'relu']
     config['tensorboard_log_path'] = tensorboard_log_path
     config['train_path'] = train_path
     config['model_save_path'] = train_path

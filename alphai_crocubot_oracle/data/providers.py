@@ -110,6 +110,7 @@ class TrainDataProviderForDataSource(AbstractTrainDataProvider):
 
         if self._bin_edges is None:
             labels = np.expand_dims(labels, axis=-1)
+            labels = np.swapaxes(labels, axis1=1, axis2=-1)
 
         return TrainData(features, labels)
 
