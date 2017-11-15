@@ -13,8 +13,8 @@ dependencies:
     - pip install setuptools
   override:
     - pip install -r dev-requirements.txt
-
-test:
-  override:
-    - flake8 ./
-    - PYTHONPATH=. pytest --cov=alphai_crocubot_oracle --cov-report html:$CIRCLE_ARTIFACTS tests/
+#
+#test:
+#  override:
+#    - flake8 ./
+#    - PYTHONPATH=. pytest --cov=alphai_crocubot_oracle --cov-report html:$CIRCLE_ARTIFACTS tests/
