@@ -24,3 +24,5 @@ test:
     - git clone git@github.com:alpha-i/tool-integration-test-python.git ../tool-integration-test-python
     - pwd
     - ls ../
+    - cd ../tool-integration-test-python;git checkout feature/autmation_of_test_circleci;pip install -r requirements.txt
+    - python ../tool-integration-test-python/integration_test/create_and_ingest_data.py
