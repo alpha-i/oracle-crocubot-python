@@ -16,5 +16,10 @@ dependencies:
 
 test:
   override:
-    - flake8 ./
-    - PYTHONPATH=. pytest --cov=alphai_crocubot_oracle --cov-report html:$CIRCLE_ARTIFACTS tests/
+#    - flake8 ./
+#    - PYTHONPATH=. pytest --cov=alphai_crocubot_oracle --cov-report html:$CIRCLE_ARTIFACTS tests/
+#    - python setup.py develop
+    - conda create -n integration-test-env python=3.5
+    - git clone git@github.com:alpha-i/tool-integration-test-python.git
+    - cd tool-integration-test-python
+    - git checkout feature/autmation_of_test_circleci
