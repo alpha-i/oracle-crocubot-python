@@ -1,6 +1,6 @@
 -r requirements.txt
 --extra-index-url https://pypi.fury.io/reW6hdjFCrSbpo3ehrBu/alpha-i/
-integration_test==0.1.0dev 
+integration_test==0.1.0dev0
 coverage==4.4.1
 flake8==3.4.1
 mccabe==0.6.1
