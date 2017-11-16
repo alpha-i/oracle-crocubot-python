@@ -25,5 +25,4 @@ test:
     - source activate integration-test-env;cd ../tool-integration-test-python;git checkout feature/autmation_of_test_circleci;pip install -r requirements.txt
     - source activate integration-test-env;conda env list
     - source activate integration-test-env;pip freeze
-    - source activate integration-test-env;python ../tool-integration-test-python/setup.py install
-    - source activate integration-test-env;python ../tool-integration-test-python/integration_test/create_and_ingest_data.py
+    - source activate integration-test-env;python ../tool-integration-test-python/setup.py install;pip freeze;python ../tool-integration-test-python/integration_test/create_and_ingest_data.py
