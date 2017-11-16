@@ -1,3 +1,2 @@
 --extra-index-url https://pypi.fury.io/reW6hdjFCrSbpo3ehrBu/alpha-i/
-quant_workflow==3.1.0
-integration_test==0.0.1
+integration_test==0.1.0dev0
