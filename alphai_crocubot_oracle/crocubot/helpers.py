@@ -9,7 +9,7 @@ class TensorflowPath:
         self._model_restore_path = model_restore_path
 
     def can_restore_model(self):
-        return self._model_restore_path and os.path.isfile(self._model_restore_path)
+        return isinstance(self._model_restore_path, str)
 
     @property
     def session_save_path(self):
