@@ -19,21 +19,21 @@ test:
 #    - flake8 ./
 #    - PYTHONPATH=. pytest --cov=alphai_crocubot_oracle --cov-report html:$CIRCLE_ARTIFACTS tests/
 #    - python setup.py develop
-    - conda create -y -n integration-test-env python=3.5
-    - source activate integration-test-env;conda install -y -c Quantopian zipline=1.1.1
-    - git clone git@github.com:alpha-i/tool-integration-test-python.git ../tool-integration-test-python
-    - source activate integration-test-env;cd ../tool-integration-test-python;git checkout feature/autmation_of_test_circleci;pip install -r requirements.txt
-    - source activate integration-test-env;conda env list
-    - source activate integration-test-env;pip freeze
-    - source activate integration-test-env;cd ../tool-integration-test-python/;python setup.py install;pip freeze;python ../tool-integration-test-python/integration_test/create_and_ingest_data.py
-    - conda create -y -n quant-workflow-env python=3.5
-    - source activate quant-workflow-env;pip install -r requirements.txt;python setup.py install
-    - source activate quant-workflow-env;conda install -y -c Quantopian zipline=1.1.1;pip install --extra-index-url https://pypi.fury.io/reW6hdjFCrSbpo3ehrBu/alpha-i/ quant_workflow==3.1.0
-    - mkdir -p /tmp/integration_test_zipline_root/train /tmp/integration_test_zipline_root/tensorboard /tmp/integration_test_zipline_root/model /tmp/integration_test_zipline_root/results/performance_analysis_results /tmp/integration_test_zipline_root/logs;
-    - source activate quant-workflow-env;pip install --ignore-installed numpy==1.13.3
-    - source activate quant-workflow-env;cd ../tool-integration-test-python/config;alphai.quant_workflow.run qw_integration_test.yml
+#    - conda create -y -n integration-test-env python=3.5
+#    - source activate integration-test-env;conda install -y -c Quantopian zipline=1.1.1
+#    - git clone git@github.com:alpha-i/tool-integration-test-python.git ../tool-integration-test-python
+#    - source activate integration-test-env;cd ../tool-integration-test-python;git checkout feature/autmation_of_test_circleci;pip install -r requirements.txt
+#    - source activate integration-test-env;conda env list
+#    - source activate integration-test-env;pip freeze
+#    - source activate integration-test-env;cd ../tool-integration-test-python/;python setup.py install;pip freeze;python ../tool-integration-test-python/integration_test/create_and_ingest_data.py
+#    - conda create -y -n quant-workflow-env python=3.5
+#    - source activate quant-workflow-env;pip install -r requirements.txt;python setup.py install
+#    - source activate quant-workflow-env;conda install -y -c Quantopian zipline=1.1.1;pip install --extra-index-url https://pypi.fury.io/reW6hdjFCrSbpo3ehrBu/alpha-i/ quant_workflow==3.1.0
+#    - mkdir -p /tmp/integration_test_zipline_root/train /tmp/integration_test_zipline_root/tensorboard /tmp/integration_test_zipline_root/model /tmp/integration_test_zipline_root/results/performance_analysis_results /tmp/integration_test_zipline_root/logs;
+#    - source activate quant-workflow-env;pip install --ignore-installed numpy==1.13.3
+#    - source activate quant-workflow-env;cd ../tool-integration-test-python/config;alphai.quant_workflow.run qw_integration_test.yml
     - conda create -y -n perf-env python=3.5
-    - source activate perf-env;conda install -y matplotlib ipython seaborn pyyaml pymc3 pyfolio pytables ;pip install --extra-index-url https://pypi.fury.io/reW6hdjFCrSbpo3ehrBu/alpha-i/ performance_analysis==2.1.3
+    - source activate perf-env;conda install -y matplotlib ipython seaborn pyyaml pymc3 pytables;conda install -c quantopian pyfolio;pip install --extra-index-url https://pypi.fury.io/reW6hdjFCrSbpo3ehrBu/alpha-i/ performance_analysis==2.1.3
 
 
 #numpy>=1.12.0
