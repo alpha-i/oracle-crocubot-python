@@ -32,10 +32,11 @@ test:
     - mkdir -p /tmp/integration_test_zipline_root/train /tmp/integration_test_zipline_root/tensorboard /tmp/integration_test_zipline_root/model /tmp/integration_test_zipline_root/results/performance_analysis_results /tmp/integration_test_zipline_root/logs;
     - source activate quant-workflow-env;pip install --ignore-installed numpy==1.13.3
     - source activate quant-workflow-env;cd ../tool-integration-test-python/config;alphai.quant_workflow.run qw_integration_test.yml
-    - source activate quant-workflow-env;conda install -y matplotlib ipython seaborn pyyaml pymc3 pyfolio pytables ;pip install --extra-index-url https://pypi.fury.io/reW6hdjFCrSbpo3ehrBu/alpha-i/ performance_analysis==2.1.3
+    - conda create -y -n perf-env python=3.5
+    - source activate perf-env;conda install -y matplotlib ipython seaborn pyyaml pymc3 pyfolio pytables ;pip install --extra-index-url https://pypi.fury.io/reW6hdjFCrSbpo3ehrBu/alpha-i/ performance_analysis==2.1.3
 
 
-#  numpy>=1.12.0
+#numpy>=1.12.0
 #pandas>=0.19.0
 #pyYaml>=3.12
 #click>=6.7
