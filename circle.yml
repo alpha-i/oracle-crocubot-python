@@ -28,7 +28,7 @@ test:
     - source activate integration-test-env;cd ../tool-integration-test-python/;python setup.py install;python ../tool-integration-test-python/integration_test/create_and_ingest_data.py
     - conda create -y -n quant-workflow-env python=3.5
     - source activate quant-workflow-env;conda install -y cython scipy;pip install -r requirements.txt;python setup.py install
-    - source activate quant-workflow-env;conda install -y -c Quantopian zipline=1.1.1;pip install --extra-index-url https://pypi.fury.io/reW6hdjFCrSbpo3ehrBu/alpha-i/ quant_workflow==3.1.0
+    - source activate quant-workflow-env;conda install -y -c Quantopian zipline=1.1.1;pip install --extra-index-url https://pypi.fury.io/reW6hdjFCrSbpo3ehrBu/alpha-i/ quant_workflow==3.2.0
     - mkdir -p /tmp/integration_test_zipline_root/train /tmp/integration_test_zipline_root/tensorboard /tmp/integration_test_zipline_root/model /tmp/integration_test_zipline_root/results/performance_analysis_results /tmp/integration_test_zipline_root/logs;
     - source activate quant-workflow-env;pip install --ignore-installed numpy==1.13.3
     - source activate quant-workflow-env;cd ../tool-integration-test-python/config;alphai.quant_workflow.run qw_integration_test.yml
