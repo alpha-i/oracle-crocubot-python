@@ -146,12 +146,13 @@ class FinancialFeature(object):
         :return:
         """
 
+        symbol_data = symbol_data.reshape(-1, 1)  # Reshape for scikitlearn
+        symbol_data = symbol_data[np.isfinite(symbol_data)]
+
         if symbol:
             self.scaler_dict[symbol] = deepcopy(self.scaler)
-            symbol_data = symbol_data.reshape(-1, 1)  # Reshape for scikitlearn
             self.scaler_dict[symbol].fit(symbol_data)
         else:
-            symbol_data = symbol_data.reshape(-1, 1)  # Reshape for scikitlearn
             self.scaler.fit(symbol_data)
 
     def apply_normalisation(self, dataframe):
@@ -318,34 +319,6 @@ class FinancialFeature(object):
                 logging.warning("Dropping {} from dataframe.".format(symbol))
 
         return hot_dataframe
-
-    def declassify_single_predict_y(self, predict_y):
-        raise NotImplementedError('Declassification is only available for multi-pass prediction at the moment.')
-
-    def declassify_multi_predict_y(self, predict_y):
-        """
-        Declassify multi-pass predict_y data
-        :param predict_y: target multi-pass prediction with axes (passes, series, bins)
-        :return: mean and variance of target multi-pass prediction
-        """
-        n_series = predict_y.shape[1]
-
-        if self.nbins:
-            means = np.zeros(shape=(n_series,))
-            variances = np.zeros(shape=(n_series,))
-            for series_idx in range(n_series):
-                if self.classify_per_series:
-                    series_bins = self.bin_distribution[series_idx]
-                else:
-                    series_bins = self.bin_distribution
-
-                means[series_idx], variances[series_idx] = \
-                    declassify_labels(series_bins, predict_y[:, series_idx, :])
-        else:
-            means = np.mean(predict_y, axis=0)
-            variances = np.var(predict_y, axis=0)
-
-        return means, variances
 
     def inverse_transform_multi_predict_y(self, predict_y, symbols):
         """

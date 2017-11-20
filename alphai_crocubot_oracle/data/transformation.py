@@ -355,7 +355,7 @@ class FinancialDataTransformation(DataTransformation):
         for x_dict in x_list:
             if symbol in x_dict[feature_name].columns:
                 sample = x_dict[feature_name][symbol]
-                collated_data.extend(sample.dropna().values)
+                collated_data.extend(sample.values)
 
         return np.asarray(collated_data)
 
