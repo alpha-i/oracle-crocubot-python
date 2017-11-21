@@ -1,0 +1,158 @@
+logging:
+  version: 1
+  formatters:
+    formatter:
+      format: '%(asctime)s - %(levelname)s [%(name)s:%(module)s]: %(message)s'
+      datefmt: '%Y/%m/%d %H:%M:%S'
+  handlers:
+    #these handlers say: for ERROR an higher, log on console. for DEBUG log on file
+    console:
+      class: 'logging.StreamHandler'
+      formatter: 'formatter'
+      level: 'DEBUG'
+      stream: 'ext://sys.stdout'
+    file:
+      class: 'logging.FileHandler'
+      formatter: 'formatter'
+      level: 'DEBUG'
+      filename: '/tmp/integration_test_zipline_root/logs/quant_workflow-debug.log'
+  root:
+    level: 'DEBUG'
+    handlers: ['file', 'console']
+quant_workflow:
+  run_mode: 'oracle'
+  results_path: '/tmp/integration_test_zipline_root/results'
+  fill_limit: 1
+  trade_resample_rule: '15T'
+  trade_history_ndays: 11
+  trade_frequency: 'daily'
+  trade_days_offset: 1
+  trade_minutes_offset: 60
+  trade_horizon_ncycles: 1
+  train_resample_rule: '15T'
+  train_history_ndays: 252
+  train_frequency: 'weekly'
+  train_days_offset: 0
+  train_minutes_offset: 60
+  alert_level: 'NONE'
+  execution_timeout: 180.
+  open_order_timeout: 3600.
+
+  oracle:
+    method: library
+    module_path: alphai_crocubot_oracle.oracle
+    oracle_class_name: CrocubotOracle
+    oracle_arguments:
+      data_transformation:
+        feature_config_list:
+        - is_target: True
+          normalization: standard
+          name: close
+          transformation:
+              name: log-return
+        exchange_name: "NYSE"
+        clean_nan_from_dict: True
+        features_ndays: 10
+        features_resample_minutes: 15
+        features_start_market_minute: 60
+        prediction_frequency_ndays: 1
+        prediction_market_minute: 60
+        target_delta_ndays: 1
+        target_market_minute: 60
+
+
+      train_path: '/tmp/integration_test_zipline_root/train'
+      tensorboard_log_path: '/tmp/integration_test_zipline_root/tensorboard'
+      covariance_method: Ledoit
+      covariance_ndays: 50
+      model_save_path: '/tmp/integration_test_zipline_root/model'
+      d_type: float32
+      tf_type: 32
+      random_seed: 0
+      predict_single_shares: True
+      n_epochs: 300
+      n_retrain_epochs: 20
+      n_training_samples: 15800
+      learning_rate: 4e-04
+      batch_size: 100
+      cost_type: bayes
+      n_train_passes: 1
+      n_eval_passes: 1
+      resume_training: True
+      n_series: 1
+      nassets: 3
+      n_forecasts: 1
+      n_classification_bins: 11
+      classify_per_series: True
+      normalise_per_series: True
+      layer_heights:
+      - 100
+      - 100
+      - 100
+      layer_widths:
+      - 1
+      - 1
+      - 1
+      activation_functions:
+      - relu
+      - relu
+      - relu
+
+      INITIAL_ALPHA: 0.01
+      INITIAL_WEIGHT_UNCERTAINTY: 0.1
+      INITIAL_BIAS_UNCERTAINTY: 0.1
+      INITIAL_WEIGHT_DISPLACEMENT: 0.0
+      INITIAL_BIAS_DISPLACEMENT: 0.0
+      USE_PERFECT_NOISE: True
+      double_gaussian_weights_prior: True
+      wide_prior_std: 0.1
+      narrow_prior_std: 0.001
+      spike_slab_weighting: 0.25
+      n_training_samples_benchmark: 1000
+
+      use_historical_covariance: False
+      n_correlated_series: 1
+  portfolio:
+      max_individual_weight: 0.3
+      min_individual_weight: -0.3
+      max_aggregate_exposure: 0.6
+      min_aggregate_exposure: -0.6
+      margin_ratio: 1.5
+      max_annualised_std: 0.20
+      alpha_plus: 0
+      alpha_minus: 0
+      beta_plus: 0
+      beta_minus: 0
+
+  universe:
+    method: liquidity
+    nassets: 3
+    ndays_window: 60
+    update_frequency: monthly
+    avg_function: median
+    fill_limit: 1
+    dropna: False
+
+zipline:
+  zipline_root: '/tmp/integration_test_zipline_root'
+  data_frequency: 'minute'
+  slippage_type: 'TradeAtTheOpenSlippageModel'
+  commission_type: 'PerShare'
+
+  start_date: '20110101'
+  end_date: '20110228'
+  data_bundle: 'integration_test_bundle'
+  capital_base: 1000000
+  spread: 0.0
+  open_close_fraction: 0.0
+  volume_limit: 0.0
+  price_impact: 0.0
+  cost: 0.0005
+  min_trade_cost: 1.0
+
+live_clock_configuration:
+  host: 'localhost'
+  port: 45672
+  queue_name: 'clock-pulse'
+  username: 'admin'
+  password: 'bugsBunny'
