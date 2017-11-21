@@ -8,7 +8,7 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 class BinDistribution:
 
-    def __init__(self, data, n_bins, use_centred_bins=False):
+    def __init__(self, data, n_bins, use_centred_bins=True):
 
         data = data.flatten()
         self.n_bins = n_bins
@@ -203,12 +203,3 @@ def extract_point_estimates(bin_centres, pdf_array):
         logging.info('Derived points: {}'.format(points))
 
     return points
-
-edges = _calculate_unit_gaussian_edges(10)
-print(edges)
-test_data = np.random.normal(size=1000)
-centre_dist = BinDistribution(test_data, 10, True)
-integral = np.sum(centre_dist.pdf)
-
-print("Pdf:", centre_dist.pdf)
-print("Total sum of pdf:", integral)

@@ -222,11 +222,9 @@ class CrocubotOracle:
             logging.warning('Prediction of forecast covariance failed. Contains non-finite values.')
             logging.warning('forecast_covariance: {}'.format(forecast_covariance))
 
+        logging.info('Samples from predicted means: {}'.format(means[0:10]))
         if not np.isfinite(means).all():
-            logging.warning('Prediction of means failed. Contains non-finite values.')
-            logging.warning('Means: {}'.format(means))
-        else:
-            logging.info('Samples from predicted means: {}'.format(means[0:10]))
+            logging.warning('Means found to contain non-finite values.')
 
         means = pd.Series(np.squeeze(means), index=symbols)
 

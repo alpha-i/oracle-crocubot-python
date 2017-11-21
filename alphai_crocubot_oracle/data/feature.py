@@ -146,8 +146,9 @@ class FinancialFeature(object):
         :return:
         """
 
-        symbol_data = symbol_data.reshape(-1, 1)  # Reshape for scikitlearn
+        symbol_data.flatten()
         symbol_data = symbol_data[np.isfinite(symbol_data)]
+        symbol_data = symbol_data.reshape(-1, 1)  # Reshape for scikitlearn
 
         if symbol:
             self.scaler_dict[symbol] = deepcopy(self.scaler)

@@ -212,6 +212,7 @@ class FinancialDataTransformation(DataTransformation):
         clean_nan_from_dict = self.configuration.get('clean_nan_from_dict', False)
         if clean_nan_from_dict:
             train_x, train_y = remove_nans_from_dict(train_x, train_y)
+            raise ValueError("need to update symbols when removing nans")
 
         return train_x, train_y
 
@@ -228,6 +229,7 @@ class FinancialDataTransformation(DataTransformation):
         clean_nan_from_dict = self.configuration.get('clean_nan_from_dict', False)
         if clean_nan_from_dict:
             predict_x = remove_nans_from_dict(predict_x)
+            raise ValueError("need to update symbols when removing nans")
 
         return predict_x, symbols
 
@@ -355,7 +357,9 @@ class FinancialDataTransformation(DataTransformation):
         for x_dict in x_list:
             if symbol in x_dict[feature_name].columns:
                 sample = x_dict[feature_name][symbol]
-                collated_data.extend(sample.values)
+                values = sample.values
+                finite_values = values[np.isfinite(values)]
+                collated_data.extend(finite_values)
 
         return np.asarray(collated_data)
 
