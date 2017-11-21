@@ -31,7 +31,7 @@ test:
     - source activate quant-workflow-env;conda install -y -c Quantopian zipline=1.1.1;pip install --extra-index-url https://pypi.fury.io/reW6hdjFCrSbpo3ehrBu/alpha-i/ quant_workflow==3.2.0
     - mkdir -p /tmp/integration_test_zipline_root/train /tmp/integration_test_zipline_root/tensorboard /tmp/integration_test_zipline_root/model /tmp/integration_test_zipline_root/results/performance_analysis_results /tmp/integration_test_zipline_root/logs;
     - source activate quant-workflow-env;pip install --ignore-installed numpy==1.13.3
-    - source activate quant-workflow-env;cd alphai.quant_workflow.run tests/resources/qw_integration_test.yml
+    - source activate quant-workflow-env;alphai.quant_workflow.run tests/resources/qw_integration_test.yml
     - conda create -y -n perf-env python=3.5
     - source activate perf-env;conda install -y matplotlib ipython seaborn pyyaml pymc3 pytables;conda install -y -c quantopian pyfolio;pip install --extra-index-url https://pypi.fury.io/reW6hdjFCrSbpo3ehrBu/alpha-i/ performance_analysis==2.1.5
     - source activate perf-env;cd ../tool-integration-test-python/config;alphai.performance_analysis.create_oracle_report performance_analysis_integration_test.yml
