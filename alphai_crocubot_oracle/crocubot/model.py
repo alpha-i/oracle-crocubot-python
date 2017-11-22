@@ -250,12 +250,22 @@ class Estimator:
         :return:
         """
 
+        input_signal = tf.identity(signal, name='input')
+
         for layer_number in range(self._model.topology.n_layers):
-            signal = self.single_layer_pass(signal, layer_number, iteration)
+            signal = self.single_layer_pass(signal, layer_number, iteration, input_signal)
 
         return signal
 
-    def single_layer_pass(self, signal, layer_number, iteration):
+    def single_layer_pass(self, signal, layer_number, iteration, input_signal):
+        """
+
+        :param signal:
+        :param layer_number:
+        :param iteration:
+        :param input_signal: Used by residual layers
+        :return:
+        """
 
         layer_type = self._model.topology.get_layer_type(layer_number)
         activation_function = self._model.topology.get_activation_function(layer_number)
@@ -271,7 +281,7 @@ class Estimator:
         elif layer_type == POOL_LAYER_2D:
             signal = self.pool_layer_2d(signal)
         elif layer_type == RESIDUAL_LAYER:
-            signal += signal
+            signal = self.residual_layer(signal, input_signal)
         else:
             raise ValueError('Unknown layer type')
 
@@ -289,6 +299,16 @@ class Estimator:
         weights = self._model.compute_weights(layer_number, iteration)
         biases = self._model.compute_biases(layer_number, iteration)
         return tf.tensordot(signal, weights, axes=3) + biases
+
+    def residual_layer(self, signal, input_signal):
+        """ TBC: add learnable weight
+
+        :param signal:
+        :param input_signal:
+        :return:
+        """
+
+        return signal + input_signal
 
     def convolutional_layer_1d(self, signal, iteration):
         """ Sets a convolutional layer with a one-dimensional kernel. """
