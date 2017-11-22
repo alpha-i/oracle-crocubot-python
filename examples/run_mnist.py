@@ -6,7 +6,7 @@ from examples.benchmark.mnist import run_timed_benchmark_mnist
 from examples.helpers import load_default_config, FLAGS
 
 
-def run_mnist_test(train_path, tensorboard_log_path, method='Adam', use_full_train_set=True):
+def run_mnist_test(train_path, tensorboard_log_path, method='GDO', use_full_train_set=True):
 
     config = load_default_config()
     config["n_epochs"] = 10

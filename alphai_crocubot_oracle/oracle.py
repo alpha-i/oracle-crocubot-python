@@ -131,6 +131,9 @@ class CrocubotOracle:
         train_x, train_y = self.filter_nan_samples(train_x, train_y)
         logging.info("Filtered train_x shape {}".format(train_x.shape))
 
+        if train_x.shape[0] == 0:
+            raise ValueError("Aborting training: No valid samples")
+
         # Topology can either be directly constructed from layers, or build from sequence of parameters
         if self._topology is None:
             n_timesteps = train_x.shape[2]
@@ -219,8 +222,7 @@ class CrocubotOracle:
 
         means, forecast_covariance = self._data_transformation.inverse_transform_multi_predict_y(predict_y, symbols)
         if not np.isfinite(forecast_covariance).all():
-            logging.warning('Prediction of forecast covariance failed. Contains non-finite values.')
-            logging.warning('forecast_covariance: {}'.format(forecast_covariance))
+            logging.warning('Forecast covariance contains non-finite values.')
 
         logging.info('Samples from predicted means: {}'.format(means[0:10]))
         if not np.isfinite(means).all():
@@ -236,6 +238,22 @@ class CrocubotOracle:
             logging.info("Samples from forecast_covariance: {}".format(np.diag(covariance_matrix)[0:5]))
 
         covariance = pd.DataFrame(data=covariance_matrix, columns=symbols, index=symbols)
+
+        means, covariance = self.filter_predictions(means, covariance)
+        return means, covariance
+
+    def filter_predictions(self, means, covariance):
+        """ Remove nans from the series and remove those symbols from the covariance dataframe
+
+        :param pdSeries means:
+        :param pdDF covariance:
+        :return: pdSeries, pdDF
+        """
+
+        means = means.dropna()
+
+        valid_symbols = means.index.tolist()
+        covariance = covariance.loc[valid_symbols, valid_symbols]
 
         return means, covariance
 

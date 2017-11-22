@@ -5,6 +5,7 @@ import logging
 from timeit import default_timer as timer
 
 import tensorflow as tf
+import numpy as np
 
 import alphai_crocubot_oracle.bayesian_cost as cost
 from alphai_crocubot_oracle.crocubot import PRINT_LOSS_INTERVAL, PRINT_SUMMARY_INTERVAL, MAX_GRADIENT
@@ -42,7 +43,7 @@ def train(topology,
     global_step = tf.Variable(0, trainable=False, name='global_step')
     n_batches = data_provider.number_of_batches
 
-    cost_operator = _set_cost_operator(model, x, y, n_batches, tf_flags)
+    cost_operator, log_predict = _set_cost_operator(model, x, y, n_batches, tf_flags)
     tf.summary.scalar("cost", cost_operator)
     optimize = _set_training_operator(cost_operator, global_step, tf_flags)
 
@@ -112,6 +113,8 @@ def train(topology,
 
             _log_epoch_loss_if_needed(epoch, epoch_loss, number_of_epochs, time_epoch, tf_flags.use_convolution)
 
+        sample_log_predictions = sess.run(log_predict, feed_dict={x: batch_features, y: batch_labels})
+        _log_network_confidence(sample_log_predictions)
         out_path = saver.save(sess, tensorflow_path.session_save_path)
         logging.info("Model saved in file:{}".format(out_path))
 
@@ -161,19 +164,20 @@ def _set_cost_operator(crocubot_model, x, labels, n_batches, tf_flags):
                                     )
 
     estimator = Estimator(crocubot_model, tf_flags)
+    log_predictions = estimator.average_multiple_passes(x, tf_flags.n_train_passes)
 
     if tf_flags.cost_type == 'bbalpha':
         operator = cost_object.get_hellinger_cost(x, labels, tf_flags.n_train_passes, estimator)
+    elif tf_flags.cost_type == 'bayes':
+        operator = cost_object.get_bayesian_cost(log_predictions, labels)
+    elif tf_flags.cost_type == 'softmax':
+        operator = tf.nn.softmax_cross_entropy_with_logits(logits=log_predictions, labels=labels)
     else:
-        log_predictions = estimator.average_multiple_passes(x, tf_flags.n_train_passes)
-        if tf_flags.cost_type == 'bayes':
-            operator = cost_object.get_bayesian_cost(log_predictions, labels)
-        elif tf_flags.cost_type == 'softmax':
-            operator = tf.nn.softmax_cross_entropy_with_logits(logits=log_predictions, labels=labels)
-        else:
-            raise NotImplementedError
+        raise NotImplementedError('Unsupported cost type:', tf_flags.cost_type)
 
-    return tf.reduce_mean(operator)
+    total_cost = tf.reduce_mean(operator)
+
+    return total_cost, log_predictions
 
 
 def _log_topology_parameters_size(topology):
@@ -205,3 +209,20 @@ def _set_training_operator(cost_operator, global_step, tf_flags):
         raise NotImplementedError("Unknown optimisation method: ", tf_flags.optimisation_method)
 
     return optimize
+
+
+def _log_network_confidence(log_predictions):
+    """  From a sample of predictions, returns the typical confidence applied to a forecast.
+
+    :param nparray log_predictions: multidimensional array of log probabilities [samples, n_forecasts, n_bins]
+    :return: null
+    """
+
+    predictions = np.exp(log_predictions)
+    confidence_values = np.max(predictions, axis=-1).flatten()
+    typical_confidence = np.median(confidence_values)
+
+    logging.info('Typical network confidence for a single pass: {}'.format(typical_confidence))
+
+
+

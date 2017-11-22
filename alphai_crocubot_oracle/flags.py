@@ -11,7 +11,7 @@ def build_tensorflow_flags(config):
     tf.flags._global_parser = argparse.ArgumentParser()
 
     if 'optimisation_method' not in config:
-        config['optimisation_method'] = 'GDO'
+        config['optimisation_method'] = 'Adam'
 
     if 'use_convolution' not in config:
         config['use_convolution'] = 'False'
