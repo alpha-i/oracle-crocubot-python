@@ -14,8 +14,8 @@ setup(
         'pandas-market-calendars>=0.6',
         'alphai_covariance>=0.1.3',
         'alphai-data-sources>=1.0.1',
-        'tensorflow>=1.3.0',
-        'numpy>=1.11.3',
+        'tensorflow>=1.4.0',
+        'numpy>=1.12.0',
         'pandas==0.18.1',
         'scikit-learn'
     ],
