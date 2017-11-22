@@ -1,2 +1,0 @@
---extra-index-url https://pypi.fury.io/reW6hdjFCrSbpo3ehrBu/alpha-i/
-integration_test==0.1.0dev0
