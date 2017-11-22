@@ -11,9 +11,10 @@ ACTIVATION_FN_RELU = "relu"
 LAYER_FULL = 'full'
 LAYER_CONV_3D = 'conv3d'
 LAYER_POOL = 'pool2d'
+LAYER_RES = 'res'
 
 ALLOWED_ACTIVATION_FN = [ACTIVATION_FN_RELU, ACTIVATION_FN_SELU, ACTIVATION_FN_LINEAR]
-ALLOWED_LAYER_TYPES = [LAYER_FULL, LAYER_CONV_3D, LAYER_POOL]
+ALLOWED_LAYER_TYPES = [LAYER_FULL, LAYER_CONV_3D, LAYER_POOL, LAYER_RES]
 
 DEFAULT_N_SERIES = 28
 DEFAULT_TIMESTEPS = 28
@@ -222,6 +223,11 @@ class Topology(object):
                     layer["depth"] = int(prev_layer["depth"])
                     layer["height"] = int(prev_layer["height"])
                     layer["width"] = int(prev_layer["width"]) * DEFAULT_N_KERNELS
+                elif previous_layer_type == LAYER_RES or layer["type"] == LAYER_RES:
+                    input_layer = layers[0]
+                    layer["depth"] = int(input_layer["depth"])
+                    layer["height"] = int(input_layer["height"])
+                    layer["width"] = int(input_layer["width"])
 
             layers.append(layer)
 
