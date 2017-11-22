@@ -365,14 +365,14 @@ class Estimator:
 
         signal = tf.expand_dims(signal, axis=-1)
         n_kernels = self._model._topology.n_kernels
-        # kernel_size = self.calculate_kernel_size(signal)
+        kernel_size = self.calculate_3d_kernel_size()
         op_name = CONVOLUTIONAL_LAYER_3D + str(layer_number)
 
         try:
             signal = tf.layers.conv3d(
                 inputs=signal,
                 filters=n_kernels,
-                kernel_size=[KERNEL_DEPTH, KERNEL_HEIGHT, KERNEL_WIDTH],
+                kernel_size=kernel_size,
                 padding=DEFAULT_PADDING,
                 activation=None,
                 data_format=DATA_FORMAT,
@@ -382,7 +382,7 @@ class Estimator:
             signal = tf.layers.conv3d(
                 inputs=signal,
                 filters=n_kernels,
-                kernel_size=[KERNEL_DEPTH, KERNEL_HEIGHT, KERNEL_WIDTH],
+                kernel_size=kernel_size,
                 padding=DEFAULT_PADDING,
                 activation=None,
                 data_format=DATA_FORMAT,
@@ -413,3 +413,17 @@ class Estimator:
         new_shape = tf.concat([partial_new_shape, end_tiled], 0)
 
         return tf.reshape(signal, new_shape)
+
+    def calculate_3d_kernel_size(self):
+        """ Computes the desired kernel size based on the shape of the signal
+
+        :param signal:
+        :return:
+        """
+
+        input_layer = self._model._topology.layers[0]
+        k_depth = min(KERNEL_DEPTH, input_layer['depth'])
+        k_height = min(KERNEL_HEIGHT, input_layer['height'])
+        k_width = min(KERNEL_WIDTH, input_layer['width'])
+
+        return [k_depth, k_height, k_width]

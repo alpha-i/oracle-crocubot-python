@@ -135,13 +135,13 @@ class Topology(object):
         if layer_number >= self.n_layers:
             raise ValueError('layer_number should be strictly less the number of layers')
 
+        input_depth = self.layers[layer_number]["depth"]
         input_height = self.layers[layer_number]["height"]
         input_width = self.layers[layer_number]["width"]
-        input_depth = self.layers[layer_number]["depth"]
 
+        output_depth = self.layers[layer_number + 1]["depth"]
         output_height = self.layers[layer_number + 1]["height"]
         output_width = self.layers[layer_number + 1]["width"]
-        output_depth = self.layers[layer_number + 1]["depth"]
 
         weight_shape = [input_depth, input_height, input_width, output_depth, output_height, output_width]
 
@@ -156,10 +156,11 @@ class Topology(object):
         if layer_number >= self.n_layers:
             raise ValueError('layer_number should be strictly less the number of layers')
 
+        depth = self.layers[layer_number + 1]["depth"]
         height = self.layers[layer_number + 1]["height"]
         width = self.layers[layer_number + 1]["width"]
-        output_depth = self.layers[layer_number + 1]["depth"]
-        bias_shape = [output_depth, height, width]
+
+        bias_shape = [depth, height, width]
 
         return bias_shape
 

@@ -78,7 +78,7 @@ def _create_bin_distribution(series_name, n_training_samples, topology):
     return BinDistribution(train_data.labels, topology.n_classification_bins)
 
 
-@printtime(message="Evaluation of Stocastic Serie")
+@printtime(message="Evaluation of Stocastic Series")
 def evaluate_network(topology, series_name, batch_size, save_path, bin_dist, tf_flags):
 
     n_training_samples = batch_size * 2
