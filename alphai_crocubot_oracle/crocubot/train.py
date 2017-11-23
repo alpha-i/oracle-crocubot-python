@@ -12,7 +12,7 @@ from alphai_crocubot_oracle.crocubot import PRINT_LOSS_INTERVAL, PRINT_SUMMARY_I
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel, Estimator
 
 PRINT_KERNEL = True
-
+DEFAULT_RANDOM_SEED = 42
 
 def train(topology,
           data_provider,
@@ -40,6 +40,7 @@ def train(topology,
     x = tf.placeholder(tf_flags.d_type, shape=x_shape, name="x")
     y = tf.placeholder(tf_flags.d_type, name="y")
 
+    initialisation_random_seed = tf_flags.get('random_seed', DEFAULT_RANDOM_SEED)
     global_step = tf.Variable(0, trainable=False, name='global_step')
     n_batches = data_provider.number_of_batches
 
@@ -67,6 +68,8 @@ def train(topology,
                 is_model_ready = True
             except Exception as e:
                 logging.warning("Restore file not recovered. reason {}. Training from scratch".format(e))
+        else:
+            tf.set_random_seed(initialisation_random_seed)
 
         if not is_model_ready:
             sess.run(tf.global_variables_initializer())
