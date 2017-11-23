@@ -12,7 +12,7 @@ from alphai_crocubot_oracle.crocubot import PRINT_LOSS_INTERVAL, PRINT_SUMMARY_I
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel, Estimator
 
 PRINT_KERNEL = True
-DEFAULT_RANDOM_SEED = 42
+
 
 def train(topology,
           data_provider,
@@ -40,7 +40,6 @@ def train(topology,
     x = tf.placeholder(tf_flags.d_type, shape=x_shape, name="x")
     y = tf.placeholder(tf_flags.d_type, name="y")
 
-    initialisation_random_seed = tf_flags.get('random_seed', DEFAULT_RANDOM_SEED)
     global_step = tf.Variable(0, trainable=False, name='global_step')
     n_batches = data_provider.number_of_batches
 
@@ -69,7 +68,7 @@ def train(topology,
             except Exception as e:
                 logging.warning("Restore file not recovered. reason {}. Training from scratch".format(e))
         else:
-            tf.set_random_seed(initialisation_random_seed)
+            tf.set_random_seed(tf_flags.random_seed)
 
         if not is_model_ready:
             sess.run(tf.global_variables_initializer())
@@ -117,7 +116,7 @@ def train(topology,
             _log_epoch_loss_if_needed(epoch, epoch_loss, number_of_epochs, time_epoch, tf_flags.use_convolution)
 
         sample_log_predictions = sess.run(log_predict, feed_dict={x: batch_features, y: batch_labels})
-        _log_network_confidence(sample_log_predictions)
+        log_network_confidence(sample_log_predictions)
         out_path = saver.save(sess, tensorflow_path.session_save_path)
         logging.info("Model saved in file:{}".format(out_path))
 
@@ -214,7 +213,7 @@ def _set_training_operator(cost_operator, global_step, tf_flags):
     return optimize
 
 
-def _log_network_confidence(log_predictions):
+def log_network_confidence(log_predictions):
     """  From a sample of predictions, returns the typical confidence applied to a forecast.
 
     :param nparray log_predictions: multidimensional array of log probabilities [samples, n_forecasts, n_bins]

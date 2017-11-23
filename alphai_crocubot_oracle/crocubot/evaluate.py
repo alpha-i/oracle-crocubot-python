@@ -11,6 +11,7 @@ import tensorflow as tf
 
 from alphai_crocubot_oracle.data.classifier import declassify_labels
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel, Estimator
+from alphai_crocubot_oracle.crocubot.train import log_network_confidence
 
 PRINT_KERNEL = True
 
@@ -56,6 +57,7 @@ def eval_neural_net(data, topology, tf_flags, last_train_file):
             pass
 
         log_p = sess.run(y, feed_dict={x: data})
+        log_network_confidence(log_p)
 
     posterior = np.exp(log_p)
 

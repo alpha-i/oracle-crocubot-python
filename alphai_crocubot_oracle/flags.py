@@ -4,6 +4,8 @@
 import tensorflow as tf
 import argparse
 
+DEFAULT_RANDOM_SEED = 42
+
 
 def build_tensorflow_flags(config):
     """ Assigns flags based on entries in dictionary"""
@@ -16,6 +18,8 @@ def build_tensorflow_flags(config):
     if 'use_convolution' not in config:
         config['use_convolution'] = 'False'
 
+    random_seed = config.get('random_seed', DEFAULT_RANDOM_SEED)
+
     tf.app.flags.DEFINE_boolean('use_convolution', config['use_convolution'],
                                 """Whether to set the first layer to a convolutional layer""")
 
@@ -23,10 +27,9 @@ def build_tensorflow_flags(config):
                                 """Whether the network predicts one share at a time.""")
 
     tf.app.flags.DEFINE_string('tensorboard_log_path', config['tensorboard_log_path'], """Path for storing tensorboard log.""")
-
     tf.app.flags.DEFINE_string('d_type', config['d_type'], """Data type for numpy.""")
     tf.app.flags.DEFINE_integer('TF_TYPE', config['tf_type'], """Data type for tensorflow.""")
-    tf.app.flags.DEFINE_integer('random_seed', 0, """Seed used to identify random noise realisiation.""")
+    tf.app.flags.DEFINE_integer('random_seed', random_seed, """Seed used to identify random noise realisiation.""")
     tf.app.flags.DEFINE_integer('n_classification_bins', config['n_classification_bins'], """How many bins to use for classification.""")
     tf.app.flags.DEFINE_string('model_save_path', config['model_save_path'], """Path to save graph.""")
     tf.app.flags.DEFINE_string('optimisation_method', config['optimisation_method'], """Algorithm for training""")

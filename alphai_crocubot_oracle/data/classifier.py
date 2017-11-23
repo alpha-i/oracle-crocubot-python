@@ -8,9 +8,10 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 class BinDistribution:
 
-    def __init__(self, data, n_bins, use_centred_bins=True):
+    def __init__(self, data, n_bins, use_centred_bins=False):
 
         data = data.flatten()
+        n_datapoints = len(data)
         self.n_bins = n_bins
         self.pdf_type = self.find_best_fit_pdf_type()
 
@@ -18,19 +19,27 @@ class BinDistribution:
         self.median = np.median(data)
         self.sigma = np.std(data)
 
-        self.bin_edges = self._compute_balanced_bin_edges(data, use_centred_bins)
-        counts, bins = np.histogram(data, self.bin_edges, density=False)
+        if n_datapoints > 0:
+            self.bin_edges = self._compute_balanced_bin_edges(data, use_centred_bins)
+            counts, bins = np.histogram(data, self.bin_edges, density=False)
 
-        if use_centred_bins:  # Catch outliers
-            counts[0] += np.sum(data < self.bin_edges[0])
-            counts[-1] += np.sum(data > self.bin_edges[-1])
+            if use_centred_bins:  # Catch outliers
+                counts[0] += np.sum(data < self.bin_edges[0])
+                counts[-1] += np.sum(data > self.bin_edges[-1])
 
-        self.pdf = counts / data.shape[0]
-        self.n_bins = n_bins
-        self.bin_centres = self._compute_bin_centres()
-        self.bin_widths = self._compute_bin_widths()
-        self.mean_bin_width = self._calc_mean_bin_width()
-        self.sheppards_correction = self._calc_sheppards_correction()
+            self.pdf = counts / n_datapoints
+            self.n_bins = n_bins
+            self.bin_centres = self._compute_bin_centres()
+            self.bin_widths = self._compute_bin_widths()
+            self.mean_bin_width = self._calc_mean_bin_width()
+            self.sheppards_correction = self._calc_sheppards_correction()
+        else:
+            self.bin_edges = [0]
+            self.pdf = [1]
+            self.bin_centres = 0
+            self.bin_widths = 0
+            self.mean_bin_width = 0
+            self.sheppards_correction = 0
 
     def find_best_fit_pdf_type(self):
         """
@@ -56,7 +65,7 @@ class BinDistribution:
         if use_centred_bins:
             unit_gaussian_edges = _calculate_unit_gaussian_edges(self.n_bins + 1)
             bin_edges = unit_gaussian_edges * self.sigma
-        else:
+        else:  # Original bin definition
             xrange = np.linspace(0, n_xvals - 1, self.n_bins + 1)
             bin_edges = np.interp(xrange, n_array, np.sort(data))
 
