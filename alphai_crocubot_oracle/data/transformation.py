@@ -212,7 +212,7 @@ class FinancialDataTransformation(DataTransformation):
         clean_nan_from_dict = self.configuration.get('clean_nan_from_dict', False)
         if clean_nan_from_dict:
             train_x, train_y = remove_nans_from_dict(train_x, train_y)
-            raise ValueError("need to update symbols when removing nans")
+            logging.warning("May need to update symbols when removing nans from dict")
 
         return train_x, train_y
 
@@ -229,7 +229,7 @@ class FinancialDataTransformation(DataTransformation):
         clean_nan_from_dict = self.configuration.get('clean_nan_from_dict', False)
         if clean_nan_from_dict:
             predict_x = remove_nans_from_dict(predict_x)
-            raise ValueError("need to update symbols when removing nans")
+            logging.warning("May need to update symbols when removing nans from dict")
 
         return predict_x, symbols
 
