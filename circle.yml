@@ -33,7 +33,7 @@ test:
     - source activate quant-workflow-env;pip install --ignore-installed numpy==1.13.3
     - source activate quant-workflow-env;alphai.quant_workflow.run tests/resources/qw_integration_test.yml
     - conda create -y -n perf-env python=3.5
-    - source activate perf-env;conda install -y matplotlib ipython seaborn pyyaml pymc3 pytables;conda install -y -c quantopian pyfolio;pip install --extra-index-url https://pypi.fury.io/reW6hdjFCrSbpo3ehrBu/alpha-i/ performance_analysis==2.1.5
+    - source activate perf-env;conda install -y matplotlib ipython seaborn pyyaml pymc3 pytables;conda install -y -c quantopian pyfolio;pip install --extra-index-url https://pypi.fury.io/reW6hdjFCrSbpo3ehrBu/alpha-i/ performance_analysis==2.1.6
     - source activate perf-env;cd ../tool-integration-test-python/config;alphai.performance_analysis.create_oracle_report performance_analysis_integration_test.yml
     - source activate integration-test-env;cd ../tool-integration-test-python/;python ../tool-integration-test-python/integration_test/perform_assertions.py
   post:
