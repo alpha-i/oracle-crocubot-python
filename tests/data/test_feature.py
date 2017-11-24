@@ -269,7 +269,7 @@ class TestFinancialFeature(TestCase):
         expected_length_list = [15, 34, 68]
         for feature, expected_length in zip(feature_list, expected_length_list):
             self.run_get_prediction_data_test(feature, expected_length)
-            
+
 
 def test_financial_features_factory_successful_call():
     feature_list = financial_features_factory(sample_fin_feature_factory_list)

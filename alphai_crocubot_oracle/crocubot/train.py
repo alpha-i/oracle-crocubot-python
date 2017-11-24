@@ -225,6 +225,3 @@ def log_network_confidence(log_predictions):
     typical_confidence = np.median(confidence_values)
 
     logging.info('Typical network confidence for a single pass: {}'.format(typical_confidence))
-
-
-
