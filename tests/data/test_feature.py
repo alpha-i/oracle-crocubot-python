@@ -269,18 +269,7 @@ class TestFinancialFeature(TestCase):
         expected_length_list = [15, 34, 68]
         for feature, expected_length in zip(feature_list, expected_length_list):
             self.run_get_prediction_data_test(feature, expected_length)
-
-    def test_declassify_single_predict_y(self):
-        feature_list = [self.feature_1, self.feature_2, self.feature_3]
-        for feature in feature_list:
-            if feature.nbins:
-                predict_y = np.zeros_like(SAMPLE_PREDICT_LABELS[list(SAMPLE_PREDICT_LABELS.keys())[0]])
-                predict_y[0] = 1
-            else:
-                predict_y = SAMPLE_PREDICT_LABELS
-            with pytest.raises(NotImplementedError):
-                feature.declassify_single_predict_y(predict_y)
-
+            
 
 def test_financial_features_factory_successful_call():
     feature_list = financial_features_factory(sample_fin_feature_factory_list)
