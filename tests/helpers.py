@@ -57,14 +57,17 @@ def read_hdf5_into_dict_of_data_frames(start_date, end_date, symbols, file_path,
 
 
 class DummyCrocubotOracle(CrocubotOracle):
-    def __init__(self, configuration):
-        super().__init__(configuration)
+    def _sanity_check(self):
+        pass
+
+    def __init__(self, config):
+        super().__init__(config)
 
     def get_train_file_manager(self):
         return self._train_file_manager
 
 
-def load_default_config():
+def default_oracle_config():
     configuration = {
         'data_transformation': {
             'feature_config_list': [
@@ -75,18 +78,13 @@ def load_default_config():
                     },
                     'normalization': 'standard',
                     'is_target': True,
-                    'local': False,
+                    'local': False
                 },
             ],
             'exchange_name': 'NYSE',
-            'fill_limit': 0,
             'features_ndays': 10,
             'features_resample_minutes': 15,
-            'features_start_market_minute': 60,
-            'prediction_frequency_ndays': 1,
-            'prediction_market_minute': 60,
-            'target_delta_ndays': 1,
-            'target_market_minute': 60,
+            'fill_limit': 5,
         },
         'train_path': FIXTURE_DESTINATION_DIR,
         'covariance_method': 'NERCOME',
@@ -132,12 +130,42 @@ def load_default_config():
         'double_gaussian_weights_prior': False,
         'wide_prior_std': 1.2,
         'narrow_prior_std': 0.05,
-        'spike_slab_weighting': 0.5
+        'spike_slab_weighting': 0.5,
+
+        "universe": {
+            "method": "liquidity",
+            "nassets": 3,
+            "ndays_window": 5,
+            "update_frequency": 'weekly',
+            "avg_function": 'median',
+            "dropna": False
+        },
     }
 
     return configuration
 
 
+def default_scheduling_config():
+    return {
+        'prediction_horizon': 24,
+        'prediction_frequency':
+            {
+                'frequency_type': 'DAILY',
+                'days_offset': 0,
+                'minutes_offset': 60
+            },
+        'prediction_delta': 10,
+
+        'training_frequency':
+            {
+                'frequency_type': 'DAILY',
+                'days_offset': 0,
+                'minutes_offset': 60
+            },
+        'training_delta': 20,
+    }
+
+
 def get_default_flags():
-    default_config = load_default_config()
+    default_config = default_oracle_config()
     return build_tensorflow_flags(default_config)
