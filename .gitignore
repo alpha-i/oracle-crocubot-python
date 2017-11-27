@@ -5,9 +5,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# C extensions
-*.so
-
 # Distribution / packaging
 .Python
 env/
@@ -20,6 +17,7 @@ eggs/
 lib/
 lib64/
 parts/
+src/
 sdist/
 var/
 wheels/
@@ -96,3 +94,5 @@ ENV/
 .ropeproject
 
 .idea/
+MNIST_data
+*/*.so

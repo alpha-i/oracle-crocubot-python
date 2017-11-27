@@ -11,10 +11,16 @@ from copy import deepcopy
 import numpy as np
 import pandas as pd
 
+from alphai_feature_generation.cleaning import resample_ohlcv, fill_gaps
+from alphai_feature_generation.transformation import FinancialDataTransformation
+from alphai_feature_generation.universe import VolumeUniverseProvider
+
+from alphai_time_series.transform import gaussianise
+from alphai_delphi.oracle import AbstractOracle, PredictionResult
+
 from alphai_crocubot_oracle.crocubot.helpers import TensorflowPath, TensorboardOptions
 from alphai_crocubot_oracle.data.providers import TrainDataProvider
-from alphai_crocubot_oracle.data.transformation import FinancialDataTransformation
-from alphai_time_series.transform import gaussianise
+
 
 import alphai_crocubot_oracle.crocubot.train as crocubot
 import alphai_crocubot_oracle.crocubot.evaluate as crocubot_eval
@@ -31,11 +37,47 @@ TRAIN_FILE_NAME_TEMPLATE = "{}_train_crocubot"
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
+ACCEPTED_FEATURES = ['open', 'high', 'low', 'close', 'volume']
 
-class CrocubotOracle:
-    def __init__(self, configuration):
+
+class CrocubotOracle(AbstractOracle):
+
+    def _sanity_check(self):
+        assert self.scheduling.prediction_delta.days >= self.config['universe']['ndays_window']
+
+    def global_transform(self, transformed_data):
+
+        transformed_data = self._data_transformation.add_transformation(transformed_data)
+        return transformed_data
+
+    def get_universe(self, data):
+        return self.universe_provider.get_historical_universes(data)
+
+    def resample(self, data):
+
+        resampled_raw_data = resample_ohlcv(data, "{}T".format(self._data_transformation.features_resample_minutes))
+
+        return resampled_raw_data
+
+    def fill_nan(self, resampled_raw_data):
+
+        filled_data_dict = fill_gaps(resampled_raw_data, self._data_transformation.fill_limit, dropna=True)
+
+        return filled_data_dict
+
+    def save(self):
+        pass
+
+    @property
+    def target_feature(self):
+        return self._target_feature
+
+    def load(self):
+        pass
+
+    def __init__(self, config):
         """
-        :param configuration: dictionary containing all the parameters
+        :param config: dictionary containing all the parameters
             data_transformation: Dictionary containing the financial-data-transformation configuration:
                 features_dict: Dictionary containing the financial-features configuration, with feature names as keys:
                     order: ['value', 'log-return']
@@ -73,21 +115,34 @@ class CrocubotOracle:
             save_model: If true, save every trained model.
         """
 
+        super().__init__(config)
+        self.universe_provider = VolumeUniverseProvider(self.config['universe'])
+        self.config = self.update_configuration(self.config)
         logging.info('Initialising Crocubot Oracle.')
 
-        configuration = self.update_configuration(configuration)
-        feature_list = configuration['data_transformation']['feature_config_list']
+        data_transformation_config = self.config['data_transformation']
+        feature_list = data_transformation_config['feature_config_list']
 
-        self._data_transformation = FinancialDataTransformation(configuration['data_transformation'])
-        self._train_path = configuration['train_path']
-        self._covariance_method = configuration['covariance_method']
-        self._covariance_ndays = configuration['covariance_ndays']
+        data_transformation_config["prediction_market_minute"] = self.scheduling.prediction_frequency.minutes_offset
+
+        data_transformation_config["features_start_market_minute"] = self.scheduling.training_frequency.minutes_offset
+        data_transformation_config["target_delta_ndays"] = int(self.scheduling.prediction_horizon.days)
+        data_transformation_config["target_market_minute"] = self.scheduling.prediction_frequency.minutes_offset
+
+        self._target_feature = self._extract_target_feature(feature_list)
+
+        data_transformation = FinancialDataTransformation(data_transformation_config)
+        self._data_transformation = data_transformation
+
+        self._train_path = self.config['train_path']
+        self._covariance_method = self.config['covariance_method']
+        self._covariance_ndays = self.config['covariance_ndays']
         self._n_features = len(feature_list)
 
-        self.use_historical_covariance = configuration.get('use_historical_covariance', False)
-        n_correlated_series = configuration.get('n_correlated_series', DEFAULT_N_CORRELATED_SERIES)
+        self.use_historical_covariance = self.config.get('use_historical_covariance', False)
+        n_correlated_series = self.config.get('n_correlated_series', DEFAULT_N_CORRELATED_SERIES)
 
-        self._configuration = configuration
+        self._configuration = self.config
         self._train_file_manager = TrainFileManager(
             self._train_path,
             TRAIN_FILE_NAME_TEMPLATE,
@@ -97,32 +152,36 @@ class CrocubotOracle:
         self._train_file_manager.ensure_path_exists()
         self._est_cov = None
 
-        self._tensorflow_flags = build_tensorflow_flags(configuration)  # Perhaps use separate config dict here?
+        self._tensorflow_flags = build_tensorflow_flags(self.config)  # Perhaps use separate config dict here?
 
         if self._tensorflow_flags.predict_single_shares:
-            self._n_input_series = int(np.minimum(n_correlated_series, configuration['n_series']))
+            self._n_input_series = int(np.minimum(n_correlated_series, self.config['n_series']))
             self._n_forecasts = 1
         else:
-            self._n_input_series = configuration['n_series']
-            self._n_forecasts = configuration['n_forecasts']
+            self._n_input_series = self.config['n_series']
+            self._n_forecasts = self.config['n_forecasts']
 
         self._topology = None
 
-    def train(self, historical_universes, train_data, execution_time):
+    def train(self, data, execution_time):
         """
         Trains the model
 
-        :param pd.DataFrame historical_universes: dates and symbols of historical universes
-        :param dict train_data: OHLCV data as dictionary of pandas DataFrame.
+        :param dict data: OHLCV data as dictionary of pandas DataFrame.
         :param datetime.datetime execution_time: time of execution of training
+
         :return:
         """
         logging.info('Training model on {}.'.format(
             execution_time,
         ))
 
-        self.verify_pricing_data(train_data)
-        train_x_dict, train_y_dict = self._data_transformation.create_train_data(train_data, historical_universes)
+        data = self._filter_features_from_data(data)
+        data = self._preprocess_raw_data(data)
+        universe = self.get_universe(data)
+
+        self.verify_pricing_data(data)
+        train_x_dict, train_y_dict = self._data_transformation.create_train_data(data, universe)
 
         logging.info("Preprocessing training data")
         train_x = self._preprocess_inputs(train_x_dict)
@@ -171,23 +230,35 @@ class CrocubotOracle:
     def _do_train(self, tensorflow_path, tensorboard_options, data_provider):
         crocubot.train(self._topology, data_provider, tensorflow_path, tensorboard_options, self._tensorflow_flags)
 
-    def predict(self, predict_data, execution_time):
+    def predict(self, data, current_timestamp, target_timestamp):
+        """
+        Main method that gives us a prediction after the training phase is done
+
+        :param data: The dict of dataframes to be used for prediction
+        :type data: dict
+        :param current_timestamp: The timestamp of the time when the prediction is executed
+        :type current_timestamp: datetime.datetime
+        :param target_timestamp: The timestamp of the point in time we are predicting
+        :type target_timestamp: datetime.datetime
+        :return: Mean vector or covariance matrix together with the timestamp of the prediction
+        :rtype: PredictionResult
         """
 
-        :param dict predict_data: OHLCV data as dictionary of pandas DataFrame
-        :param datetime.datetime execution_time: time of execution of prediction
+        data = self._filter_features_from_data(data)
+        universe = self.get_universe(data)
 
-        :return : mean vector (pd.Series) and two covariance matrices (pd.DF)
-        """
+        data = self._filter_universe_from_data_for_prediction(data, current_timestamp, universe)
+
+        data = self._preprocess_raw_data(data)
 
         if self._topology is None:
             logging.warning('Not ready for prediction - safer to run train first')
 
-        logging.info('Crocubot Oracle prediction on {}.'.format(execution_time))
+        logging.info('Crocubot Oracle prediction on {}.'.format(current_timestamp))
 
-        self.verify_pricing_data(predict_data)
-        latest_train_file = self._train_file_manager.latest_train_filename(execution_time)
-        predict_x, symbols = self._data_transformation.create_predict_data(predict_data)
+        self.verify_pricing_data(data)
+        latest_train_file = self._train_file_manager.latest_train_filename(current_timestamp)
+        predict_x, symbols = self._data_transformation.create_predict_data(data)
 
         logging.info('Predicting mean values.')
         start_time = timer()
@@ -231,7 +302,7 @@ class CrocubotOracle:
         means = pd.Series(np.squeeze(means), index=symbols)
 
         if self.use_historical_covariance:
-            covariance_matrix = self.calculate_historical_covariance(predict_data, symbols)
+            covariance_matrix = self.calculate_historical_covariance(data, symbols)
             logging.info('Samples from historical covariance: {}'.format(np.diag(covariance_matrix)[0:5]))
         else:
             covariance_matrix = forecast_covariance
@@ -240,7 +311,8 @@ class CrocubotOracle:
         covariance = pd.DataFrame(data=covariance_matrix, columns=symbols, index=symbols)
 
         means, covariance = self.filter_predictions(means, covariance)
-        return means, covariance
+
+        return PredictionResult(means, covariance, target_timestamp)
 
     def filter_predictions(self, means, covariance):
         """ Remove nans from the series and remove those symbols from the covariance dataframe
@@ -481,3 +553,49 @@ class CrocubotOracle:
             activation_functions=self._configuration['activation_functions'],
             n_features=self._n_features
         )
+
+    def _extract_target_feature(self, feature_list):
+        for feature in feature_list:
+            if feature['is_target']:
+                return feature['name']
+
+        raise ValueError("You must specify at least one target feature")
+
+    def _filter_features_from_data(self, data):
+
+        def filtering(element):
+            key, value = element
+            if key in ACCEPTED_FEATURES:
+                return True, (key, value)
+
+        return dict(filter(filtering, data.items()))
+
+    def _filter_universe_from_data_for_prediction(self, data, current_timestamp, universe):
+        """
+        Filters the dataframes inside the dict, returning a new dict with only the columns
+        available in the universe for that particular date
+
+        :param data: dict of dataframes
+        :type data: dict
+        :param current_timestamp: the current timestamp
+        :type datetime.datetime
+        :param universe: dataframe containing mapping of data -> list of assets
+        :type universe: pd.DataFrame
+
+        :return: dict of pd.DataFrame
+        :rtype dict
+        """
+        current_date = current_timestamp.date()
+        assets = []
+        for idx, row in universe.iterrows():
+            if row.start_date <= current_date <= row.end_date:
+                assets = row.assets
+                break
+
+        filtered = {}
+        for feature, df in data.items():
+            filtered[feature] = df.drop(df.columns.difference(assets), axis=1)
+
+        return filtered
+
+

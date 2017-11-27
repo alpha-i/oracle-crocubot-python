@@ -3,7 +3,7 @@ from tests.helpers import (create_fixtures, destroy_fixtures, read_hdf5_into_dic
 import pandas as pd
 from alphai_crocubot_oracle.covariance import estimate_covariance, DEFAULT_NUM_REALISATIONS_MULTIPLICATION_FACTOR, \
     returns_minutes_after_market_open_data_frame
-from alphai_crocubot_oracle.data.transformation import FinancialDataTransformation
+from alphai_feature_generation.transformation import FinancialDataTransformation
 
 from sklearn.covariance import GraphLassoCV
 import numpy as np
@@ -38,6 +38,7 @@ class TestCrocubot(TestCase):
                     'normalization': 'standard',
                     'transformation': {'name': 'log-return'},
                     'is_target': True,
+                    'local': False,
                 },
             ],
             'exchange_name': 'NYSE',
@@ -51,7 +52,8 @@ class TestCrocubot(TestCase):
             'n_classification_bins': 12,
             'nassets': 3,
             'classify_per_series': False,
-            'normalise_per_series': False
+            'normalise_per_series': False,
+            'fill_limit': 5
         }
 
         data_transformation = FinancialDataTransformation(configuration)

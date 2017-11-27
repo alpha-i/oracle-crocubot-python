@@ -3,7 +3,7 @@ import numpy as np
 import logging
 
 from alphai_covariance.dynamic_cov import estimate_cov
-from alphai_crocubot_oracle.data.cleaning import sample_minutes_after_market_open_data_frame
+from alphai_feature_generation.cleaning import sample_minutes_after_market_open_data_frame
 
 DEFAULT_N_ESTIMATES = 100
 DEFAULT_SPLIT_STEPS = 1
