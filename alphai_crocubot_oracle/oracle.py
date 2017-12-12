@@ -45,12 +45,14 @@ class CrocubotOracle(AbstractOracle):
     def _sanity_check(self):
         assert self.scheduling.prediction_delta.days >= self.config['universe']['ndays_window']
 
-    def global_transform(self, transformed_data):
+    def global_transform(self, data):
 
-        transformed_data = self._data_transformation.add_transformation(transformed_data)
+        transformed_data = self._data_transformation.add_transformation(data)
+
         return transformed_data
 
     def get_universe(self, data):
+
         return self.universe_provider.get_historical_universes(data)
 
     def resample(self, data):
@@ -59,11 +61,11 @@ class CrocubotOracle(AbstractOracle):
 
         return resampled_raw_data
 
-    def fill_nan(self, resampled_raw_data):
+    def fill_nan(self, data):
 
-        filled_data_dict = fill_gaps(resampled_raw_data, self._data_transformation.fill_limit, dropna=True)
+        filled_data = fill_gaps(data, self._data_transformation.fill_limit, dropna=True)
 
-        return filled_data_dict
+        return filled_data
 
     def save(self):
         pass
