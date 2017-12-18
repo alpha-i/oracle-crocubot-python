@@ -260,7 +260,7 @@ class CrocubotOracle(AbstractOracle):
 
         self.verify_pricing_data(data)
         latest_train_file = self._train_file_manager.latest_train_filename(current_timestamp)
-        predict_x, symbols = self._data_transformation.create_predict_data(data)
+        predict_x, symbols, prediction_timestamp, target_timestamp = self._data_transformation.create_predict_data(data)
 
         logging.info('Predicting mean values.')
         start_time = timer()
@@ -314,7 +314,7 @@ class CrocubotOracle(AbstractOracle):
 
         means, covariance = self.filter_predictions(means, covariance)
 
-        return PredictionResult(means, covariance, target_timestamp)
+        return PredictionResult(means, covariance, prediction_timestamp, target_timestamp)
 
     def filter_predictions(self, means, covariance):
         """ Remove nans from the series and remove those symbols from the covariance dataframe
@@ -599,5 +599,3 @@ class CrocubotOracle(AbstractOracle):
             filtered[feature] = df.drop(df.columns.difference(assets), axis=1)
 
         return filtered
-
-
