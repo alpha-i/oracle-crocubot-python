@@ -2,7 +2,6 @@ import os
 from datetime import datetime, timedelta
 from unittest import TestCase
 
-import pandas as pd
 from alphai_delphi.oracle.oracle_configuration import OracleConfiguration
 
 from alphai_crocubot_oracle import DATETIME_FORMAT_COMPACT

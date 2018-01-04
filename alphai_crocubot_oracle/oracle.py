@@ -21,8 +21,6 @@ from alphai_delphi.oracle import AbstractOracle, PredictionResult
 from alphai_crocubot_oracle.crocubot.helpers import TensorflowPath, TensorboardOptions
 from alphai_crocubot_oracle.data.providers import TrainDataProvider
 
-from alphai_feature_generation.transformation import FinancialDataTransformation
-from alphai_time_series.transform import gaussianise
 
 import alphai_crocubot_oracle.crocubot.train as crocubot
 import alphai_crocubot_oracle.crocubot.evaluate as crocubot_eval
@@ -89,44 +87,27 @@ class CrocubotOracle(AbstractOracle):
         :param configuration: Dictionary containing all the parameters. Full specifications can be found at:
         oracle-crocubot-python/docs/crocubot_options.md
         """
-
-        self.network = config.get('network', DEFAULT_NETWORK)
-        logging.info('Initialising {} oracle.'.format(self.network))
         super().__init__(config)
-        self.universe_provider = VolumeUniverseProvider(self.config['universe'])
-        self.config = self.update_configuration(self.config)
         logging.info('Initialising Crocubot Oracle.')
 
-        data_transformation_config = self.config['data_transformation']
-        feature_list = data_transformation_config['feature_config_list']
-
-        data_transformation_config["prediction_market_minute"] = self.scheduling.prediction_frequency.minutes_offset
-
-        data_transformation_config["features_start_market_minute"] = self.scheduling.training_frequency.minutes_offset
-        data_transformation_config["target_delta_ndays"] = int(self.scheduling.prediction_horizon.days)
-        data_transformation_config["target_market_minute"] = self.scheduling.prediction_frequency.minutes_offset
-
-        self._target_feature = self._extract_target_feature(feature_list)
-
-        data_transformation = FinancialDataTransformation(data_transformation_config)
-        self._data_transformation = data_transformation
+        self.network = config.get('network', DEFAULT_NETWORK)
+        self.config = self.update_configuration(self.config)
+        self._init_data_transformation()
+        self._init_universe_provider()
 
         self._train_path = self.config['train_path']
         self._covariance_method = self.config['covariance_method']
+
         self._covariance_ndays = self.config['covariance_ndays']
-        self._n_features = len(feature_list)
 
         self.use_historical_covariance = self.config.get('use_historical_covariance', False)
+
         n_correlated_series = self.config.get('n_correlated_series', DEFAULT_N_CORRELATED_SERIES)
 
         self._configuration = self.config
-        self._train_file_manager = TrainFileManager(
-            self._train_path,
-            self._get_train_template(),
-            DATETIME_FORMAT_COMPACT
-        )
 
-        self._train_file_manager.ensure_path_exists()
+        self._init_train_file_manager()
+
         self._est_cov = None
 
         self._tensorflow_flags = build_tensorflow_flags(self.config)  # Perhaps use separate config dict here?
@@ -139,6 +120,34 @@ class CrocubotOracle(AbstractOracle):
             self._n_forecasts = self.config['n_forecasts']
 
         self._topology = None
+
+    def _init_train_file_manager(self):
+        self._train_file_manager = TrainFileManager(
+            self._train_path,
+            TRAIN_FILE_NAME_TEMPLATE,
+            DATETIME_FORMAT_COMPACT
+        )
+        self._train_file_manager.ensure_path_exists()
+
+    def _init_universe_provider(self):
+        universe_config = self.config['universe']
+        universe_config["exchange"] = self._data_transformation.exchange_calendar.name
+        self.universe_provider = VolumeUniverseProvider(universe_config)
+
+    def _init_data_transformation(self):
+        data_transformation_config = self.config['data_transformation']
+
+        self._feature_list = data_transformation_config['feature_config_list']
+        self._n_features = len(self._feature_list)
+
+        data_transformation_config["prediction_market_minute"] = self.scheduling.prediction_frequency.minutes_offset
+        data_transformation_config["features_start_market_minute"] = self.scheduling.training_frequency.minutes_offset
+        data_transformation_config["target_delta_ndays"] = int(self.scheduling.prediction_horizon.days)
+        data_transformation_config["target_market_minute"] = self.scheduling.prediction_frequency.minutes_offset
+
+        self._target_feature = self._extract_target_feature(self._feature_list)
+
+        self._data_transformation = FinancialDataTransformation(data_transformation_config)
 
     def train(self, data, execution_time):
         """
@@ -252,8 +261,7 @@ class CrocubotOracle(AbstractOracle):
 
         self.verify_pricing_data(data)
         latest_train_file = self._train_file_manager.latest_train_filename(current_timestamp)
-        predict_x, symbols, predict_timestamp, target_timestamp = \
-            self._data_transformation.create_predict_data(data)
+        predict_x, symbols, prediction_timestamp, target_timestamp = self._data_transformation.create_predict_data(data)
 
         logging.info('Predicting mean values.')
         start_time = timer()
@@ -309,14 +317,14 @@ class CrocubotOracle(AbstractOracle):
             cov_diag = np.diag(covariance_matrix) + 1e-4
             covariance = np.diag(cov_diag)
         else:
-            covariance = forecast_covariance
-            logging.info("Samples from forecast_covariance: {}".format(np.diag(covariance)[0:5]))
+            covariance_matrix = forecast_covariance
+            logging.info("Samples from forecast_covariance: {}".format(np.diag(covariance_matrix)[0:5]))
 
         covariance_pd = pd.DataFrame(data=covariance_matrix, columns=symbols, index=symbols)
 
         means_pd, covariance_pd = self.filter_predictions(means_pd, covariance_pd)
 
-        return PredictionResult(means_pd, covariance_pd, target_timestamp)
+        return PredictionResult(means_pd, covariance_pd, prediction_timestamp, target_timestamp)
 
     def filter_predictions(self, means, covariance):
         """ Remove nans from the series and remove those symbols from the covariance dataframe
@@ -630,5 +638,3 @@ class CrocubotOracle(AbstractOracle):
             filtered[feature] = df.drop(df.columns.difference(assets), axis=1)
 
         return filtered
-
-

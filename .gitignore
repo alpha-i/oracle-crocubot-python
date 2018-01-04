@@ -97,3 +97,5 @@ MNIST_data
 */*.so
 .pytest_cache
 src
+
+run/
