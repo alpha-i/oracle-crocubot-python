@@ -81,7 +81,7 @@ def default_oracle_config():
                     'local': False
                 },
             ],
-            'exchange_name': 'NYSE',
+            'exchange': 'NYSE',
             'features_ndays': 10,
             'features_resample_minutes': 15,
             'fill_limit': 5,

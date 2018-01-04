@@ -1,7 +1,7 @@
 --extra-index-url https://pypi.fury.io/reW6hdjFCrSbpo3ehrBu/alpha-i/
 -e git+ssh://git@github.com/alpha-i/library-alphai-covariance.git@0.1.3#egg=alphai_covariance-0.1.3
 -e git+git@github.com:alpha-i/library-feature-generation@develop#egg=library_feature_generation
--e git+git@github.com:alpha-i/tool-delphi-python@v1.0.1#egg=alphai_delphi
+-e git+git@github.com:alpha-i/tool-delphi-python@develop#egg=alphai_delphi
 alphai_finance==2.0.0
 alphai-time-series>=0.0.3
 pandas-market-calendars>=0.12
