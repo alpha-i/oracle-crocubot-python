@@ -118,40 +118,25 @@ class CrocubotOracle(AbstractOracle):
         """
 
         super().__init__(config)
-        self.universe_provider = VolumeUniverseProvider(self.config['universe'])
-        self.config = self.update_configuration(self.config)
         logging.info('Initialising Crocubot Oracle.')
 
-        data_transformation_config = self.config['data_transformation']
-        feature_list = data_transformation_config['feature_config_list']
-
-        data_transformation_config["prediction_market_minute"] = self.scheduling.prediction_frequency.minutes_offset
-
-        data_transformation_config["features_start_market_minute"] = self.scheduling.training_frequency.minutes_offset
-        data_transformation_config["target_delta_ndays"] = int(self.scheduling.prediction_horizon.days)
-        data_transformation_config["target_market_minute"] = self.scheduling.prediction_frequency.minutes_offset
-
-        self._target_feature = self._extract_target_feature(feature_list)
-
-        data_transformation = FinancialDataTransformation(data_transformation_config)
-        self._data_transformation = data_transformation
+        self.config = self.update_configuration(self.config)
+        self._init_data_transformation()
+        self._init_universe_provider()
 
         self._train_path = self.config['train_path']
         self._covariance_method = self.config['covariance_method']
+
         self._covariance_ndays = self.config['covariance_ndays']
-        self._n_features = len(feature_list)
 
         self.use_historical_covariance = self.config.get('use_historical_covariance', False)
+
         n_correlated_series = self.config.get('n_correlated_series', DEFAULT_N_CORRELATED_SERIES)
 
         self._configuration = self.config
-        self._train_file_manager = TrainFileManager(
-            self._train_path,
-            TRAIN_FILE_NAME_TEMPLATE,
-            DATETIME_FORMAT_COMPACT
-        )
 
-        self._train_file_manager.ensure_path_exists()
+        self._init_train_file_manager()
+
         self._est_cov = None
 
         self._tensorflow_flags = build_tensorflow_flags(self.config)  # Perhaps use separate config dict here?
@@ -164,6 +149,34 @@ class CrocubotOracle(AbstractOracle):
             self._n_forecasts = self.config['n_forecasts']
 
         self._topology = None
+
+    def _init_train_file_manager(self):
+        self._train_file_manager = TrainFileManager(
+            self._train_path,
+            TRAIN_FILE_NAME_TEMPLATE,
+            DATETIME_FORMAT_COMPACT
+        )
+        self._train_file_manager.ensure_path_exists()
+
+    def _init_universe_provider(self):
+        universe_config = self.config['universe']
+        universe_config["exchange"] = self._data_transformation.exchange_calendar.name
+        self.universe_provider = VolumeUniverseProvider(universe_config)
+
+    def _init_data_transformation(self):
+        data_transformation_config = self.config['data_transformation']
+
+        self._feature_list = data_transformation_config['feature_config_list']
+        self._n_features = len(self._feature_list)
+
+        data_transformation_config["prediction_market_minute"] = self.scheduling.prediction_frequency.minutes_offset
+        data_transformation_config["features_start_market_minute"] = self.scheduling.training_frequency.minutes_offset
+        data_transformation_config["target_delta_ndays"] = int(self.scheduling.prediction_horizon.days)
+        data_transformation_config["target_market_minute"] = self.scheduling.prediction_frequency.minutes_offset
+
+        self._target_feature = self._extract_target_feature(self._feature_list)
+
+        self._data_transformation = FinancialDataTransformation(data_transformation_config)
 
     def train(self, data, execution_time):
         """

@@ -41,7 +41,7 @@ class TestCrocubot(TestCase):
                     'local': False,
                 },
             ],
-            'exchange_name': 'NYSE',
+            'exchange': 'NYSE',
             'features_ndays': 9,
             'features_resample_minutes': 15,
             'features_start_market_minute': 60,
