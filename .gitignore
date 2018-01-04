@@ -96,3 +96,5 @@ ENV/
 .idea/
 MNIST_data
 */*.so
+
+run/
