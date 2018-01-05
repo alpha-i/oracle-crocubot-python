@@ -2,7 +2,7 @@
 -e git+ssh://git@github.com/alpha-i/library-alphai-covariance.git@0.1.3#egg=alphai_covariance-0.1.3
 -e git+git@github.com:alpha-i/tool-delphi-python@develop#egg=alphai_delphi
 alphai_finance==2.0.0
-alphai-time-series>=0.0.3
+alphai-time-series>=0.0.4
 pandas-market-calendars>=0.12
 alphai-data-sources>=1.0.1
 tensorflow==1.4.0
