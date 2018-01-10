@@ -95,12 +95,6 @@ universe:
 """.format(exchange, OUTPUT_DIR, OUTPUT_DIR, OUTPUT_DIR)
 
 
-# synthetic_config = {
-#     "start_date": simulation_start - datetime.timedelta(days=365),
-#     "end_date": simulation_end + datetime.timedelta(days=10),
-#     "n_sin_series": 10
-# }
-
 synthetic_config = {
     "start_date": datetime.datetime(2006, 12, 31),
     "end_date": datetime.datetime(2011, 12, 31),

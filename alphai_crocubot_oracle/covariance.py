@@ -1,9 +1,11 @@
-from copy import deepcopy
-import numpy as np
 import logging
+from copy import deepcopy
 
+import numpy as np
 from alphai_covariance.dynamic_cov import estimate_cov
 from alphai_feature_generation.cleaning import sample_minutes_after_market_open_data_frame
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_N_ESTIMATES = 100
 DEFAULT_SPLIT_STEPS = 1
@@ -52,8 +54,8 @@ def clip_data(x_data):
 
         n_clipped_elements = np.sum(MAX_LOG_RETURN_AMPLITUDE < np.abs(flat_x))
         n_elements = len(flat_x)
-        logging.warning("Large variance detected: clip values exceeding {}".format(MAX_LOG_RETURN_AMPLITUDE))
-        logging.info("{} of {} datapoints were clipped.".format(n_clipped_elements, n_elements))
+        logger.warning("Large variance detected: clip values exceeding {}".format(MAX_LOG_RETURN_AMPLITUDE))
+        logger.info("{} of {} datapoints were clipped.".format(n_clipped_elements, n_elements))
 
     return x_data
 

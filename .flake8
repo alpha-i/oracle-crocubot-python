@@ -16,5 +16,6 @@ exclude=
     setup.py,
     run
     run_crocubot*
+    alcova_build/alcova_init.tpl.py
 
 max-complexity = 16

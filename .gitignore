@@ -100,3 +100,4 @@ src
 
 run/
 .pytest_cache/
+*.tar.gz

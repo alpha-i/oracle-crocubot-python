@@ -9,6 +9,9 @@ PRINT_SAMPLE_WEIGHTS = True
 SAMPLE_WEIGHTS = 'DropoutNetTrain/layer1-conv/weights:0'
 
 
+logger = logging.getLogger(__name__)
+
+
 def eval_neural_net(predict_x, tf_flags, load_file):
     """ Make the damn prediction.
 
@@ -29,18 +32,18 @@ def eval_neural_net(predict_x, tf_flags, load_file):
 
     with tf.Session() as sess:
 
-        logging.info("Attempting to recover trained network: {}".format(load_file))
+        logger.info("Attempting to recover trained network: {}".format(load_file))
         start_time = timer()
         saver.restore(sess, load_file)
         end_time = timer()
         delta_time = end_time - start_time
-        logging.info("Loading the model from disk took:{}".format(delta_time))
+        logger.info("Loading the model from disk took: {}".format(delta_time))
 
         prediction = sess.run(eval_operator, feed_dict={x: predict_x, is_training: False})
 
         if PRINT_SAMPLE_WEIGHTS:
             sample_weights = sess.run(SAMPLE_WEIGHTS).flatten()
-            logging.info("Sample of weights from first layer:{}".format(sample_weights[0:9]))
-            logging.info("First prediction:{}".format(prediction[0, :]))
+            logger.info("Sample of weights from first layer: {}".format(sample_weights[0:9]))
+            logger.info("First prediction: {}".format(prediction[0, :]))
 
     return prediction

@@ -7,7 +7,7 @@ import logging
 
 from alphai_crocubot_oracle import DATETIME_FORMAT_COMPACT
 
-logging.getLogger(__name__).addHandler(logging.NullHandler())
+logger = logging.getLogger(__name__)
 
 
 class TrainFileManager:
@@ -78,7 +78,7 @@ def logtime(message=None):
             te = time.time()
             duration = te - ts
             msg = message if message else method.__name__
-            logging.info("{}: Execution time: {} seconds".format(msg, duration))
+            logger.info("{}: Execution time: {} seconds".format(msg, duration))
             return result
 
         return wrapped_f

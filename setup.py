@@ -16,6 +16,7 @@ setup(
         'alphai_covariance==0.1.4',
         'alphai-data-sources>=1.0.1',
         'alphai_feature_generation>=2.0.0,<3.0.0',
+        'alphai_alcova_datasource>=0.0.1,<1.0.0',
         'tensorflow>=1.4.0',
         'numpy>=1.12.0',
         'pandas==0.18.1',
@@ -27,6 +28,7 @@ setup(
         'https://pypi.fury.io/zNzsk7gQsYY335HLzW9x/alpha-i/alphai_time_series/',
         'https://pypi.fury.io/zNzsk7gQsYY335HLzW9x/alpha-i/alphai-data-sources/',
         'https://pypi.fury.io/zNzsk7gQsYY335HLzW9x/alpha-i/alphai_feature_generation/'
+        'https://pypi.fury.io/zNzsk7gQsYY335HLzW9x/alpha-i/alphai_alcova_datasource/'
         'https://pypi.fury.io/zNzsk7gQsYY335HLzW9x/alpha-i/alphai_covariance/'
     ]
 )
