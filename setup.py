@@ -18,7 +18,8 @@ setup(
         'numpy>=1.12.0',
         'pandas==0.18.1',
         'scikit-learn',
-        'alphai_feature_generation'
+        'alphai_feature_generation>=1.2.0,<2.0.0'
+
     ],
     dependency_links=[
         'git+ssh://git@github.com/alpha-i/library-alphai-covariance.git@0.1.3#egg=alphai_covariance-0.1.3',
