@@ -52,7 +52,7 @@ class CrocubotOracle(AbstractOracle):
 
     def global_transform(self, data):
 
-        transformed_data = self._data_transformation.add_transformation(data)
+        transformed_data = self._data_transformation.apply_global_transformations(data)
 
         return transformed_data
 
@@ -90,8 +90,8 @@ class CrocubotOracle(AbstractOracle):
         super().__init__(config)
         logging.info('Initialising Crocubot Oracle.')
 
-        self.network = config.get('network', DEFAULT_NETWORK)
         self.config = self.update_configuration(self.config)
+        self.network = self.config.get('network', DEFAULT_NETWORK)
         self._init_data_transformation()
         self._init_universe_provider()
 
