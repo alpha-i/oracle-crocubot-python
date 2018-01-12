@@ -30,6 +30,8 @@ CLIP_VALUE = 5.0  # Largest number allowed to enter the network
 DEFAULT_N_CORRELATED_SERIES = 5
 DEFAULT_N_CONV_FILTERS = 5
 DEFAULT_CONV_KERNEL_SIZE = [3, 3, 1]
+DEFAULT_3D_POOL_STRIDE = [1, 4, 1]
+DEFAULT_3D_POOL_SIZE = [1, 4, 1]
 FEATURE_TO_RANK_CORRELATIONS = 0  # Use the first feature to form correlation coefficients
 TRAIN_FILE_NAME_TEMPLATE = "{}_train_crocubot"
 DEFAULT_NETWORK = 'crocubot'
@@ -495,6 +497,9 @@ class CrocubotOracle:
         conv_config["n_kernels"] = self._configuration.get('n_kernels', DEFAULT_N_CONV_FILTERS)
         conv_config["dilation_rates"] = self._configuration.get('dilation_rates', 1)
         conv_config["strides"] = self._configuration.get('strides', 1)
+
+        conv_config["pool3d_strides"] = self._configuration.get('pool3d_strides', DEFAULT_3D_POOL_STRIDE)
+        conv_config["pool3d_size"] = self._configuration.get('pool3d_size', DEFAULT_3D_POOL_SIZE)
 
         self._topology = tp.Topology(
             n_series=self._n_input_series,

@@ -72,12 +72,16 @@ class Topology(object):
             self.n_kernels = conv_config["n_kernels"]  # kernels used in first conv layer.
             self.dilation_rates = conv_config["dilation_rates"]
             self.strides = conv_config["strides"]
+            self.pool3d_strides = conv_config["pool3d_strides"]
+            self.pool3d_size = conv_config["pool3d_size"]
         else:
             print("******** No convolution config found ********")
             self.kernel_size = [5, 5, 5]
             self.n_kernels = DEFAULT_N_KERNELS
             self.dilation_rates = 1
             self.strides = 1
+            self.pool3d_strides = [1, 4, 1]
+            self.pool3d_size = [1, 4, 1]
 
         layers = self._build_layers(layer_depths, layer_heights, layer_widths, activation_functions, layer_types)
         # FIXME Short term hack to ensure consistency - the following four lines should probably be assertions
@@ -239,9 +243,13 @@ class Topology(object):
                     layer["width"] = max(1, int(prev_layer['width'] / 2))
                     current_n_kernels *= 2
                 elif previous_layer_type == 'pool3d':
-                    layer["depth"] = prev_layer['depth']
-                    layer["height"] = max(1, int(prev_layer['height'] / 4))
-                    layer["width"] = prev_layer['width']
+                    pool_depth = self.pool3d_strides[0]
+                    pool_height = self.pool3d_strides[1]
+                    pool_width = self.pool3d_strides[2]
+
+                    layer["depth"] = max(1, int(prev_layer['depth'] / pool_depth))
+                    layer["height"] = max(1, int(prev_layer['height'] / pool_height))
+                    layer["width"] = max(1, int(prev_layer['width'] / pool_width))
                     current_n_kernels *= 2
                 elif previous_layer_type in {'conv2d', 'conv1d', 'conv3d'}:
                     # This will depend on choice of padding. Default for now is same, so easier.

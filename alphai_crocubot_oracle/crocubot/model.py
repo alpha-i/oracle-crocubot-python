@@ -565,7 +565,10 @@ class Estimator:
         :return:
         """
 
-        return tf.layers.max_pooling3d(inputs=signal, pool_size=[1, 4, 1], strides=[1, 4, 1], data_format=DATA_FORMAT)
+        pool_size = self._model._topology.pool_size
+        strides = self._model._topology.pool_strides
+
+        return tf.layers.max_pooling3d(inputs=signal, pool_size=pool_size, strides=strides, data_format=DATA_FORMAT)
 
     def flatten_last_dimension(self, signal):
         """ Takes a tensor and squishes its last dimension into the penultimate dimension.
