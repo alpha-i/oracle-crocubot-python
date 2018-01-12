@@ -25,7 +25,7 @@ class TestCrocuBotModel(tf.test.TestCase):
 
         topology = Topology()
 
-        model = CrocuBotModel(topology, flags)
+        model = CrocuBotModel(topology, flags, is_training=True)
         n_connections_between_layers = DEFAULT_HIDDEN_LAYERS + 1
         self.assertEqual(model.number_of_layers, n_connections_between_layers)
         self.assertEqual(model.topology, topology)
@@ -62,7 +62,7 @@ class TestEstimator(tf.test.TestCase):
 
         topology = Topology()
 
-        self.crocubot_model = CrocuBotModel(topology, self._flags)
+        self.crocubot_model = CrocuBotModel(topology, self._flags, is_training=True)
 
     def test_forward_pass(self):
 

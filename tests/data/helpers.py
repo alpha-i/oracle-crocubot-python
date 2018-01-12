@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import pandas_market_calendars as mcal
 
-from alphai_crocubot_oracle.data.feature import FinancialFeature
+from alphai_feature_generation.feature import FinancialFeature
 
 COLUMNS_OHLCV = 'open high low close volume'.split()
 
@@ -181,7 +181,9 @@ sample_fin_feature_list = [
         is_target=False,
         exchange_calendar=sample_market_calendar,
         classify_per_series=False,
-        normalise_per_series=False
+        normalise_per_series=False,
+        length=271,
+        local=False
     ),
     FinancialFeature(
         name='close',
@@ -194,7 +196,9 @@ sample_fin_feature_list = [
         is_target=False,
         exchange_calendar=sample_market_calendar,
         classify_per_series=False,
-        normalise_per_series=False
+        normalise_per_series=False,
+        length=271,
+        local=False
     ),
     FinancialFeature(
         name='high',
@@ -207,7 +211,9 @@ sample_fin_feature_list = [
         is_target=True,
         exchange_calendar=sample_market_calendar,
         classify_per_series=False,
-        normalise_per_series=False
+        normalise_per_series=False,
+        length=271,
+        local=False
     ),
 ]
 

@@ -17,12 +17,14 @@ setup(
         'tensorflow>=1.4.0',
         'numpy>=1.12.0',
         'pandas==0.18.1',
-        'scikit-learn'
+        'scikit-learn',
+        'alphai_feature_generation'
     ],
     dependency_links=[
         'git+ssh://git@github.com/alpha-i/library-alphai-covariance.git@0.1.3#egg=alphai_covariance-0.1.3',
         'https://pypi.fury.io/zNzsk7gQsYY335HLzW9x/alpha-i/alphai_finance/',
         'https://pypi.fury.io/zNzsk7gQsYY335HLzW9x/alpha-i/alphai_time_series/',
-        'https://pypi.fury.io/zNzsk7gQsYY335HLzW9x/alpha-i/alphai-data-sources/'
+        'https://pypi.fury.io/zNzsk7gQsYY335HLzW9x/alpha-i/alphai-data-sources/',
+        'https://pypi.fury.io/zNzsk7gQsYY335HLzW9x/alpha-i/alphai_feature_generation/'
     ]
 )

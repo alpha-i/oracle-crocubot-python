@@ -38,7 +38,7 @@ class TestBayesianCost(tf.test.TestCase):
         ]
         topology = Topology(layer_number)
 
-        self.model = CrocuBotModel(topology, flags)
+        self.model = CrocuBotModel(topology, flags, is_training=True)
 
         # case1 no error thrown
         use_double_gaussian_weights_prior = True

@@ -9,7 +9,7 @@ import alphai_crocubot_oracle.crocubot.train as crocubot_train
 
 from alphai_crocubot_oracle.crocubot.helpers import TensorflowPath, TensorboardOptions
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel
-from alphai_crocubot_oracle.data.classifier import BinDistribution
+from alphai_feature_generation.classifier import BinDistribution
 from alphai_crocubot_oracle.data.providers import TrainDataProviderForDataSource
 from alphai_crocubot_oracle.helpers import printtime, execute_and_get_duration
 
@@ -34,18 +34,18 @@ def run_timed_benchmark_time_series(series_name, tf_flags, do_training=True):
         execution_time = datetime.datetime.now()
         if do_training:
 
-            # data_provider = TrainDataProviderForDataSource(
-            #     series_name,
-            #     D_TYPE,
-            #     n_train_samples,
-            #     batch_size,
-            #     True,
-            #     bin_distribution.bin_edges
-            # )
+            data_provider = TrainDataProviderForDataSource(
+                series_name,
+                D_TYPE,
+                n_train_samples,
+                batch_size,
+                True,
+                bin_distribution.bin_edges
+            )
 
 
-            train_x = 
-            data_provider = TrainDataProvider(train_x, train_y, tf_flags.batch_size)
+            train_x =  data_provider.get_batch(0)
+            raw_train_data = TrainDataProvider(train_x, train_y, tf_flags.batch_size)
 
             tensorflow_path = TensorflowPath(save_path, tf_flags.model_save_path)
             tensorboard_options = TensorboardOptions(tf_flags.tensorboard_log_path,

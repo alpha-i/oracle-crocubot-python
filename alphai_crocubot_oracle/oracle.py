@@ -13,11 +13,13 @@ import pandas as pd
 
 from alphai_crocubot_oracle.crocubot.helpers import TensorflowPath, TensorboardOptions
 from alphai_crocubot_oracle.data.providers import TrainDataProvider
-from alphai_crocubot_oracle.data.transformation import FinancialDataTransformation
+from alphai_feature_generation.transformation import FinancialDataTransformation
 from alphai_time_series.transform import gaussianise
 
 import alphai_crocubot_oracle.crocubot.train as crocubot
 import alphai_crocubot_oracle.crocubot.evaluate as crocubot_eval
+import alphai_crocubot_oracle.dropout.train as dropout
+import alphai_crocubot_oracle.dropout.evaluate as dropout_eval
 from alphai_crocubot_oracle.flags import build_tensorflow_flags
 import alphai_crocubot_oracle.topology as tp
 from alphai_crocubot_oracle import DATETIME_FORMAT_COMPACT
@@ -26,8 +28,11 @@ from alphai_crocubot_oracle.helpers import TrainFileManager, logtime
 
 CLIP_VALUE = 5.0  # Largest number allowed to enter the network
 DEFAULT_N_CORRELATED_SERIES = 5
+DEFAULT_N_CONV_FILTERS = 5
+DEFAULT_CONV_KERNEL_SIZE = [3, 3, 1]
 FEATURE_TO_RANK_CORRELATIONS = 0  # Use the first feature to form correlation coefficients
 TRAIN_FILE_NAME_TEMPLATE = "{}_train_crocubot"
+DEFAULT_NETWORK = 'crocubot'
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
@@ -35,45 +40,12 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 class CrocubotOracle:
     def __init__(self, configuration):
         """
-        :param configuration: dictionary containing all the parameters
-            data_transformation: Dictionary containing the financial-data-transformation configuration:
-                features_dict: Dictionary containing the financial-features configuration, with feature names as keys:
-                    order: ['value', 'log-return']
-                    normalization: [None, 'robust', 'min_max', 'standard']
-                    resample_minutes: resample frequency of feature data_x in minutes.
-                    ndays: number of days of feature data_x.
-                    start_min_after_market_open: start time of feature data_x in minutes after market open.
-                    is_target: boolean to define if this feature is a target (y). The feature is always consider as x.
-                exchange_name: name of the exchange to create the market calendar
-                prediction_min_after_market_open: prediction time in number of minutes after market open
-                target_delta_ndays: days difference between prediction and target
-                target_min_after_market_open: target time in number of minutes after market open
-            covariance_config:
-                covariance_method: The name of the covariance estimation method.
-                covariance_ndays: The number of previous days those are needed for the covariance estimate (int).
-                use_forecast_covariance: (bool) Whether to use the covariance of the forecast.
-                    (If False uses historical data)
-            network_config:
-                n_series: Number of input time series
-                n_features_per_series: Number of inputs associated with each time series
-                n_forecasts: Number of outputs to be classified (usually n_series but potentially differs)
-                n_classification_bins: Number of bins used for the classification of each forecast
-                layer_heights: List of the number of neurons in each layer
-                layer_widths: List of the number of neurons in each layer
-                activation_functions: list of the activation functions in each layer
-                model_save_path: directory where the model is stored
-            training_config:
-                epochs: The number of epochs in the model training as an integer.
-                learning_rate: The learning rate of the model as a float.
-                batch_size:  The batch size in training as an integer
-                cost_type:  The method for evaluating the loss (default: 'bayes')
-                train_path: The path to a folder in which the training data is to be stored.
-                resume_training: (bool) whether to load an pre-trained model
-            verbose: Is a verbose output required? (bool)
-            save_model: If true, save every trained model.
+        :param configuration: Dictionary containing all the parameters. Full specifications can be found at:
+        oracle-crocubot-python/docs/crocubot_options.md
         """
 
-        logging.info('Initialising Crocubot Oracle.')
+        self.network = configuration.get('network', DEFAULT_NETWORK)
+        logging.info('Initialising {} oracle.'.format(self.network))
 
         configuration = self.update_configuration(configuration)
         feature_list = configuration['data_transformation']['feature_config_list']
@@ -90,7 +62,7 @@ class CrocubotOracle:
         self._configuration = configuration
         self._train_file_manager = TrainFileManager(
             self._train_path,
-            TRAIN_FILE_NAME_TEMPLATE,
+            self._get_train_template(),
             DATETIME_FORMAT_COMPACT
         )
 
@@ -130,9 +102,12 @@ class CrocubotOracle:
         logging.info("Processed train_x shape {}".format(train_x.shape))
         train_x, train_y = self.filter_nan_samples(train_x, train_y)
         logging.info("Filtered train_x shape {}".format(train_x.shape))
+        n_valid_samples = train_x.shape[0]
 
-        if train_x.shape[0] == 0:
+        if n_valid_samples == 0:
             raise ValueError("Aborting training: No valid samples")
+        elif n_valid_samples < 2e4:
+            logging.warning("Low number of training samples: {}".format(n_valid_samples))
 
         # Topology can either be directly constructed from layers, or build from sequence of parameters
         if self._topology is None:
@@ -164,12 +139,26 @@ class CrocubotOracle:
                                                  self._tensorflow_flags.batch_size,
                                                  execution_time
                                                  )
+
+        first_sample = train_x[0, :].flatten()
+        logging.info("Sample from first example in train_x: {}".format(first_sample[0:8]))
         data_provider = TrainDataProvider(train_x, train_y, self._tensorflow_flags.batch_size)
         self._do_train(tensorflow_path, tensorboard_options, data_provider)
 
     @logtime(message="Training the model.")
     def _do_train(self, tensorflow_path, tensorboard_options, data_provider):
-        crocubot.train(self._topology, data_provider, tensorflow_path, tensorboard_options, self._tensorflow_flags)
+        if self.network == 'crocubot':
+            crocubot.train(self._topology, data_provider, tensorflow_path, tensorboard_options, self._tensorflow_flags)
+        elif self.network == 'dropout':
+            dropout.train(data_provider, tensorflow_path, self._tensorflow_flags)
+        elif self.network == 'inception':
+            raise NotImplementedError('Requested network not supported:', self.network)
+            # inception.train(data_provider, tensorflow_path, self._tensorflow_flags)
+        else:
+            raise NotImplementedError('Requested network not supported:', self.network)
+
+    def _get_train_template(self):
+        return "{}_train_" + self.network
 
     def predict(self, predict_data, execution_time):
         """
@@ -183,11 +172,12 @@ class CrocubotOracle:
         if self._topology is None:
             logging.warning('Not ready for prediction - safer to run train first')
 
-        logging.info('Crocubot Oracle prediction on {}.'.format(execution_time))
+        logging.info('Oracle prediction on {}.'.format(execution_time))
 
         self.verify_pricing_data(predict_data)
         latest_train_file = self._train_file_manager.latest_train_filename(execution_time)
-        predict_x, symbols = self._data_transformation.create_predict_data(predict_data)
+        predict_x, symbols, predict_timestamp, target_timestamp = \
+            self._data_transformation.create_predict_data(predict_data)
 
         logging.info('Predicting mean values.')
         start_time = timer()
@@ -197,28 +187,34 @@ class CrocubotOracle:
             n_timesteps = predict_x.shape[2]
             self.initialise_topology(n_timesteps)
 
-        # Verify data is the correct shape
-        network_input_shape = self._topology.get_network_input_shape()
-        data_input_shape = predict_x.shape[-3:]
+        if self.network == 'crocubot':
+            # Verify data is the correct shape
+            network_input_shape = self._topology.get_network_input_shape()
+            data_input_shape = predict_x.shape[-3:]
 
-        if data_input_shape != network_input_shape:
-            err_msg = 'Data shape' + str(data_input_shape) + " doesnt match network input " + str(network_input_shape)
-            raise ValueError(err_msg)
+            if data_input_shape != network_input_shape:
+                err_msg = 'Data shape' + str(data_input_shape) + " doesnt match network input " + str(
+                    network_input_shape)
+                raise ValueError(err_msg)
 
-        predict_y = crocubot_eval.eval_neural_net(
-            predict_x, self._topology,
-            self._tensorflow_flags,
-            latest_train_file
-        )
+            predict_y = crocubot_eval.eval_neural_net(
+                predict_x, self._topology,
+                self._tensorflow_flags,
+                latest_train_file
+            )
+        else:
+            predict_y = dropout_eval.eval_neural_net(predict_x, self._tensorflow_flags, latest_train_file)
 
         end_time = timer()
         eval_time = end_time - start_time
-        logging.info("Crocubot evaluation took: {} seconds".format(eval_time))
+        logging.info("Network evaluation took: {} seconds".format(eval_time))
 
-        if self._tensorflow_flags.predict_single_shares:  # Return batch axis to series position
-            predict_y = np.swapaxes(predict_y, axis1=1, axis2=2)
-
-        predict_y = np.squeeze(predict_y, axis=1)
+        if self.network == 'crocubot':
+            if self._tensorflow_flags.predict_single_shares:  # Return batch axis to series position
+                predict_y = np.swapaxes(predict_y, axis1=1, axis2=2)
+            predict_y = np.squeeze(predict_y, axis=1)
+        else:
+            predict_y = np.expand_dims(predict_y, axis=0)
 
         means, forecast_covariance = self._data_transformation.inverse_transform_multi_predict_y(predict_y, symbols)
         if not np.isfinite(forecast_covariance).all():
@@ -228,19 +224,22 @@ class CrocubotOracle:
         if not np.isfinite(means).all():
             logging.warning('Means found to contain non-finite values.')
 
-        means = pd.Series(np.squeeze(means), index=symbols)
+        means_pd = pd.Series(np.squeeze(means), index=symbols)
 
         if self.use_historical_covariance:
-            covariance_matrix = self.calculate_historical_covariance(predict_data, symbols)
-            logging.info('Samples from historical covariance: {}'.format(np.diag(covariance_matrix)[0:5]))
+            covariance = self.calculate_historical_covariance(predict_data, symbols)
+            logging.info('Samples from historical covariance: {}'.format(np.diag(covariance)[0:5]))
+            logging.warning('Invoking temporary covariance hack')
+            cov_diag = np.diag(covariance) + 1e-4
+            covariance = np.diag(cov_diag)
         else:
-            covariance_matrix = forecast_covariance
-            logging.info("Samples from forecast_covariance: {}".format(np.diag(covariance_matrix)[0:5]))
+            covariance = forecast_covariance
+            logging.info("Samples from forecast_covariance: {}".format(np.diag(covariance)[0:5]))
 
-        covariance = pd.DataFrame(data=covariance_matrix, columns=symbols, index=symbols)
+        covariance_pd = pd.DataFrame(data=covariance, columns=symbols, index=symbols)
 
-        means, covariance = self.filter_predictions(means, covariance)
-        return means, covariance
+        means_pd, covariance_pd = self.filter_predictions(means_pd, covariance_pd)
+        return means_pd, covariance_pd
 
     def filter_predictions(self, means, covariance):
         """ Remove nans from the series and remove those symbols from the covariance dataframe
@@ -282,10 +281,19 @@ class CrocubotOracle:
         finite_data = data[np.isfinite(data)]
         max_data = np.max(finite_data)
         min_data = np.min(finite_data)
-        logging.info("{} Infs: {}".format(data_name, infs))
-        logging.info("{} Nans: {}".format(data_name, nans))
-        logging.info("{} Maxs: {}".format(data_name, max_data))
-        logging.info("{} Mins: {}".format(data_name, min_data))
+        mean = np.mean(finite_data)
+        sigma = np.std(finite_data)
+
+        logging.info("{} Infs, Nans: {}, {}".format(data_name, infs, nans))
+        logging.info("{} Min, Max: {}, {}".format(data_name, min_data, max_data))
+        logging.info("{} Mean, Sigma: {}, {}".format(data_name, mean, sigma))
+
+        if data_name == 'X_data' and np.abs(mean) > 1e-2:
+            logging.warning('Mean of input data is too large')
+
+        if data_name == 'Y_data' and max_data < 1e-2:
+            raise ValueError("Y Data not classified")
+
         return min_data, max_data
 
     def verify_pricing_data(self, predict_data):
@@ -317,7 +325,7 @@ class CrocubotOracle:
 
     def calculate_historical_covariance(self, predict_data, symbols):
         # Call the covariance library
-        logging.info('Estimating historical covariance matrix.')
+
         start_time = timer()
         cov = estimate_covariance(
             data=predict_data,
@@ -354,21 +362,30 @@ class CrocubotOracle:
 
         numpy_arrays = []
         for key, value in train_x_dict.items():
-            # Trim entries which are not log-returns, to allow stacking of features
-            if key.startswith('volume'):
-                value = value[:, 1:, :]
-
             numpy_arrays.append(value)
-            logging.info("Appending feature of shape".format(value.shape))
+            logging.info("Appending feature of shape {}".format(value.shape))
 
-        # Now train_x will have dimensions [features; sampes; timesteps; symbols]
+        # Currently train_x will have dimensions [features; samples; timesteps; symbols]
         train_x = np.stack(numpy_arrays, axis=0)
-
         train_x = self.reorder_input_dimensions(train_x)
 
         # Expand dataset if requested
         if self._tensorflow_flags.predict_single_shares:
             train_x = self.expand_input_data(train_x)
+
+        if self.network == 'dropout':
+            logging.info("Reshaping and padding")
+            n_samples = train_x.shape[0]
+
+            train_x = np.reshape(train_x, [n_samples, 1, -1, 1])
+            n_ticks = train_x.shape[2]
+            reps = int(784 / n_ticks)
+            if reps > 1:
+                train_x = np.tile(train_x, (1, 1, reps, 1))
+
+            pad_elements = 784 - train_x.shape[2]
+            train_x = np.pad(train_x, [(0, 0), (0, 0), (0, pad_elements), (0, 0)], mode='reflect')
+            train_x = np.reshape(train_x, [n_samples, 28, 28, 1])
 
         train_x = self.verify_x_data(train_x)
 
@@ -382,6 +399,9 @@ class CrocubotOracle:
         if self._tensorflow_flags.predict_single_shares:
             n_feat_y = train_y.shape[2]
             train_y = np.reshape(train_y, [-1, 1, 1, n_feat_y])
+
+        if self.network == 'dropout':
+            train_y = np.squeeze(train_y)
 
         self.verify_y_data(train_y)
 
@@ -469,6 +489,13 @@ class CrocubotOracle:
         layer_heights[0] = n_timesteps
         layer_widths[0] = self._n_features
 
+        # Setup convolutional layer configuration
+        conv_config = {}
+        conv_config["kernel_size"] = self._configuration.get('kernel_size', DEFAULT_CONV_KERNEL_SIZE)
+        conv_config["n_kernels"] = self._configuration.get('n_kernels', DEFAULT_N_CONV_FILTERS)
+        conv_config["dilation_rates"] = self._configuration.get('dilation_rates', 1)
+        conv_config["strides"] = self._configuration.get('strides', 1)
+
         self._topology = tp.Topology(
             n_series=self._n_input_series,
             n_timesteps=n_timesteps,
@@ -479,5 +506,6 @@ class CrocubotOracle:
             layer_depths=layer_depths,
             layer_types=layer_types,
             activation_functions=self._configuration['activation_functions'],
-            n_features=self._n_features
+            n_features=self._n_features,
+            conv_config=conv_config
         )

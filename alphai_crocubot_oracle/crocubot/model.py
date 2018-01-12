@@ -17,16 +17,17 @@ import tensorflow as tf
 import alphai_crocubot_oracle.tensormaths as tm
 
 CONVOLUTIONAL_LAYER_1D = 'conv1d'
-CONVOLUTIONAL_LAYER_2D = 'conv2d'
 CONVOLUTIONAL_LAYER_3D = 'conv3d'
 FULLY_CONNECTED_LAYER = 'full'
 RESIDUAL_LAYER = 'res'
 POOL_LAYER_2D = 'pool2d'
-KERNEL_HEIGHT = 5  # Size of kernel along time dimension. Hard coded for now
-KERNEL_WIDTH = 2  # Size of kernel along features dimension. Hard coded for now
-KERNEL_DEPTH = 1  # Size of kernel along series dimension. Hard coded for now
+POOL_LAYER_3D = 'pool3d'
 DEFAULT_PADDING = 'same'  # TBC: add 'valid', will need to add support in topology.py
 DATA_FORMAT = 'channels_last'
+TIME_DIMENSION = 3  # Tensor dimensions defined as: [batch, series, time, features, filters]
+FORECAST_OVERLAP = 26  # How many timesteps correspond to forecast interval.15min interval and forecast of 1 trading day
+N_PARALLEL_PASSES = 10  # How many passes over the bayes layers can be performed in parallel. Default is 10.
+USE_SHUFFLE = True
 
 
 class CrocuBotModel:
@@ -39,12 +40,20 @@ class CrocuBotModel:
     VAR_BIAS_NOISE = 'bias_noise'
 
     VAR_LOG_ALPHA = 'log_alpha'
+    VAR_PENALTY = 'penalty_vector'
 
-    def __init__(self, topology, flags):
+    def __init__(self, topology, flags, is_training):
+        """
+
+        :param Topology topology:
+        :param flags flags:
+        :param tf.bool is_training: Whether the model will be training or evaluating
+        """
 
         self._topology = topology
         self._graph = tf.get_default_graph()
         self._flags = flags
+        self._is_training = is_training
 
     @property
     def graph(self):
@@ -82,42 +91,66 @@ class CrocuBotModel:
         initial_alpha = self._flags.INITIAL_ALPHA
 
         for layer_number in range(self._topology.n_layers):
-            w_shape = self._topology.get_weight_shape(layer_number)
-            b_shape = self._topology.get_bias_shape(layer_number)
+            layer_type = self._topology.layers[layer_number]["type"]
+            if layer_type == FULLY_CONNECTED_LAYER:  # No point building weights for conv or pool layers
+                w_shape = self._topology.get_weight_shape(layer_number)
+                b_shape = self._topology.get_bias_shape(layer_number)
+                penalty_tensor = self.calculate_penalty_vector(FORECAST_OVERLAP, w_shape[1])
 
-            self._create_variable_for_layer(
-                layer_number,
-                self.VAR_WEIGHT_MU,
-                tm.centred_gaussian(w_shape, weight_displacement)
-            )
+                self._create_variable_for_layer(
+                    layer_number,
+                    self.VAR_WEIGHT_MU,
+                    tm.centred_gaussian(w_shape, weight_displacement)
+                )
 
-            self._create_variable_for_layer(
-                layer_number,
-                self.VAR_WEIGHT_RHO,
-                initial_rho_weights + tf.zeros(w_shape, tm.DEFAULT_TF_TYPE)
-            )
+                self._create_variable_for_layer(
+                    layer_number,
+                    self.VAR_WEIGHT_RHO,
+                    initial_rho_weights + tf.zeros(w_shape, tm.DEFAULT_TF_TYPE)
+                )
 
-            self._create_variable_for_layer(
-                layer_number,
-                self.VAR_BIAS_MU,
-                tm.centred_gaussian(b_shape, bias_displacement)
-            )
+                self._create_variable_for_layer(
+                    layer_number,
+                    self.VAR_BIAS_MU,
+                    tm.centred_gaussian(b_shape, bias_displacement)
+                )
 
-            self._create_variable_for_layer(
-                layer_number,
-                self.VAR_BIAS_RHO,
-                initial_rho_bias + tf.zeros(b_shape, tm.DEFAULT_TF_TYPE)
-            )
+                self._create_variable_for_layer(
+                    layer_number,
+                    self.VAR_BIAS_RHO,
+                    initial_rho_bias + tf.zeros(b_shape, tm.DEFAULT_TF_TYPE)
+                )
 
-            self._create_variable_for_layer(
-                layer_number,
-                self.VAR_LOG_ALPHA,
-                np.log(initial_alpha).astype(self._flags.d_type),
-                False
-            )  # Hyperprior on the distribution of the weights
+                self._create_variable_for_layer(
+                    layer_number,
+                    self.VAR_PENALTY,
+                    penalty_tensor,
+                    False
+                )
 
-            self._create_noise(layer_number, self.VAR_WEIGHT_NOISE, w_shape)
-            self._create_noise(layer_number, self.VAR_BIAS_NOISE, b_shape)
+                self._create_variable_for_layer(
+                    layer_number,
+                    self.VAR_LOG_ALPHA,
+                    np.log(initial_alpha).astype(self._flags.d_type),
+                    False
+                )  # Hyperprior on the distribution of the weights
+
+                self._create_noise(layer_number, self.VAR_WEIGHT_NOISE, w_shape)
+                self._create_noise(layer_number, self.VAR_BIAS_NOISE, b_shape)
+
+    def calculate_penalty_vector(self, overlap,  total_length):
+        """ Penalise nodes in the distant past using Delta t / t"""
+
+        penalty_vector = [1.0] * total_length
+        for i in range(total_length):
+            if i > overlap:
+                index = total_length - i - 1  # Since t=0 appears at end of vector
+                penalty_vector[index] = overlap / i
+
+        penalty_tensor = tf.zeros(total_length, tm.DEFAULT_TF_TYPE) + penalty_vector
+        penalty_shape = [1, 1, total_length, 1, 1]
+
+        return tf.reshape(penalty_tensor, shape=penalty_shape)
 
     def _create_variable_for_layer(self, layer_number, variable_name, initializer, is_trainable=True):
 
@@ -144,12 +177,29 @@ class CrocuBotModel:
         return v
 
     def get_weight_noise(self, layer_number, iteration):
-        noise = self.get_variable(layer_number, self.VAR_WEIGHT_NOISE)
-        return tf.random_shuffle(noise, seed=iteration)
+        return self._get_layer_noise(layer_number, iteration, self.VAR_WEIGHT_NOISE)
 
     def get_bias_noise(self, layer_number, iteration):
-        noise = self.get_variable(layer_number, self.VAR_BIAS_NOISE)
-        return tf.random_shuffle(noise, seed=iteration)
+        return self._get_layer_noise(layer_number, iteration, self.VAR_BIAS_NOISE)
+
+    def _get_layer_noise(self, layer_number, i, var_name):
+        # random_normal(shape, seed) # ideally need to ensure seed based on layer and iteration. tricky!
+
+        noise = self.get_variable(layer_number, var_name)
+
+        if USE_SHUFFLE:
+            # shuffle_order = [2, 1, 0, 3, 4, 5]  # need to implement [2, 1, 0] for bias
+            # noise = tf.transpose(noise, shuffle_order)
+            # noise = tf.random_shuffle(noise, seed=i)
+            # noise = tf.transpose(noise, shuffle_order)
+            noise_shape = noise.get_shape()
+            noise = tf.random_normal(shape=noise_shape)
+        else:
+            roll_axis = 2
+            x_len = noise.get_shape().as_list()[roll_axis]
+            noise = tf.concat([noise[:, :,  x_len - i:], noise[:, :, :x_len - i]], axis=roll_axis)
+
+        return noise
 
     def compute_weights(self, layer_number, iteration=0):
 
@@ -164,6 +214,11 @@ class CrocuBotModel:
         mean = self.get_variable(layer_number, self.VAR_BIAS_MU)
         rho = self.get_variable(layer_number, self.VAR_BIAS_RHO)
         noise = self.get_bias_noise(layer_number, iteration)
+
+        # useful debugging statements
+        # noise = tf.Print(noise, [noise[0, 0, :]], message="Bias noise: ")
+        # noise = tf.Print(noise, [layer_number], message="layer_number: ")
+        # noise = tf.Print(noise, [iteration], message="iteration: ")
 
         return mean + tf.nn.softplus(rho) * noise
 
@@ -212,33 +267,81 @@ class Estimator:
 
         return stacked_output
 
-    def efficient_multiple_passes(self, input_signal, number_of_passes=50):
+    def efficient_multiple_passes(self, signal):
+        """  Collate outputs from many realisations of weights from a bayesian network.
+        First layers don't need to be looped if they are convolutional
+
+        :param input_signal:
+        :return:
+        """
+
+        signal, layer_number = self.conv_forward_pass(signal)
+
+        if layer_number < self._model.topology.n_layers:
+            if layer_number > 0:
+                signal = self.transition_from_conv_to_full(signal, layer_number)
+            signal = self.looped_passes(signal)
+
+        return signal
+
+    def looped_passes(self, input_signal):
         """
         Collate outputs from many realisations of weights from a bayesian network.
+        Uses tf.while for improved memory efficiency
 
         :param tensor x:
-        :param int number_of_passes:
         :return 4D tensor with dimensions [n_passes, batch_size, n_label_timesteps, n_categories]:
         """
 
-        output_signal = tf.nn.log_softmax(self.forward_pass(input_signal, int(0)), dim=-1)
-        index_summation = (int(0), output_signal)
+        n_passes = tf.cond(self._model._is_training, lambda: self._flags.n_train_passes,
+                           lambda: self._flags.n_eval_passes)
+        normalisation = tf.log(tf.cast(n_passes, tf.float32))
+
+        output_signal = self.bayes_forward_pass(input_signal, int(0))
+        output_signal = tf.expand_dims(output_signal, axis=0)  # First axis will hold number of passes
 
         def condition(index, _):
-            return tf.less(index, number_of_passes)
+            return tf.less(index, n_passes)
 
-        def body(index, summation):
-            raw_output = self.forward_pass(input_signal, index)
-            log_p = tf.nn.log_softmax(raw_output, dim=-1)
-
-            stacked_p = tf.stack([log_p, summation], axis=0)
-            log_p_total = tf.reduce_logsumexp(stacked_p, axis=0)
-
-            return tf.add(index, 1), log_p_total
+        def body(index, multipass):
+            single_output = self.bayes_forward_pass(input_signal, iteration=index)
+            return index+1, tf.concat([multipass, [single_output]], axis=0)
 
         # We do not care about the index value here, return only the signal
-        output = tf.while_loop(condition, body, index_summation)[1]
-        return tf.expand_dims(output, axis=0)
+        # Could try allowing higher number of parallel_iterations, though may demand a lot of memory
+        start_index = tf.constant(1)
+        loop_shape = [start_index.get_shape(), output_signal.get_shape()]
+        output_list = tf.while_loop(condition, body, [start_index, output_signal],
+                                    parallel_iterations=N_PARALLEL_PASSES, shape_invariants=loop_shape)[1]
+        output_signal = tf.stack(output_list, axis=0)
+
+        # else:  # FIXME improved algorithm in progress
+        #     n_bins = self._model.topology.n_classification_bins
+        #     loop_shape = tf.TensorShape([None, None, 1, 1, n_bins])
+        #     dummy_shape = (0, self._flags.batch_size, 1, 1, n_bins)
+        #     dummy_signal = tf.Variable(tf.zeros(shape=dummy_shape), trainable=False)
+        #     start_index = tf.constant(0)
+        #
+        #     def condition(index, _):
+        #         return tf.less(index, n_passes)
+        #
+        #     def body(index, multipass):
+        #         single_output = self.bayes_forward_pass(input_signal, iteration=index)
+        # # # set iteration=None if using rand shuffle
+        #         return index+1, tf.concat([multipass, [single_output]], axis=0)
+        #
+        #     # We do not care about the index value here, return only the signal
+        #     args_shape = [start_index.get_shape(), loop_shape]
+        #     output_list = tf.while_loop(condition, body, [start_index, dummy_signal],
+        #                                 parallel_iterations=1, shape_invariants=args_shape)[1]
+        #     output_signal = tf.stack(output_list, axis=0)
+
+        # Create discrete PDFs
+        output_signal = tf.nn.log_softmax(output_signal, dim=-1)
+        # Average probability over multiple passes
+        output_signal = tf.reduce_logsumexp(output_signal, axis=0) - normalisation
+
+        return tf.expand_dims(output_signal, axis=0)
 
     def forward_pass(self, signal, iteration=0):
         """
@@ -250,12 +353,64 @@ class Estimator:
         :return:
         """
 
+        if self._model.topology.get_layer_type(0) in {'conv2d', 'conv3d'}:
+            signal = tf.expand_dims(signal, axis=-1)
+
         input_signal = tf.identity(signal, name='input')
 
         for layer_number in range(self._model.topology.n_layers):
             signal = self.single_layer_pass(signal, layer_number, iteration, input_signal)
 
         return signal
+
+    def conv_forward_pass(self, signal):
+        """ Propagate only until we reach the first fully connected layer. """
+
+        layer_number = 0
+        n_layers = self._model.topology.n_layers
+        layer_type = self._model.topology.get_layer_type(layer_number)
+
+        if layer_type in {'conv2d', 'conv3d'}:
+            signal = tf.expand_dims(signal, axis=-1)
+
+        input_signal = tf.identity(signal, name='input')
+
+        while self._model.topology.get_layer_type(layer_number) in {'conv2d', 'conv3d', 'pool2d', 'pool3d', 'res'} \
+                and layer_number < n_layers:
+            signal = self.single_layer_pass(signal, layer_number, iteration=0, input_signal=input_signal)
+            layer_number += 1
+
+        return signal, layer_number
+
+    def bayes_forward_pass(self, signal, iteration):
+        """  Propagate only through the fully connected layers.
+
+        :param signal:
+        :param iteration:
+        :return:
+        """
+
+        for layer_number in range(self._model.topology.n_layers):
+            layer_type = self._model.topology.get_layer_type(layer_number)
+            if layer_type == FULLY_CONNECTED_LAYER:
+                signal = self.fully_connected_layer(signal, layer_number, iteration)
+
+        return signal
+
+    def transition_from_conv_to_full(self, signal, layer_number):
+        """
+
+        :param signal:
+        :return:
+        """
+
+        if self._flags.apply_temporal_suppression:  # Prepare transition from conv/pool layers to fully connected
+            penalty = self._model.get_variable(layer_number, self._model.VAR_PENALTY, reuse=True)
+            signal = tf.multiply(signal, penalty)
+            if self._flags.do_batch_norm:
+                signal = self.batch_normalisation(signal, 'penalty')
+
+        return self.flatten_last_dimension(signal)
 
     def single_layer_pass(self, signal, layer_number, iteration, input_signal):
         """
@@ -270,16 +425,21 @@ class Estimator:
         layer_type = self._model.topology.get_layer_type(layer_number)
         activation_function = self._model.topology.get_activation_function(layer_number)
 
+        if self._model.topology.layers[layer_number]['reshape']:
+            signal = self.transition_from_conv_to_full(signal, layer_number)
+
         if layer_type == CONVOLUTIONAL_LAYER_1D:
             signal = self.convolutional_layer_1d(signal)
-        elif layer_type == CONVOLUTIONAL_LAYER_2D:
-            signal = self.convolutional_layer_2d(signal)
         elif layer_type == CONVOLUTIONAL_LAYER_3D:
             signal = self.convolutional_layer_3d(signal, layer_number)
+            if self._flags.do_batch_norm:
+                signal = self.batch_normalisation(signal, layer_number)
         elif layer_type == FULLY_CONNECTED_LAYER:
             signal = self.fully_connected_layer(signal, layer_number, iteration)
         elif layer_type == POOL_LAYER_2D:
             signal = self.pool_layer_2d(signal)
+        elif layer_type == POOL_LAYER_3D:
+            signal = self.pool_layer_3d(signal)
         elif layer_type == RESIDUAL_LAYER:
             signal = self.residual_layer(signal, input_signal)
         else:
@@ -298,6 +458,7 @@ class Estimator:
 
         weights = self._model.compute_weights(layer_number, iteration)
         biases = self._model.compute_biases(layer_number, iteration)
+
         return tf.tensordot(signal, weights, axes=3) + biases
 
     def residual_layer(self, signal, input_signal):
@@ -326,30 +487,20 @@ class Estimator:
 
         return signal
 
-    def convolutional_layer_2d(self, signal):
-        """ Sets a convolutional layer with a two-dimensional kernel. """
+    def batch_normalisation(self, signal, layer_number):
+        """ Normalises the signal to unit variance and zero mean.
 
-        n_kernels = self._model._topology.n_kernels
+        :param signal:
+        :return:
+        """
+
+        norm_name = "batch_norm_" + str(layer_number)
         try:
-            signal = tf.layers.conv2d(
-                inputs=signal,
-                filters=n_kernels,
-                kernel_size=[KERNEL_HEIGHT, KERNEL_WIDTH],
-                padding=DEFAULT_PADDING,
-                activation=None,
-                data_format=DATA_FORMAT,
-                name='conv2d',
-                reuse=False)
+            signal = tf.layers.batch_normalization(signal, training=self._model._is_training,
+                                                   reuse=True, name=norm_name)
         except:
-            signal = tf.layers.conv2d(
-                inputs=signal,
-                filters=n_kernels,
-                kernel_size=[KERNEL_HEIGHT, KERNEL_WIDTH],
-                padding=DEFAULT_PADDING,
-                activation=None,
-                data_format=DATA_FORMAT,
-                name='conv2d',
-                reuse=True)
+            signal = tf.layers.batch_normalization(signal, training=self._model._is_training,
+                                                   reuse=False, name=norm_name)
 
         return signal
 
@@ -359,12 +510,15 @@ class Estimator:
         `(batch, depth, height, width, channels)` while DATA_FORMAT = `channels_first`
         corresponds to inputs with shape `(batch, channels, depth, height, width)`.
 
-        :param signal: 5D tensor of dimensions [batch, series, time, features]
-        :return:  5D tensor of dimensions [batch, series, time, features * filters]
+        :param signal: A rank 5 tensor of dimensions [batch, series, time, features, filters]
+        :return:  A rank 5 tensor of dimensions [batch, series, time, features, filters]
         """
 
-        signal = tf.expand_dims(signal, axis=-1)
-        n_kernels = self._model._topology.n_kernels
+        current_layer = self._model._topology.layers[layer_number]
+        n_kernels = current_layer.get("n_kernels", self._model._topology.n_kernels)
+        dilation_rate = self._model._topology.dilation_rates
+        strides = self._model._topology.strides
+
         kernel_size = self.calculate_3d_kernel_size()
         op_name = CONVOLUTIONAL_LAYER_3D + str(layer_number)
 
@@ -376,6 +530,8 @@ class Estimator:
                 padding=DEFAULT_PADDING,
                 activation=None,
                 data_format=DATA_FORMAT,
+                dilation_rate=dilation_rate,
+                strides=strides,
                 name=op_name,
                 reuse=True)
         except:
@@ -386,19 +542,30 @@ class Estimator:
                 padding=DEFAULT_PADDING,
                 activation=None,
                 data_format=DATA_FORMAT,
+                dilation_rate=dilation_rate,
+                strides=strides,
                 name=op_name,
                 reuse=False)
 
-        return self.flatten_last_dimension(signal)
+        return signal
 
     def pool_layer_2d(self, signal):
-        """
+        """ Pools evenly across dimensions
 
         :param signal:
         :return:
         """
 
-        return tf.layers.max_pooling2d(inputs=signal, pool_size=[2, 2], strides=2, data_format='channels_first',)
+        return tf.layers.max_pooling3d(inputs=signal, pool_size=[2, 2, 1], strides=2, data_format=DATA_FORMAT)
+
+    def pool_layer_3d(self, signal):
+        """ Usually follows conv_3d layer to reduce the dimensionality. Currently only targets the timestep dimension
+
+        :param signal:
+        :return:
+        """
+
+        return tf.layers.max_pooling3d(inputs=signal, pool_size=[1, 4, 1], strides=[1, 4, 1], data_format=DATA_FORMAT)
 
     def flatten_last_dimension(self, signal):
         """ Takes a tensor and squishes its last dimension into the penultimate dimension.
@@ -421,9 +588,11 @@ class Estimator:
         :return:
         """
 
+        target_kernel_size = self._model._topology.kernel_size
         input_layer = self._model._topology.layers[0]
-        k_depth = min(KERNEL_DEPTH, input_layer['depth'])
-        k_height = min(KERNEL_HEIGHT, input_layer['height'])
-        k_width = min(KERNEL_WIDTH, input_layer['width'])
+
+        k_depth = min(target_kernel_size[0], input_layer['depth'])
+        k_height = min(target_kernel_size[1], input_layer['height'])
+        k_width = min(target_kernel_size[2], input_layer['width'])
 
         return [k_depth, k_height, k_width]

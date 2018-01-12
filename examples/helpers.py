@@ -6,7 +6,7 @@ FLAGS = tf.app.flags.FLAGS
 D_TYPE = 'float32'
 
 
-def load_default_topology(series_name, tf_flags):
+def load_default_topology(series_name, tf_flags, n_layers):
     """The input and output layers must adhere to the dimensions of the features and labels.
     """
 
@@ -43,18 +43,45 @@ def load_default_topology(series_name, tf_flags):
         n_output_series = 1
     elif series_name == 'mnist_reshaped':
         if tf_flags.use_convolution:
-            layer_types = ['conv3d', 'pool2d', 'conv3d', 'pool2d', 'full', 'full', 'full']
-            layer_heights = [28, 28, 28, 400, 400, 400, 10]
-            layer_widths = [28, 28, 28, 1, 1, 1, 1]
 
-            activation_functions = ['linear', 'relu', 'relu', 'relu', 'relu', 'relu', 'linear']
+            if n_layers == 4:
+                layer_types = ['conv3d', 'pool2d', 'full',  'full']
+                layer_heights = [28,  14, 400, 10]
+                layer_widths = [28, 14, 1, 1]
+            elif n_layers == 6:
+                layer_types = ['conv3d', 'conv3d', 'conv3d', 'pool2d', 'full',  'full']
+                layer_heights = [28, 28, 28, 14, 400, 10]
+                layer_widths = [28, 28, 28, 14, 1, 1]
+            elif n_layers == 9:
+                layer_types = ['conv3d', 'conv3d', 'conv3d', 'conv3d', 'conv3d', 'conv3d', 'pool2d', 'full',
+                               'full']
+                layer_heights = [28, 28, 28, 28, 28, 28, 28, 400, 10]
+                layer_widths = [28, 28, 28, 28, 28, 28, 28, 1, 1]
+            elif n_layers == 10:
+                layer_types = ['conv3d', 'conv3d', 'conv3d', 'res', 'conv3d', 'conv3d', 'conv3d', 'pool2d', 'full', 'full']
+                layer_heights = [28, 28, 28, 28, 28, 28, 28, 28, 400, 10]
+                layer_widths = [28, 28, 28, 28, 28, 28, 28, 28, 1, 1]
+            elif n_layers == 20:  # Failed to learn mnist
+                layer_types = (n_layers - 3) * ['conv3d'] + ['pool2d', 'full', 'full']
+                layer_heights = (n_layers - 2) * [28] + [400] + [10]
+                layer_widths = (n_layers - 2) * [28] + [1] + [1]
+            elif n_layers == 21:
+                layer_types = (n_layers - 3) * ['conv3d'] + ['pool2d', 'full', 'full']
+                res_layer = int(n_layers / 2)
+                layer_types[res_layer] = 'res'
+                layer_heights = (n_layers - 2) * [28] + [400] + [10]
+                layer_widths = (n_layers - 2) * [28] + [1] + [1]
+            else:
+                raise ValueError('Add preset for n_layers')
+
+            activation_functions = (n_layers - 1) * ['relu'] + ['linear']
         else:
             layer_types = ['full', 'full', 'full', 'full', 'full']
             layer_heights = [28, 28, 28, 400, 10]
             layer_widths = [28, 28, 28, 1, 1]
             activation_functions = ['linear', 'relu', 'relu', 'relu', 'linear']
-        n_input_series = 1
-        n_features = 28
+        n_features = 1
+        n_input_series = 28
         n_timesteps = 28
         n_classification_bins = 10
         n_output_series = 1

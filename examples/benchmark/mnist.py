@@ -14,11 +14,13 @@ from alphai_crocubot_oracle.helpers import printtime, execute_and_get_duration
 import examples.iotools as io
 from examples.benchmark.helpers import print_time_info, print_accuracy, _calculate_accuracy
 from examples.helpers import D_TYPE, load_default_topology
+from examples.benchmark_flags import set_benchmark_flags
 
 
-def run_timed_benchmark_mnist(series_name, tf_flags, do_training):
+def run_timed_benchmark_mnist(series_name, tf_flags, do_training, config, multi_eval_passes=None):
 
-    topology = load_default_topology(series_name, tf_flags)
+    n_layers = config.get("n_layers", 4)
+    topology = load_default_topology(series_name, tf_flags, n_layers)
 
     execution_time = datetime.datetime.now()
     save_file = io.build_check_point_filename(series_name, topology, tf_flags)
@@ -54,24 +56,42 @@ def run_timed_benchmark_mnist(series_name, tf_flags, do_training):
     train_time, _ = execute_and_get_duration(_do_training)
     print("Training complete.")
 
+    if multi_eval_passes:
+        # Check effect of eval_passes
+        accuracy_list = []
+        for eval_pass in multi_eval_passes:
+            # First need to reset flags
+            config["n_eval_passes"] = eval_pass
+            set_benchmark_flags(config)
+            eval_time, temp_accuracy = eval_and_print(topology, series_name, tf_flags, save_file, eval_pass)
+            accuracy_list.extend([temp_accuracy])
+    else:
+        eval_time, temp_accuracy = eval_and_print(topology, series_name, tf_flags, save_file)
+        accuracy_list = [temp_accuracy]
+
+    print_time_info(train_time, eval_time)
+
+    return eval_time, accuracy_list
+
+
+def eval_and_print(topology, series_name, tf_flags, save_file, eval_pass):
+
     eval_time, metrics = execute_and_get_duration(evaluate_network, topology, series_name,
-                                                  tf_flags.batch_size, save_file, tf_flags)
+                                                  tf_flags.batch_size, save_file, tf_flags, eval_pass)
 
     accuracy = _calculate_accuracy(metrics["results"])
     print('Metrics:')
     print_accuracy(metrics, accuracy)
+    return eval_time, accuracy
 
-    print_time_info(train_time, eval_time)
-
-
-@printtime(message="Evaluation of Mnist Serie")
-def evaluate_network(topology, series_name, batch_size, save_file, tf_flags):
+@printtime(message="Evaluation of Mnist Series")
+def evaluate_network(topology, series_name, batch_size, save_file, tf_flags, eval_pass):
 
     data_provider = TrainDataProviderForDataSource(series_name, D_TYPE, tf_flags.n_prediction_sample, batch_size, False)
 
     test_features, test_labels = data_provider.get_batch(1)
 
-    binned_outputs = crocubot_eval.eval_neural_net(test_features, topology, tf_flags, save_file)
+    binned_outputs = crocubot_eval.eval_neural_net(test_features, topology, tf_flags, save_file, eval_pass)
 
     return evaluate_mnist(binned_outputs, binned_outputs.shape[1], test_labels)
 
@@ -81,6 +101,7 @@ def evaluate_mnist(binned_outputs, n_samples, test_labels):
     predicted_indices = np.argmax(binned_outputs, axis=-1).flatten()
     true_indices = np.argmax(test_labels, axis=-1).flatten()
 
+    print("Output shape:", binned_outputs.shape)
     print("Example forecasts:", binned_outputs[0:5, 0, :])
     print("Example outcomes", test_labels[0:5, 0, :])
     print("Total test samples:", n_samples)
@@ -111,4 +132,3 @@ def evaluate_mnist(binned_outputs, n_samples, test_labels):
     metrics["min_p_fail"] = np.min(np.stack(p_fail))
 
     return metrics
-

@@ -51,6 +51,7 @@ quant_workflow:
           transformation:
               name: log-return
         exchange_name: "NYSE"
+        fill_limit: 0
         clean_nan_from_dict: True
         features_ndays: 10
         features_resample_minutes: 15

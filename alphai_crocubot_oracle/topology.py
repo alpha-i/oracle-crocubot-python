@@ -10,11 +10,12 @@ ACTIVATION_FN_SELU = "selu"
 ACTIVATION_FN_RELU = "relu"
 LAYER_FULL = 'full'
 LAYER_CONV_3D = 'conv3d'
-LAYER_POOL = 'pool2d'
+LAYER_POOL_2D = 'pool2d'
+LAYER_POOL_3D = 'pool3d'
 LAYER_RES = 'res'
 
 ALLOWED_ACTIVATION_FN = [ACTIVATION_FN_RELU, ACTIVATION_FN_SELU, ACTIVATION_FN_LINEAR]
-ALLOWED_LAYER_TYPES = [LAYER_FULL, LAYER_CONV_3D, LAYER_POOL, LAYER_RES]
+ALLOWED_LAYER_TYPES = [LAYER_FULL, LAYER_CONV_3D, LAYER_POOL_3D, LAYER_POOL_2D, LAYER_RES]
 
 DEFAULT_N_SERIES = 28
 DEFAULT_TIMESTEPS = 28
@@ -25,7 +26,7 @@ DEFAULT_HEIGHT = 400  # NB this is the dimension which gets shuffled
 DEFAULT_WIDTH = 1  # NB noise in this dimension is not shuffled
 DEFAULT_ACT_FUNCTION = 'relu'
 DEFAULT_LAYER_TYPE = 'full'
-DEFAULT_N_KERNELS = 4
+DEFAULT_N_KERNELS = 20
 DEFAULT_N_FEATURES = 1
 DEFAULT_DEPTH = 1
 DEFAULT_N_OUTPUT_SERIES = 1
@@ -39,7 +40,8 @@ class Topology(object):
 
     def __init__(self, n_series=DEFAULT_N_SERIES, n_timesteps=DEFAULT_TIMESTEPS,
                  n_forecasts=DEFAULT_N_FORECASTS, n_classification_bins=DEFAULT_BINS, layer_heights=None,
-                 layer_widths=None, layer_depths=None, activation_functions=None, layer_types=None, n_features=1):
+                 layer_widths=None, layer_depths=None, activation_functions=None, layer_types=None, n_features=1,
+                 conv_config=None):
         """
         Following info is required to construct a topology object
         :param n_series:
@@ -63,6 +65,20 @@ class Topology(object):
             assert len(layer_widths) == len(layer_heights), "Length of widths array does not match height array"
             assert len(activation_functions) == len(layer_heights), "Length of act fns does not match height array"
 
+        # Setup convolution params if specified
+        if conv_config:
+            print("Convolution config", conv_config)
+            self.kernel_size = conv_config['kernel_size']
+            self.n_kernels = conv_config["n_kernels"]  # kernels used in first conv layer.
+            self.dilation_rates = conv_config["dilation_rates"]
+            self.strides = conv_config["strides"]
+        else:
+            print("******** No convolution config found ********")
+            self.kernel_size = [5, 5, 5]
+            self.n_kernels = DEFAULT_N_KERNELS
+            self.dilation_rates = 1
+            self.strides = 1
+
         layers = self._build_layers(layer_depths, layer_heights, layer_widths, activation_functions, layer_types)
         # FIXME Short term hack to ensure consistency - the following four lines should probably be assertions
         layers[0]["depth"] = n_series
@@ -81,7 +97,6 @@ class Topology(object):
         self.n_forecasts = n_forecasts
         self.n_classification_bins = n_classification_bins
         self.n_parameters = self._calculate_number_of_parameters(layers)
-        self.n_kernels = DEFAULT_N_KERNELS
 
     def _verify_layers(self, layers):
         """
@@ -197,6 +212,7 @@ class Topology(object):
 
         layers = []
         n_layers = len(activation_functions)
+        current_n_kernels = self.n_kernels
 
         for i in range(n_layers):
             layer = {}
@@ -206,6 +222,7 @@ class Topology(object):
             layer["depth"] = layer_depths[i]
             layer["height"] = layer_heights[i]
             layer["width"] = layer_widths[i]
+            layer["reshape"] = False
 
             if layer_types is None:
                 layer["type"] = DEFAULT_LAYER_TYPE
@@ -217,18 +234,32 @@ class Topology(object):
                 previous_layer_type = prev_layer["type"]
 
                 if previous_layer_type == 'pool2d':  # Pooling will rescale size of last layer
-                    layer["height"] = int(prev_layer['height'] / 2)
-                    layer["width"] = int(prev_layer['width'] / 2)
+                    layer["depth"] = max(1, int(prev_layer['depth'] / 2))
+                    layer["height"] = max(1, int(prev_layer['height'] / 2))
+                    layer["width"] = max(1, int(prev_layer['width'] / 2))
+                    current_n_kernels *= 2
+                elif previous_layer_type == 'pool3d':
+                    layer["depth"] = prev_layer['depth']
+                    layer["height"] = max(1, int(prev_layer['height'] / 4))
+                    layer["width"] = prev_layer['width']
+                    current_n_kernels *= 2
                 elif previous_layer_type in {'conv2d', 'conv1d', 'conv3d'}:
                     # This will depend on choice of padding. Default for now is same, so easier.
                     layer["depth"] = int(prev_layer["depth"])
                     layer["height"] = int(prev_layer["height"])
-                    layer["width"] = int(prev_layer["width"]) * DEFAULT_N_KERNELS
+                    layer["width"] = int(prev_layer["width"])
                 elif previous_layer_type == LAYER_RES or layer["type"] == LAYER_RES:
                     input_layer = layers[0]
                     layer["depth"] = int(input_layer["depth"])
                     layer["height"] = int(input_layer["height"])
                     layer["width"] = int(input_layer["width"])
+
+                if previous_layer_type in {'conv2d', 'conv1d', 'conv3d', 'pool2d', 'pool3d'}\
+                        and layer["type"] == 'full':
+                    layer['reshape'] = True
+                    layer["width"] *= prev_layer["n_kernels"]
+
+            layer["n_kernels"] = current_n_kernels
 
             layers.append(layer)
 

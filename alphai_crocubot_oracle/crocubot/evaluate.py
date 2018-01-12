@@ -9,14 +9,15 @@ import tensorflow as tf
 # FIXME once time_series is updated, uncomment the below and delete the copy in this file
 # from alphai_time_series.calculator import make_diagonal_covariance_matrices
 
-from alphai_crocubot_oracle.data.classifier import declassify_labels
+from alphai_feature_generation.classifier import declassify_labels
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel, Estimator
 from alphai_crocubot_oracle.crocubot.train import log_network_confidence
 
 PRINT_KERNEL = True
+USE_EFFICIENT_PASSES = True
 
 
-def eval_neural_net(data, topology, tf_flags, last_train_file):
+def eval_neural_net(data, topology, tf_flags, last_train_file, eval_passes=2):
     """ Multiple passes allow us to estimate the posterior distribution.
 
     :param data:  Mini-batch to be fed into the network
@@ -27,9 +28,8 @@ def eval_neural_net(data, topology, tf_flags, last_train_file):
     :return: 3D array with dimensions [n_passes, n_samples, n_labels, n_bins]
     """
 
-    logging.info("Evaluating with shape {}".format(data.shape))
-
-    model = CrocuBotModel(topology, tf_flags)
+    is_training = tf.placeholder(tf.bool, name='is_training')
+    model = CrocuBotModel(topology, tf_flags, is_training)
     try:
         model.build_layers_variables()
     except:
@@ -38,7 +38,13 @@ def eval_neural_net(data, topology, tf_flags, last_train_file):
     saver = tf.train.Saver()
     estimator = Estimator(model, tf_flags)
     x = tf.placeholder(tf_flags.d_type, shape=data.shape, name="x")
-    y = estimator.collate_multiple_passes(x, tf_flags.n_eval_passes)
+
+    logging.info("Evaluating {} passes with shape {}".format(eval_passes, data.shape))
+
+    if USE_EFFICIENT_PASSES:
+        y = estimator.efficient_multiple_passes(x)
+    else:
+        y = estimator.collate_multiple_passes(x, eval_passes)
 
     with tf.Session() as sess:
         logging.info("Attempting to recover trained network: {}".format(last_train_file))
@@ -52,11 +58,11 @@ def eval_neural_net(data, topology, tf_flags, last_train_file):
         # Finally we can retrieve tensors, operations, collections, etc.
         try:
             kernel = graph.get_tensor_by_name('conv3d0/kernel:0').eval()
-            logging.info("Evaluating conv3d with kernel: {}".format(kernel.flatten()))
+            logging.info("Evaluating with kernel samples: {}".format(kernel.flatten()[0:3]))
         except:
             pass
 
-        log_p = sess.run(y, feed_dict={x: data})
+        log_p = sess.run(y, feed_dict={x: data, is_training: False})
         log_network_confidence(log_p)
 
     posterior = np.exp(log_p)

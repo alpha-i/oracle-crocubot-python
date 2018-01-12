@@ -4,7 +4,7 @@ import tempfile
 
 import pandas_market_calendars as mcal
 
-from alphai_crocubot_oracle.data.cleaning import (
+from alphai_feature_generation.cleaning import (
     convert_to_utc, select_trading_hours, fill_gaps_data_dict, resample_ohlcv)
 from alphai_crocubot_oracle.flags import build_tensorflow_flags
 from alphai_crocubot_oracle.oracle import CrocubotOracle
@@ -75,9 +75,11 @@ def load_default_config():
                     },
                     'normalization': 'standard',
                     'is_target': True,
+                    'local': False,
                 },
             ],
             'exchange_name': 'NYSE',
+            'fill_limit': 0,
             'features_ndays': 10,
             'features_resample_minutes': 15,
             'features_start_market_minute': 60,
