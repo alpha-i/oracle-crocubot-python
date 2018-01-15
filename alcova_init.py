@@ -54,7 +54,7 @@ scheduling = {
     "prediction_horizon": 24,
     "prediction_frequency": {"frequency_type": "DAILY", "days_offset": 0, "minutes_offset": 60},
     "prediction_delta": 100,
-    "training_frequency": {"frequency_type": "DAILY", "days_offset": 0, "minutes_offset": 60},
+    "training_frequency": {"frequency_type": "WEEKLY", "days_offset": 0, "minutes_offset": 60},
     "training_delta": 200,
 }
 
@@ -62,83 +62,104 @@ scheduling = {
 #      ALPHA-I ORACLE CONFIGURATION       #
 ###########################################
 
-N_ASSETS = 10
+N_ASSETS = 400
 
 oracle_config = {
+
     'data_transformation': {
         'feature_config_list': [
             {
-                'is_target': True,
-                'local': False,
+                'is_target': False,
+                'length': 100,
                 'name': 'close',
                 'normalization': 'standard',
+                'resolution': 10,
+                'transformation': {'name': 'log-return'}
+            },
+            {
+                'is_target': False,
+                'length': 100,
+                'name': 'close',
+                'normalization': 'standard',
+                'resolution': 100,
+                'transformation': {'name': 'log-return'}
+            },
+            {
+                'is_target': True,
+                'length': 100,
+                'name': 'close',
+                'normalization': 'standard',
+                'resolution': 1440,
                 'transformation': {'name': 'log-return'}
             }
         ],
         'exchange_name': exchange_name,
-        'features_ndays': 10,
-        'features_resample_minutes': 15,
-        'fill_limit': 5,
-        'predict_the_market_close': True
+        'features_ndays': 100,
+        'features_resample_minutes': 10,
+        'fill_limit': 0,
     },
 
     'universe': {
         'avg_function': 'median',
         'dropna': False,
-        'method': 'liquidity',
+        'method': 'liquidity_day',
         'nassets': N_ASSETS,
-        'ndays_window': 10,
-        'update_frequency': 'weekly'
+        'ndays_window': 30,
+        'update_frequency': 'monthly'
     },
 
-
-    'INITIAL_ALPHA': 0.05,
+    'INITIAL_ALPHA': 0.2,
     'INITIAL_BIAS_DISPLACEMENT': 0.1,
-    'INITIAL_BIAS_UNCERTAINTY': 0.02,
+    'INITIAL_BIAS_UNCERTAINTY': 0.01,
     'INITIAL_WEIGHT_DISPLACEMENT': 0.1,
-    'INITIAL_WEIGHT_UNCERTAINTY': 0.02,
+    'INITIAL_WEIGHT_UNCERTAINTY': 0.01,
     'USE_PERFECT_NOISE': False,
-    'activation_functions': ['relu', 'relu', 'relu', 'linear'],
-    'batch_size': 200,
+    'activation_functions': ['relu', 'relu', 'relu', 'relu', 'relu', 'relu', 'relu', 'relu', 'linear'],
+    'apply_temporal_suppression': False,
+    'batch_size': 300,
     'classify_per_series': False,
     'cost_type': 'bayes',
     'covariance_method': 'Ledoit',
     'covariance_ndays': 100,
     'd_type': 'float32',
 
-    'tensorboard_log_path': RUNTIME_DIR_PATH,
-    'train_path': RUNTIME_DIR_PATH,
-    'model_save_path': RUNTIME_DIR_PATH,
-
+    'dilation_rates': 1,
+    'do_batch_norm': False,
     'double_gaussian_weights_prior': True,
-    'layer_heights': [10, 10, 10, 10],
-    'layer_types': ['full', 'full', 'full', 'full'],
-    'layer_widths': [1, 1, 1, 1],
-    'learning_rate': 0.001,
-
-    'n_classification_bins': 4,
+    'kernel_size': [10, 1, 2],
+    'layer_heights': [400, 400, 400, 400, 400, 400, 400, 400, 400],
+    'layer_types': ['conv3d', 'conv3d', 'pool3d', 'conv3d', 'conv3d', 'pool3d', 'full', 'full', 'full'],
+    'layer_widths': [1, 1, 1, 1, 1, 1, 1, 1, 1],
+    'learning_rate': 0.0001,
+    'model_save_path': RUNTIME_DIR_PATH,
+    'n_classification_bins': 2,
     'n_correlated_series': 1,
-    'n_epochs': 200,
-    'n_eval_passes': 8,
+    'n_epochs': 1000,
+    'n_eval_passes': 1,
     'n_features_per_series': 271,
     'n_forecasts': 1,
-    'n_retrain_epochs': 5,
+    'n_kernels': 8,
+    'n_networks': 1,
+    'n_retrain_epochs': 100,
     'n_series': 1,
     'n_train_passes': 1,
     'n_training_samples': 15800,
     'n_training_samples_benchmark': 1000,
     'narrow_prior_std': 0.001,
     'nassets': N_ASSETS,
-    'normalise_per_series': True,
+    'normalise_per_series': False,
+    'partial_retrain': False,
     'predict_single_shares': True,
     'random_seed': 0,
     'resume_training': True,
+    'retrain_learning_rate': 0.0001,
     'spike_slab_weighting': 0.25,
-
+    'strides': 1,
+    'tensorboard_log_path': RUNTIME_DIR_PATH,
     'tf_type': 32,
-
+    'train_path': RUNTIME_DIR_PATH,
     'use_historical_covariance': True,
-    'wide_prior_std': 1.0
+    'wide_prior_std': 0.8
 }
 
 
