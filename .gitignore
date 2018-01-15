@@ -98,3 +98,4 @@ MNIST_data
 */*.so
 
 run/
+*.tar.gz

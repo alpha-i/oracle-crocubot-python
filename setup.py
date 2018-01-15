@@ -20,7 +20,7 @@ setup(
         'alphai_feature_generation>=1.2.1,<2.0.0',
         'alphai_delphi>=1.0.2,<2.0.0',
         'alphai_alcova_datasource>=0.0.1,<1.0.0',
-        'alphai_covariance>=0.1.4'
+        'alphai_covariance>=0.1.4',
         'pandas-market-calendars>=0.12',
         'scikit-learn>=0.19.0',
     ],
