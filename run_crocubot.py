@@ -36,6 +36,7 @@ data_transformation:
     features_ndays: 10
     features_resample_minutes: 15
     fill_limit: 5
+    predict_the_market_close: true
 
 train_path: {}
 tensorboard_log_path: {}
