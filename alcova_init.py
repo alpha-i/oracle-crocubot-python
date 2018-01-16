@@ -53,7 +53,7 @@ controller_config = {
 scheduling = {
     "prediction_horizon": 24,
     "prediction_frequency": {"frequency_type": "DAILY", "days_offset": 0, "minutes_offset": 60},
-    "prediction_delta": 100,
+    "prediction_delta": 200,
     "training_frequency": {"frequency_type": "WEEKLY", "days_offset": 0, "minutes_offset": 60},
     "training_delta": 200,
 }
@@ -97,6 +97,7 @@ oracle_config = {
         'features_ndays': 100,
         'features_resample_minutes': 10,
         'fill_limit': 0,
+        'predict_the_market_close': True
     },
 
     'universe': {
