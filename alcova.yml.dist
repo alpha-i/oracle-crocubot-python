@@ -1,7 +1,14 @@
+# this defines the data used for the simulation
+# each dimension as a key and the file which contain the intraday values as value
+
 data_files:
   close: '/data/research/alpha_i/JPN_mktdata.h5'
   volume: '/data/research/alpha_i/JPN_mktdata_vol.h5'
   adjustments: '/data/research/alpha_i/JPN_mktdata_adj.h5'
 
-simulation_start: '2016-01-01'
-simulation_end: '2016-03-01'
+# this define the beginning and the start of the configuration
+# please start the simulation at least 1 year after the beginning of the data
+# in this example, the data provided starts on 2014-01-17
+
+simulation_start: '2015-02-01'
+simulation_end: '2016-12-31'

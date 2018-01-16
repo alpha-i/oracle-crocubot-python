@@ -12,7 +12,7 @@ conda install -c conda-forge -y nuitka
 
 BUILD_FOLDER='build'
 
-declare -a FILES_TO_COPY=(setup.py requirements.txt alcova.yml.dist alcova_cli.py alcova_init.py alphai_crocubot_oracle)
+declare -a FILES_TO_COPY=(alcova_runtime/install.sh alcova_runtime/README.md setup.py requirements.txt alcova.yml.dist alcova_cli.py alcova_init.py alphai_crocubot_oracle)
 
 #copy the files to build
 mkdir $BUILD_FOLDER
