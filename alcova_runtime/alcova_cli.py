@@ -1,7 +1,7 @@
 import os
 import shutil
 
-from alcova_init import controller, RUNTIME_DIR_PATH
+from alcova_runtime.alcova_init import controller, RUNTIME_DIR_PATH
 
 if __name__ == '__main__':
     controller.run()
