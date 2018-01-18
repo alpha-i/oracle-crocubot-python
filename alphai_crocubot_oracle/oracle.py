@@ -162,8 +162,9 @@ class CrocubotOracle(AbstractOracle):
             execution_time,
         ))
 
-        data = self._filter_features_from_data(data)
-        data = self._preprocess_raw_data(data)
+        # FIXME These lines were agressively cutting the data. Batches drop drastically to < 10
+        # data = self._filter_features_from_data(data)
+        # data = self._preprocess_raw_data(data)
         universe = self.get_universe(data)
 
         self.verify_pricing_data(data)
