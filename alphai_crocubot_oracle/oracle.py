@@ -247,13 +247,12 @@ class CrocubotOracle(AbstractOracle):
         :return: Mean vector or covariance matrix together with the timestamp of the prediction
         :rtype: PredictionResult
         """
-
-        data = self._filter_features_from_data(data)
+        # data = self._filter_features_from_data(data)
         universe = self.get_universe(data)
 
         data = self._filter_universe_from_data_for_prediction(data, current_timestamp, universe)
 
-        data = self._preprocess_raw_data(data)
+        # data = self._preprocess_raw_data(data)
 
         if self._topology is None:
             logging.warning('Not ready for prediction - safer to run train first')
