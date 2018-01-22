@@ -56,7 +56,7 @@ version=${version_name/\'/}
 BUILD_NAME=crocubot_${version}_${CURRENT_TIMESTAMP}
 
 mv $BUILD_FOLDER $BUILD_NAME
-tar -cvf $BUILD_NAME.tar.gz $BUILD_NAME
+tar -cvf $BUILD_NAME.tar $BUILD_NAME
 
 #delete the build folder
 rm -rf $BUILD_NAME
