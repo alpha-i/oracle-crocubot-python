@@ -162,8 +162,9 @@ class CrocubotOracle(AbstractOracle):
             execution_time,
         ))
 
-        data = self._filter_features_from_data(data)
-        data = self._preprocess_raw_data(data)
+        # FIXME These lines were agressively cutting the data. Batches drop drastically to < 10
+        # data = self._filter_features_from_data(data)
+        # data = self._preprocess_raw_data(data)
         universe = self.get_universe(data)
 
         self.verify_pricing_data(data)
@@ -246,13 +247,12 @@ class CrocubotOracle(AbstractOracle):
         :return: Mean vector or covariance matrix together with the timestamp of the prediction
         :rtype: PredictionResult
         """
-
-        data = self._filter_features_from_data(data)
+        # data = self._filter_features_from_data(data)
         universe = self.get_universe(data)
 
         data = self._filter_universe_from_data_for_prediction(data, current_timestamp, universe)
 
-        data = self._preprocess_raw_data(data)
+        # data = self._preprocess_raw_data(data)
 
         if self._topology is None:
             logging.warning('Not ready for prediction - safer to run train first')
@@ -313,9 +313,6 @@ class CrocubotOracle(AbstractOracle):
         if self.use_historical_covariance:
             covariance_matrix = self.calculate_historical_covariance(data, symbols)
             logging.info('Samples from historical covariance: {}'.format(np.diag(covariance_matrix)[0:5]))
-            logging.warning('Invoking temporary covariance hack')
-            cov_diag = np.diag(covariance_matrix) + 1e-4
-            covariance = np.diag(cov_diag)
         else:
             covariance_matrix = forecast_covariance
             logging.info("Samples from forecast_covariance: {}".format(np.diag(covariance_matrix)[0:5]))
