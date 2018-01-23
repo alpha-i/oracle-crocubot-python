@@ -8,7 +8,7 @@ import logging
 os.environ['MKL_THREADING_LAYER'] = 'GNU'
 
 from alphai_delphi.controller import ControllerConfiguration, Controller
-from alphai_delphi.data_source.synthetic_data_source import SyntheticDataSource
+from alphai_delphi.data_source.hdf5_data_source import StocksHDF5DataSource
 from alphai_delphi.oracle.oracle_configuration import OracleConfiguration
 from alphai_delphi.performance.performance import OraclePerformance
 from alphai_delphi.scheduler import Scheduler
@@ -94,20 +94,27 @@ universe:
     dropna: False
 """.format(exchange, OUTPUT_DIR, OUTPUT_DIR, OUTPUT_DIR)
 
-
-# synthetic_config = {
-#     "start_date": simulation_start - datetime.timedelta(days=365),
-#     "end_date": simulation_end + datetime.timedelta(days=10),
-#     "n_sin_series": 10
-# }
-
-synthetic_config = {
-    "start_date": datetime.datetime(2006, 12, 31),
-    "end_date": datetime.datetime(2011, 12, 31),
-    "n_sin_series": 10
+data_source_config = {
+   "filename": "/home/sbalan/Documents/QQ_data/synthetic_ohlcv.hdf5",
+   "exchange": "NYSE",
+   "data_timezone": "America/New_York",
+   "start": datetime.datetime(2006, 12, 31),
+   "end": datetime.datetime(2011, 12, 31)
 }
+datasource = StocksHDF5DataSource(data_source_config)
 
-datasource = SyntheticDataSource(synthetic_config)
+# qw_config_file_name = "/home/sbalan/github/configs_for_testing_qw_delphi/qw_integration_test.yml"
+# with open(qw_config_file_name, 'r') as qw_config_file:
+#     qw_config = yaml.load(qw_config_file)
+#
+# oracle_config = qw_config['quant_workflow']['oracle']['oracle_arguments']
+# oracle_config['universe'] = qw_config['quant_workflow']['universe']
+# oracle_config['universe']['dropna'] = False
+#
+# oracle_config['train_path'] = OUTPUT_DIR
+# oracle_config['tensorboard_log_path'] = OUTPUT_DIR
+# oracle_config['model_save_path'] = OUTPUT_DIR
+
 
 oracle_full_config = {
     "scheduling": {
