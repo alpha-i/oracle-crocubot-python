@@ -4,7 +4,7 @@ conda install -c conda-forge -y nuitka
 pip install yaml
 
 CONFIG_FILE=$1
-CHECKPOINT_FILE=$2
+CHECKPOINT_FILE_DIR=$2
 
 BUILD_FOLDER='build'
 
@@ -19,7 +19,11 @@ for file_or_dir in ${FILES_TO_COPY[*]}; do
     cp -r $file_or_dir $BUILD_FOLDER/
 done;
 
+# BUILD CONFIGURATION
 python alcova_build/build_config.py ${CONFIG_FILE} $BUILD_FOLDER
+
+# COPY CHECKPOINT FILES
+python alcova_build/build_checkpoint.py ${CHECKPOINT_FILE_DIR} ${BUILD_FOLDER}/runtime
 
 find $BUILD_FOLDER -type d -name "__pycache__" -exec rm -rf {} \;
 
