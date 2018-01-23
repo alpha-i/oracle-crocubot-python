@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 conda install -c conda-forge -y nuitka
-pip install yaml
+pip install pyaml
 
 CONFIG_FILE=$1
 CHECKPOINT_FILE_DIR=$2
