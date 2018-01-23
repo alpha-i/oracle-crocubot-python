@@ -313,9 +313,6 @@ class CrocubotOracle(AbstractOracle):
         if self.use_historical_covariance:
             covariance_matrix = self.calculate_historical_covariance(data, symbols)
             logging.info('Samples from historical covariance: {}'.format(np.diag(covariance_matrix)[0:5]))
-            logging.warning('Invoking temporary covariance hack')
-            cov_diag = np.diag(covariance_matrix) + 1e-4
-            covariance_matrix = np.diag(cov_diag)
         else:
             covariance_matrix = forecast_covariance
             logging.info("Samples from forecast_covariance: {}".format(np.diag(covariance_matrix)[0:5]))
