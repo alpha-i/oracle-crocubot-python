@@ -15,5 +15,6 @@ exclude=
     examples/,
     setup.py,
     run
+    run_crocubot*
 
 max-complexity = 16
