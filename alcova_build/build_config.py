@@ -24,6 +24,7 @@ def _create_oracle_config_string(parsed_config):
     oracle_config['train_path'] = RUNTIME_DIR_TOKEN
     oracle_config['tensorboard_log_path'] = RUNTIME_DIR_TOKEN
     oracle_config['model_save_path'] = RUNTIME_DIR_TOKEN
+    oracle_config['data_transformation']['predict_the_market_close'] = True
 
     return str(oracle_config).replace("'%%RUNTIME_DIR_PATH%%'", 'RUNTIME_DIR_PATH')
 
@@ -38,14 +39,14 @@ def _create_schedule_string(parsed_config):
         "prediction_frequency": {
             "frequency_type": "DAILY",
             "days_offset": 0,
-            "minutes_offset": qw_config['trade_minutes_offset']
+            "minutes_offset": 300
         },
         "prediction_delta": qw_config['trade_history_ndays'],
 
         "training_frequency": {
             "frequency_type": "WEEKLY",
             "days_offset": 0,
-            "minutes_offset": qw_config['train_minutes_offset']
+            "minutes_offset": 300
         },
         "training_delta": qw_config['train_history_ndays'],
     }
