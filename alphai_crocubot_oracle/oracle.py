@@ -166,6 +166,7 @@ class CrocubotOracle(AbstractOracle):
         # data = self._filter_features_from_data(data)
         # data = self._preprocess_raw_data(data)
         universe = self.get_universe(data)
+        data = self._filter_universe_from_data_for_training(data, universe)
 
         self.verify_pricing_data(data)
         train_x_dict, train_y_dict = self._data_transformation.create_train_data(data, universe)
@@ -630,6 +631,31 @@ class CrocubotOracle(AbstractOracle):
                 assets = row.assets
                 break
 
+        filtered = {}
+        for feature, df in data.items():
+            filtered[feature] = df.drop(df.columns.difference(assets), axis=1)
+
+        return filtered
+
+    def _filter_universe_from_data_for_training(self, data, universe):
+        """
+        Filters the dataframes inside the dict, returning a new dict with only the columns
+        available in the universe for that particular date
+
+        :param data: dict of dataframes
+        :type data: dict
+        :param universe: dataframe containing mapping of data -> list of assets
+        :type universe: pd.DataFrame
+
+        :return: dict of pd.DataFrame
+        :rtype dict
+        """
+
+        assets = []
+        for idx, row in universe.iterrows():
+            assets = assets + list(row.assets)
+
+        assets = set(assets)
         filtered = {}
         for feature, df in data.items():
             filtered[feature] = df.drop(df.columns.difference(assets), axis=1)
