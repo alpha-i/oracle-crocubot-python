@@ -2,7 +2,8 @@ import os
 import argparse
 import yaml
 
-MARKET_CLOSE_OFFSET = 299
+PREDICT_MARKET_CLOSE_OFFSET = 330
+TRAIN_MARKET_CLOSE_OFFSET = 100
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -41,14 +42,14 @@ def _create_schedule_string(parsed_config):
         "prediction_frequency": {
             "frequency_type": "DAILY",
             "days_offset": 0,
-            "minutes_offset": MARKET_CLOSE_OFFSET
+            "minutes_offset": PREDICT_MARKET_CLOSE_OFFSET
         },
         "prediction_delta": qw_config['trade_history_ndays'],
 
         "training_frequency": {
             "frequency_type": "WEEKLY",
             "days_offset": 0,
-            "minutes_offset": MARKET_CLOSE_OFFSET
+            "minutes_offset": TRAIN_MARKET_CLOSE_OFFSET
         },
         "training_delta": qw_config['train_history_ndays'],
     }
