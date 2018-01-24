@@ -2,6 +2,8 @@ import os
 import argparse
 import yaml
 
+MARKET_CLOSE_OFFSET = 299
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 parser = argparse.ArgumentParser(description='Build Alcova Init file from Quant Workflow Config')
@@ -39,14 +41,14 @@ def _create_schedule_string(parsed_config):
         "prediction_frequency": {
             "frequency_type": "DAILY",
             "days_offset": 0,
-            "minutes_offset": 300
+            "minutes_offset": MARKET_CLOSE_OFFSET
         },
         "prediction_delta": qw_config['trade_history_ndays'],
 
         "training_frequency": {
             "frequency_type": "WEEKLY",
             "days_offset": 0,
-            "minutes_offset": 300
+            "minutes_offset": MARKET_CLOSE_OFFSET
         },
         "training_delta": qw_config['train_history_ndays'],
     }
