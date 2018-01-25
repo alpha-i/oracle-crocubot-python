@@ -1,18 +1,14 @@
 #!/usr/bin/env bash
 
-#Install nuitka (conda install -c conda-forge nuitka)
-#Install python2 (which is a Scones dependency);
-#MAKE SURE YOU'RE NOT USING PYTHON 3.6, which is unsupported (their website is a lie);
-#nuitka --module [--recurse-all] path/to/module/module;
-#[maybe there's no need to --recurse-all, especially if the plan is just to compile the module]
-#Delete dist and build artifacts
-#The resulting .so file is the compiled oracle artifact, which can be imported and run from python modules (as it was cython).
-
 conda install -c conda-forge -y nuitka
+pip install pyaml
+
+CONFIG_FILE=$1
+CHECKPOINT_FILE_DIR=$2
 
 BUILD_FOLDER='build'
 
-declare -a FILES_TO_COPY=(alcova_runtime/install.sh alcova_runtime/README.md alcova_runtime/alcova.yml.dist alcova_runtime/alcova_cli.py alcova_runtime/alcova_init.py setup.py requirements.txt  alphai_crocubot_oracle)
+declare -a FILES_TO_COPY=(alcova_build/install.sh alcova_build/README.md alcova_build/alcova.yml.dist alcova_build/alcova_cli.py setup.py requirements.txt  alphai_crocubot_oracle)
 
 #copy the files to build
 mkdir $BUILD_FOLDER
@@ -22,6 +18,12 @@ mkdir $BUILD_FOLDER/result
 for file_or_dir in ${FILES_TO_COPY[*]}; do
     cp -r $file_or_dir $BUILD_FOLDER/
 done;
+
+# BUILD CONFIGURATION
+python alcova_build/build_config.py ${CONFIG_FILE} $BUILD_FOLDER
+
+# COPY CHECKPOINT FILES
+python alcova_build/build_checkpoint.py ${CHECKPOINT_FILE_DIR} ${BUILD_FOLDER}/runtime
 
 find $BUILD_FOLDER -type d -name "__pycache__" -exec rm -rf {} \;
 
