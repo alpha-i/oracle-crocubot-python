@@ -3,8 +3,6 @@ import argparse
 import yaml
 from copy import deepcopy
 
-
-
 PREDICT_MARKET_OPEN_OFFSET = 330
 TRAIN_MARKET_OPEN_OFFSET = 330
 
@@ -88,7 +86,7 @@ if __name__ == '__main__':
         source_configuration = yaml.load(qw_config_file)
 
         tokens = {
-            ORACLE_CONFIG_TOKEN : _create_oracle_config_string(source_configuration),
+            ORACLE_CONFIG_TOKEN: _create_oracle_config_string(source_configuration),
             SCHEDULE_CONFIG_TOKEN: _create_schedule_string(source_configuration)
         }
         _write_alcova_init(tokens)
