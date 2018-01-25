@@ -24,7 +24,7 @@ logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
 with open(os.path.join(BASE_DIR, 'alcova.yml')) as alcova_config_file:
     alcova_config = yaml.load(alcova_config_file)
 
-exchange_name = "JPX"
+EXCHANGE_NAME = "JPX"
 simulation_start = pytz.utc.localize(datetime.strptime(alcova_config['simulation_start'], DATE_FORMAT))
 simulation_end = pytz.utc.localize(datetime.strptime(alcova_config['simulation_end'], DATE_FORMAT))
 run_name = 'alcova'
@@ -60,11 +60,13 @@ N_ASSETS = 400
 
 oracle_config = %%ORACLE_CONFIG%%
 
-
+logging.info("Loading datasource ...")
 datasource = AlcovaDataSource(datasource_configuration)
+logging.info("Datasource Loaded!")
+
 oracle = CrocubotOracle(OracleConfiguration({"scheduling": scheduling, "oracle": oracle_config}))
 
-scheduler = Scheduler(simulation_start, simulation_end, exchange_name,
+scheduler = Scheduler(simulation_start, simulation_end, EXCHANGE_NAME,
                       oracle.prediction_frequency, oracle.training_frequency, oracle.prediction_horizon)
 
 oracle_performance = OraclePerformance(os.path.join(RESULT_DIRECTORY), run_name)

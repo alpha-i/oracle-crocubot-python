@@ -1,6 +1,9 @@
 import os
 import argparse
 import yaml
+from copy import deepcopy
+
+
 
 PREDICT_MARKET_OPEN_OFFSET = 330
 TRAIN_MARKET_OPEN_OFFSET = 330
@@ -15,21 +18,31 @@ args = parser.parse_args()
 RUNTIME_DIR_TOKEN = '%%RUNTIME_DIR_PATH%%'
 ORACLE_CONFIG_TOKEN = '%%ORACLE_CONFIG%%'
 SCHEDULE_CONFIG_TOKEN = '%%SCHEDULE_CONFIG%%'
+EXCHANGE_NAME_TOKEN = '%%EXCHANGE_NAME%%'
+
 
 INIT_TPL_FILE = os.path.join(BASE_DIR, 'alcova_init.tpl.py')
 INIT_FILE = os.path.join(args.output_dir, 'alcova_init.py')
 
 
 def _create_oracle_config_string(parsed_config):
-    oracle_config = parsed_config['quant_workflow']['oracle']['oracle_arguments']
+    oracle_config = deepcopy(parsed_config['quant_workflow']['oracle']['oracle_arguments'])
     oracle_config['universe'] = parsed_config['quant_workflow']['universe']
     oracle_config['universe']['dropna'] = False
     oracle_config['train_path'] = RUNTIME_DIR_TOKEN
     oracle_config['tensorboard_log_path'] = RUNTIME_DIR_TOKEN
     oracle_config['model_save_path'] = RUNTIME_DIR_TOKEN
     oracle_config['data_transformation']['predict_the_market_close'] = True
+    oracle_config['data_transformation']['exchange_name'] = EXCHANGE_NAME_TOKEN
 
-    return str(oracle_config).replace("'%%RUNTIME_DIR_PATH%%'", 'RUNTIME_DIR_PATH')
+    del oracle_config['data_transformation']["prediction_market_minute"]
+    del oracle_config['data_transformation']["features_start_market_minute"]
+    del oracle_config['data_transformation']["target_delta_ndays"]
+    del oracle_config['data_transformation']["target_market_minute"]
+
+    conf_str = str(oracle_config).replace("'%%RUNTIME_DIR_PATH%%'", 'RUNTIME_DIR_PATH')
+
+    return conf_str.replace("'%%EXCHANGE_NAME%%'", 'EXCHANGE_NAME')
 
 
 def _create_schedule_string(parsed_config):
