@@ -42,8 +42,6 @@ DEFAULT_NETWORK = 'crocubot'
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
-ACCEPTED_FEATURES = ['open', 'high', 'low', 'close', 'volume']
-
 
 class CrocubotOracle(AbstractOracle):
 
@@ -163,7 +161,6 @@ class CrocubotOracle(AbstractOracle):
         ))
 
         # FIXME These lines were agressively cutting the data. Batches drop drastically to < 10
-        # data = self._filter_features_from_data(data)
         # data = self._preprocess_raw_data(data)
         universe = self.get_universe(data)
         data = self._filter_universe_from_data_for_training(data, universe)
@@ -248,7 +245,6 @@ class CrocubotOracle(AbstractOracle):
         :return: Mean vector or covariance matrix together with the timestamp of the prediction
         :rtype: PredictionResult
         """
-        # data = self._filter_features_from_data(data)
         universe = self.get_universe(data)
 
         data = self._filter_universe_from_data_for_prediction(data, current_timestamp, universe)
@@ -599,15 +595,6 @@ class CrocubotOracle(AbstractOracle):
                 return feature['name']
 
         raise ValueError("You must specify at least one target feature")
-
-    def _filter_features_from_data(self, data):
-
-        def filtering(element):
-            key, value = element
-            if key in ACCEPTED_FEATURES:
-                return True, (key, value)
-
-        return dict(filter(filtering, data.items()))
 
     def _filter_universe_from_data_for_prediction(self, data, current_timestamp, universe):
         """
