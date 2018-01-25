@@ -596,15 +596,6 @@ class CrocubotOracle(AbstractOracle):
 
         raise ValueError("You must specify at least one target feature")
 
-    def _filter_features_from_data(self, data):
-
-        def filtering(element):
-            key, value = element
-            if key in ACCEPTED_FEATURES:
-                return True, (key, value)
-
-        return dict(filter(filtering, data.items()))
-
     def _filter_universe_from_data_for_prediction(self, data, current_timestamp, universe):
         """
         Filters the dataframes inside the dict, returning a new dict with only the columns
