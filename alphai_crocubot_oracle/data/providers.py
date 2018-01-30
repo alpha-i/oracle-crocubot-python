@@ -1,14 +1,11 @@
 from abc import ABCMeta, abstractmethod
 from collections import namedtuple
-import logging
 
 import numpy as np
 from alphai_data_sources.data_sources import DataSourceGenerator
 from alphai_data_sources.generator import BatchGenerator, BatchOptions
 
 from alphai_feature_generation.classifier import classify_labels
-
-logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 TrainData = namedtuple('TrainData', 'features labels')
 

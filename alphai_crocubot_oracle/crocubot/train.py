@@ -4,8 +4,8 @@
 import logging
 from timeit import default_timer as timer
 
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
 
 import alphai_crocubot_oracle.bayesian_cost as cost
 from alphai_crocubot_oracle.crocubot import PRINT_LOSS_INTERVAL, PRINT_SUMMARY_INTERVAL, MAX_GRADIENT
@@ -14,6 +14,8 @@ from alphai_crocubot_oracle.crocubot.model import CrocuBotModel, Estimator
 PRINT_KERNEL = True
 BOOL_TRUE = True
 USE_EFFICIENT_PASSES = True
+
+logger = logging.getLogger(__name__)
 
 
 def train(topology,
@@ -58,7 +60,7 @@ def train(topology,
     epoch_loss_list = []
 
     # Launch the graph
-    logging.info("Launching Graph.")
+    logger.info("Launching Graph.")
     with tf.Session() as sess:
 
         is_model_ready = False
@@ -68,15 +70,15 @@ def train(topology,
             if tf_flags.n_retrain_epochs < 1:
                 return epoch_loss_list  # Don't waste time loading model
             try:
-                logging.info("Attempting to load model from {}".format(tensorflow_path.model_restore_path))
+                logger.info("Attempting to load model from {}".format(tensorflow_path.model_restore_path))
                 saver.restore(sess, tensorflow_path.model_restore_path)
-                logging.info("Model restored.")
+                logger.info("Model restored.")
                 number_of_epochs = tf_flags.n_retrain_epochs
                 is_model_ready = True
             except Exception as e:
-                logging.warning("Restore file not recovered. reason {}. Training from scratch".format(e))
+                logger.warning("Restore file not recovered. reason {}. Training from scratch".format(e))
         else:
-            logging.info("Training new network with fixed random seed")
+            logger.info("Training new network with fixed random seed")
             tf.set_random_seed(tf_flags.random_seed)  # Ensure behaviour is reproducible
             np.random.seed(tf_flags.random_seed)
 
@@ -100,7 +102,7 @@ def train(topology,
                 batch_labels = batch_data.labels
 
                 if batch_number == 0 and epoch == 0:
-                    logging.info("Training {} batches of size {} and {}".format(
+                    logger.info("Training {} batches of size {} and {}".format(
                         n_batches,
                         batch_features.shape,
                         batch_labels.shape
@@ -130,7 +132,7 @@ def train(topology,
                                           feed_dict={x: batch_features, y: batch_labels, is_training: BOOL_TRUE})
         log_network_confidence(sample_log_predictions)
         out_path = saver.save(sess, tensorflow_path.session_save_path)
-        logging.info("Model saved in file:{}".format(out_path))
+        logger.info("Model saved in file:{}".format(out_path))
 
     return epoch_loss_list
 
@@ -147,18 +149,17 @@ def _log_epoch_loss_if_needed(epoch, epoch_loss, log_likelihood, n_epochs, time_
     """
     if (epoch % PRINT_LOSS_INTERVAL) == 0:
         msg = "Epoch {} of {} ... Loss: {:.2e}. LogLikeli: {:.2e} in {:.2f} seconds."
-        logging.info(msg.format(epoch + 1, n_epochs, epoch_loss, log_likelihood, time_epoch))
+        logger.info(msg.format(epoch + 1, n_epochs, epoch_loss, log_likelihood, time_epoch))
 
         if PRINT_KERNEL and use_convolution:
             gr = tf.get_default_graph()
             conv1_kernel_val = gr.get_tensor_by_name('conv3d0/kernel:0').eval()
             kernel_shape = conv1_kernel_val.shape
             kernel_sample = conv1_kernel_val.flatten()[0:3]
-            logging.info("Sample from first layer {} kernel: {}".format(kernel_shape, kernel_sample))
+            logger.info("Sample from first layer {} kernel: {}".format(kernel_shape, kernel_sample))
 
 
 def _set_cost_operator(crocubot_model, x, labels, n_batches, tf_flags, global_step):
-
     """
     Set the cost operator
     :param crocubot_model:
@@ -206,12 +207,12 @@ def _set_cost_operator(crocubot_model, x, labels, n_batches, tf_flags, global_st
 def _log_topology_parameters_size(topology):
     """Check topology is sensible """
 
-    logging.info("Requested topology: {}".format(topology.layers))
+    logger.info("Requested topology: {}".format(topology.layers))
 
     if topology.n_parameters > 1e7:
-        logging.warning("Ambitious number of parameters: {}".format(topology.n_parameters))
+        logger.warning("Ambitious number of parameters: {}".format(topology.n_parameters))
     else:
-        logging.info("Number of parameters: {}".format(topology.n_parameters))
+        logger.info("Number of parameters: {}".format(topology.n_parameters))
 
 
 # TODO Create a Provider for training_operator
@@ -227,11 +228,11 @@ def _set_training_operator(cost_operator, global_step, tf_flags, do_retraining, 
         if tf_flags.partial_retrain and do_retraining:
             final_layer_scope = str(topology.n_layers - 1)
             trainable_var_list = tf.trainable_variables(scope=final_layer_scope)  # mu and sigma of weights and biases
-            logging.info("Retraining variables from final layer: {}".format(trainable_var_list[0]))
+            logger.info("Retraining variables from final layer: {}".format(trainable_var_list[0]))
         else:
             trainable_var_list = None  # By default will train all available variables
 
-        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)   # For batch normalisation
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)  # For batch normalisation
         with tf.control_dependencies(update_ops):
             optimizer = tf.train.GradientDescentOptimizer(tf_flags.learning_rate)
             grads_and_vars = optimizer.compute_gradients(cost_operator, var_list=trainable_var_list)
@@ -255,4 +256,4 @@ def log_network_confidence(log_predictions):
     confidence_values = np.max(predictions, axis=-1).flatten()
     typical_confidence = np.median(confidence_values)
 
-    logging.info('Typical network confidence for a single pass: {}'.format(typical_confidence))
+    logger.info('Typical network confidence for a single pass: {}'.format(typical_confidence))

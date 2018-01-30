@@ -13,6 +13,9 @@ from alphai_feature_generation.classifier import declassify_labels
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel, Estimator
 from alphai_crocubot_oracle.crocubot.train import log_network_confidence
 
+
+logger = logging.getLogger(__name__)
+
 PRINT_KERNEL = True
 USE_EFFICIENT_PASSES = True
 
@@ -33,13 +36,13 @@ def eval_neural_net(data, topology, tf_flags, last_train_file, eval_passes=2):
     try:
         model.build_layers_variables()
     except:
-        logging.info('Variables already initialised')
+        logger.info('Variables already initialised')
 
     saver = tf.train.Saver()
     estimator = Estimator(model, tf_flags)
     x = tf.placeholder(tf_flags.d_type, shape=data.shape, name="x")
 
-    logging.info("Evaluating {} passes with shape {}".format(eval_passes, data.shape))
+    logger.info("Evaluating {} passes with shape {}".format(eval_passes, data.shape))
 
     if USE_EFFICIENT_PASSES:
         y = estimator.efficient_multiple_passes(x)
@@ -47,18 +50,18 @@ def eval_neural_net(data, topology, tf_flags, last_train_file, eval_passes=2):
         y = estimator.collate_multiple_passes(x, eval_passes)
 
     with tf.Session() as sess:
-        logging.info("Attempting to recover trained network: {}".format(last_train_file))
+        logger.info("Attempting to recover trained network: {}".format(last_train_file))
         start_time = timer()
         saver.restore(sess, last_train_file)
         end_time = timer()
         delta_time = end_time - start_time
-        logging.info("Loading the model from disk took:{}".format(delta_time))
+        logger.info("Loading the model from disk took: {}".format(delta_time))
 
         graph = tf.get_default_graph()
         # Finally we can retrieve tensors, operations, collections, etc.
         try:
             kernel = graph.get_tensor_by_name('conv3d0/kernel:0').eval()
-            logging.info("Evaluating with kernel samples: {}".format(kernel.flatten()[0:3]))
+            logger.info("Evaluating with kernel samples: {}".format(kernel.flatten()[0:3]))
         except:
             pass
 
