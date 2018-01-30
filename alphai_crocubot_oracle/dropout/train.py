@@ -1,7 +1,7 @@
 import logging
 
-import numpy as np
 import tensorflow as tf
+import numpy as np
 
 from alphai_crocubot_oracle.dropout.model import dropout_net
 

@@ -4,8 +4,8 @@
 import logging
 from timeit import default_timer as timer
 
-import numpy as np
 import tensorflow as tf
+import numpy as np
 
 import alphai_crocubot_oracle.bayesian_cost as cost
 from alphai_crocubot_oracle.crocubot import PRINT_LOSS_INTERVAL, PRINT_SUMMARY_INTERVAL, MAX_GRADIENT
