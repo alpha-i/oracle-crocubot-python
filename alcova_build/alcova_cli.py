@@ -1,11 +1,10 @@
 import os
-from alcova_init import Initializer
-
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+from alcova_init import SimulationEnvironment
 
 if __name__ == '__main__':
-    initializer = Initializer(BASE_DIR)
-    with open(os.path.join(BASE_DIR, 'alcova.yml')) as alcova_config_file:
-        initializer.initialize(alcova_config_file)
-        initializer.controller.run()
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+
+    with open(os.path.join(current_directory, 'alcova.yml')) as alcova_config_file:
+
+        simulation = SimulationEnvironment(alcova_config_file, current_directory)
+        simulation.run()
