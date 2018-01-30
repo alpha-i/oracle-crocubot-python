@@ -32,7 +32,6 @@ class SimulationEnvironment:
         self.base_dir = base_dir
 
         self.datasource = None
-        self.alcova_config = None
 
         self.oracle = None
         self.oracle_performance = None
