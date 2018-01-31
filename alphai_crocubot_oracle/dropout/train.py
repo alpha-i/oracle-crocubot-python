@@ -4,8 +4,11 @@ import tensorflow as tf
 import numpy as np
 
 from alphai_crocubot_oracle.dropout.model import dropout_net
+
 PRINT_INTERVAL = 5000
 MOMENTUM = 0.5
+
+logger = logging.getLogger(__name__)
 
 
 def train(data_provider, tensorflow_path, tf_flags):
@@ -45,19 +48,19 @@ def train(data_provider, tensorflow_path, tf_flags):
     y_all = data_provider._train_data.labels
 
     # Launch the graph
-    logging.info("Launching Graph.")
+    logger.info("Launching Graph.")
     with tf.Session() as sess:
 
         is_model_ready = False
         if tensorflow_path.can_restore_model():
             try:
-                logging.info("Attempting to load model from {}".format(tensorflow_path.model_restore_path))
+                logger.info("Attempting to load model from {}".format(tensorflow_path.model_restore_path))
                 saver.restore(sess, tensorflow_path.model_restore_path)
-                logging.info("Model restored.")
+                logger.info("Model restored.")
                 number_of_epochs = tf_flags.n_retrain_epochs
                 is_model_ready = True
             except Exception as e:
-                logging.warning("Restore file not recovered. reason {}. Training from scratch".format(e))
+                logger.warning("Restore file not recovered. reason {}. Training from scratch".format(e))
 
         if not is_model_ready:
             sess.run(tf.global_variables_initializer())
@@ -79,15 +82,15 @@ def train(data_provider, tensorflow_path, tf_flags):
                 if step % PRINT_INTERVAL == 0:
                     summary, acc = sess.run([accuracy_summary, accuracy],
                                             feed_dict={x: x_all, y_actual: y_all, is_training: False})
-                    logging.info("Steps completed: {}. Training Accuracy: {}".format(step, acc * 100))
+                    logger.info("Steps completed: {}. Training Accuracy: {}".format(step, acc * 100))
                 step += 1
 
         test_feature = np.expand_dims(0.98 * batch_features[0, :], axis=0)
         test_prediction = sess.run(eval_operator, feed_dict={x: test_feature, is_training: False})
-        logging.info("Example prediction:{}".format(test_prediction))
+        logger.info("Example prediction:{}".format(test_prediction))
 
         out_path = saver.save(sess, tensorflow_path.session_save_path)
-        logging.info("Model saved in file:{}".format(out_path))
+        logger.info("Model saved in file:{}".format(out_path))
 
 
 def resize_time_series(features):

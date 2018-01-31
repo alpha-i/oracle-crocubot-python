@@ -40,7 +40,7 @@ FEATURE_TO_RANK_CORRELATIONS = 0  # Use the first feature to form correlation co
 TRAIN_FILE_NAME_TEMPLATE = "{}_train_crocubot"
 DEFAULT_NETWORK = 'crocubot'
 
-logging.getLogger(__name__).addHandler(logging.NullHandler())
+logger = logging.getLogger(__name__)
 
 
 class CrocubotOracle(AbstractOracle):
@@ -86,7 +86,7 @@ class CrocubotOracle(AbstractOracle):
         oracle-crocubot-python/docs/crocubot_options.md
         """
         super().__init__(config)
-        logging.info('Initialising Crocubot Oracle.')
+        logger.info('Initialising Crocubot Oracle.')
 
         self.config = self.update_configuration(self.config)
         self.network = self.config.get('network', DEFAULT_NETWORK)
@@ -156,7 +156,7 @@ class CrocubotOracle(AbstractOracle):
 
         :return:
         """
-        logging.info('Training model on {}.'.format(
+        logger.info('Training model on {}.'.format(
             execution_time,
         ))
 
@@ -168,30 +168,30 @@ class CrocubotOracle(AbstractOracle):
         self.verify_pricing_data(data)
         train_x_dict, train_y_dict = self._data_transformation.create_train_data(data, universe)
 
-        logging.info("Preprocessing training data")
+        logger.info("Preprocessing training data")
         train_x = self._preprocess_inputs(train_x_dict)
         train_y = self._preprocess_outputs(train_y_dict)
-        logging.info("Processed train_x shape {}".format(train_x.shape))
+        logger.info("Processed train_x shape {}".format(train_x.shape))
         train_x, train_y = self.filter_nan_samples(train_x, train_y)
-        logging.info("Filtered train_x shape {}".format(train_x.shape))
+        logger.info("Filtered train_x shape {}".format(train_x.shape))
         n_valid_samples = train_x.shape[0]
 
         if n_valid_samples == 0:
             raise ValueError("Aborting training: No valid samples")
         elif n_valid_samples < 2e4:
-            logging.warning("Low number of training samples: {}".format(n_valid_samples))
+            logger.warning("Low number of training samples: {}".format(n_valid_samples))
 
         # Topology can either be directly constructed from layers, or build from sequence of parameters
         if self._topology is None:
             n_timesteps = train_x.shape[2]
             self.initialise_topology(n_timesteps)
 
-        logging.info('Initialised network topology: {}.'.format(self._topology.layers))
+        logger.info('Initialised network topology: {}.'.format(self._topology.layers))
 
-        logging.info('Training features of shape: {}.'.format(
+        logger.info('Training features of shape: {}.'.format(
             train_x.shape,
         ))
-        logging.info('Training labels of shape: {}.'.format(
+        logger.info('Training labels of shape: {}.'.format(
             train_y.shape,
         ))
 
@@ -213,7 +213,7 @@ class CrocubotOracle(AbstractOracle):
                                                  )
 
         first_sample = train_x[0, :].flatten()
-        logging.info("Sample from first example in train_x: {}".format(first_sample[0:8]))
+        logger.info("Sample from first example in train_x: {}".format(first_sample[0:8]))
         data_provider = TrainDataProvider(train_x, train_y, self._tensorflow_flags.batch_size)
         self._do_train(tensorflow_path, tensorboard_options, data_provider)
 
@@ -252,15 +252,15 @@ class CrocubotOracle(AbstractOracle):
         # data = self._preprocess_raw_data(data)
 
         if self._topology is None:
-            logging.warning('Not ready for prediction - safer to run train first')
+            logger.warning('Not ready for prediction - safer to run train first')
 
-        logging.info('Crocubot Oracle prediction on {}.'.format(current_timestamp))
+        logger.info('Crocubot Oracle prediction on {}.'.format(current_timestamp))
 
         self.verify_pricing_data(data)
         latest_train_file = self._train_file_manager.latest_train_filename(current_timestamp)
         predict_x, symbols, prediction_timestamp, target_timestamp = self._data_transformation.create_predict_data(data)
 
-        logging.info('Predicting mean values.')
+        logger.info('Predicting mean values.')
         start_time = timer()
         predict_x = self._preprocess_inputs(predict_x)
 
@@ -288,7 +288,7 @@ class CrocubotOracle(AbstractOracle):
 
         end_time = timer()
         eval_time = end_time - start_time
-        logging.info("Network evaluation took: {} seconds".format(eval_time))
+        logger.info("Network evaluation took: {} seconds".format(eval_time))
 
         if self.network == 'crocubot':
             if self._tensorflow_flags.predict_single_shares:  # Return batch axis to series position
@@ -299,20 +299,20 @@ class CrocubotOracle(AbstractOracle):
 
         means, forecast_covariance = self._data_transformation.inverse_transform_multi_predict_y(predict_y, symbols)
         if not np.isfinite(forecast_covariance).all():
-            logging.warning('Forecast covariance contains non-finite values.')
+            logger.warning('Forecast covariance contains non-finite values.')
 
-        logging.info('Samples from predicted means: {}'.format(means[0:10]))
+        logger.info('Samples from predicted means: {}'.format(means[0:10]))
         if not np.isfinite(means).all():
-            logging.warning('Means found to contain non-finite values.')
+            logger.warning('Means found to contain non-finite values.')
 
         means_pd = pd.Series(np.squeeze(means), index=symbols)
 
         if self.use_historical_covariance:
             covariance_matrix = self.calculate_historical_covariance(data, symbols)
-            logging.info('Samples from historical covariance: {}'.format(np.diag(covariance_matrix)[0:5]))
+            logger.info('Samples from historical covariance: {}'.format(np.diag(covariance_matrix)[0:5]))
         else:
             covariance_matrix = forecast_covariance
-            logging.info("Samples from forecast_covariance: {}".format(np.diag(covariance_matrix)[0:5]))
+            logger.info("Samples from forecast_covariance: {}".format(np.diag(covariance_matrix)[0:5]))
 
         covariance_pd = pd.DataFrame(data=covariance_matrix, columns=symbols, index=symbols)
 
@@ -363,12 +363,12 @@ class CrocubotOracle(AbstractOracle):
         mean = np.mean(finite_data)
         sigma = np.std(finite_data)
 
-        logging.info("{} Infs, Nans: {}, {}".format(data_name, infs, nans))
-        logging.info("{} Min, Max: {}, {}".format(data_name, min_data, max_data))
-        logging.info("{} Mean, Sigma: {}, {}".format(data_name, mean, sigma))
+        logger.info("{} Infs, Nans: {}, {}".format(data_name, infs, nans))
+        logger.info("{} Min, Max: {}, {}".format(data_name, min_data, max_data))
+        logger.info("{} Mean, Sigma: {}, {}".format(data_name, mean, sigma))
 
         if data_name == 'X_data' and np.abs(mean) > 1e-2:
-            logging.warning('Mean of input data is too large')
+            logger.warning('Mean of input data is too large')
 
         if data_name == 'Y_data' and max_data < 1e-2:
             raise ValueError("Y Data not classified")
@@ -381,7 +381,7 @@ class CrocubotOracle(AbstractOracle):
         close = predict_data['close'].values
         min_price, max_price = self.print_verification_report(close, 'Close')
         if min_price < 1e-3:
-            logging.warning("Found an unusually small price: {}".format(min_price))
+            logger.warning("Found an unusually small price: {}".format(min_price))
 
     def verify_y_data(self, y_data):
         testy = deepcopy(y_data)
@@ -397,8 +397,8 @@ class CrocubotOracle(AbstractOracle):
             n_clipped_elements = np.sum(CLIP_VALUE < np.abs(testx))
             n_elements = len(testx)
             x_data = np.clip(x_data, a_min=-CLIP_VALUE, a_max=CLIP_VALUE)
-            logging.warning("Large inputs detected: clip values exceeding {}".format(CLIP_VALUE))
-            logging.info("{} of {} elements were clipped.".format(n_clipped_elements, n_elements))
+            logger.warning("Large inputs detected: clip values exceeding {}".format(CLIP_VALUE))
+            logger.info("{} of {} elements were clipped.".format(n_clipped_elements, n_elements))
 
         return x_data
 
@@ -417,12 +417,12 @@ class CrocubotOracle(AbstractOracle):
         )
         end_time = timer()
         cov_time = end_time - start_time
-        logging.info("Historical covariance estimation took:{}".format(cov_time))
-        logging.info("Cov shape:{}".format(cov.shape))
+        logger.info("Historical covariance estimation took:{}".format(cov_time))
+        logger.info("Cov shape:{}".format(cov.shape))
         if not np.isfinite(cov).all():
-            logging.warning('Covariance matrix computation failed. Contains non-finite values.')
-            logging.warning('Problematic data: {}'.format(predict_data))
-            logging.warning('Derived covariance: {}'.format(cov))
+            logger.warning('Covariance matrix computation failed. Contains non-finite values.')
+            logger.warning('Problematic data: {}'.format(predict_data))
+            logger.warning('Derived covariance: {}'.format(cov))
 
         return pd.DataFrame(data=cov, columns=symbols, index=symbols)
 
@@ -442,7 +442,7 @@ class CrocubotOracle(AbstractOracle):
         numpy_arrays = []
         for key, value in train_x_dict.items():
             numpy_arrays.append(value)
-            logging.info("Appending feature of shape {}".format(value.shape))
+            logger.info("Appending feature of shape {}".format(value.shape))
 
         # Currently train_x will have dimensions [features; samples; timesteps; symbols]
         train_x = np.stack(numpy_arrays, axis=0)
@@ -453,7 +453,7 @@ class CrocubotOracle(AbstractOracle):
             train_x = self.expand_input_data(train_x)
 
         if self.network == 'dropout':
-            logging.info("Reshaping and padding")
+            logger.info("Reshaping and padding")
             n_samples = train_x.shape[0]
 
             train_x = np.reshape(train_x, [n_samples, 1, -1, 1])
@@ -524,8 +524,8 @@ class CrocubotOracle(AbstractOracle):
         n_timesteps = train_x.shape[2]
         n_features = train_x.shape[3]
         n_expanded_samples = n_samples * n_series
-        logging.info("Data found to hold {} samples, {} series, {} timesteps, {} features.".format(
-                n_samples, n_series, n_timesteps, n_features))
+        logger.info("Data found to hold {} samples, {} series, {} timesteps, {} features.".format(
+            n_samples, n_series, n_timesteps, n_features))
 
         target_shape = [n_expanded_samples, self._n_input_series, n_timesteps, n_features]
         found_duplicates = False
@@ -550,7 +550,7 @@ class CrocubotOracle(AbstractOracle):
                         corr_train_x[sample_number, :, i] = train_x[sample, :, corr_series_index]
 
         if found_duplicates:
-            logging.warning('Some NaNs or duplicate series were found in the data')
+            logger.warning('Some NaNs or duplicate series were found in the data')
 
         return corr_train_x
 
