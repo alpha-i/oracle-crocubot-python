@@ -3,6 +3,8 @@ import os
 import argparse
 import shutil
 
+TRAIN_FILE_START_DATE = '19000101000000_'
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TRAIN_FILE_TEMPLATE = '*_train_crocubot*'
 
@@ -18,7 +20,7 @@ if __name__ == '__main__':
     for single_file in glob.glob1(args.train_file_dir, TRAIN_FILE_TEMPLATE):
         file_parts = single_file.split('_')
         source_destination_file_list.append(
-            (single_file, '19990101000000_' + "_".join(file_parts[1:]))
+            (single_file, TRAIN_FILE_START_DATE + "_".join(file_parts[1:]))
         )
 
     if len(source_destination_file_list):
