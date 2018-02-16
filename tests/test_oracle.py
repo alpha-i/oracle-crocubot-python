@@ -10,7 +10,7 @@ from alphai_crocubot_oracle.oracle import TRAIN_FILE_NAME_TEMPLATE
 from tests.helpers import (
     default_oracle_config,
     FIXTURE_DESTINATION_DIR,
-    FIXTURE_DATA_FULLPATH,
+    FIXTURE_DATA_DESTINATION_FILE,
     create_fixtures,
     destroy_fixtures,
     read_hdf5_into_dict_of_data_frames,
@@ -37,7 +37,7 @@ class TestCrocubot(TestCase):
         data = read_hdf5_into_dict_of_data_frames(start_date,
                                                   end_date,
                                                   symbols,
-                                                  FIXTURE_DATA_FULLPATH,
+                                                  FIXTURE_DATA_DESTINATION_FILE,
                                                   exchange_name,
                                                   fill_limit,
                                                   resample_rule
