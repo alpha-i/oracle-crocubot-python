@@ -1,3 +1,4 @@
+import glob
 import os
 import shutil
 import tempfile
@@ -13,22 +14,33 @@ from tests.hdf5_reader import read_feature_data_dict_from_hdf5
 DATA_FILENAME = 'sample_hdf5.h5'
 
 FIXTURES_SOURCE_DIR = os.path.join(os.path.dirname(__file__), 'resources')
-FIXTURE_DESTINATION_DIR = tempfile.TemporaryDirectory().name
+FIXTURES_TRAIN_SOURCE_DIR = os.path.join(FIXTURES_SOURCE_DIR, 'train')
 
-FIXTURE_DATA_FULLPATH = os.path.join(FIXTURE_DESTINATION_DIR, DATA_FILENAME)
+FIXTURE_DESTINATION_DIR = tempfile.TemporaryDirectory().name
+FIXTURE_DATA_DESTINATION_DIR = os.path.join(FIXTURE_DESTINATION_DIR, 'data')
+FIXTURE_DATA_DESTINATION_FILE = os.path.join(FIXTURE_DATA_DESTINATION_DIR, DATA_FILENAME)
+
+FIXTURE_TRAIN_DESTINATION_DIR = os.path.join(FIXTURE_DESTINATION_DIR, 'train')
 
 
 def create_fixtures():
 
     if not os.path.exists(FIXTURE_DESTINATION_DIR):
         os.makedirs(FIXTURE_DESTINATION_DIR)
+        os.makedirs(FIXTURE_DATA_DESTINATION_DIR)
+        os.makedirs(FIXTURE_TRAIN_DESTINATION_DIR)
 
     shutil.copy(
         os.path.join(FIXTURES_SOURCE_DIR, DATA_FILENAME),
-        FIXTURE_DESTINATION_DIR
+        FIXTURE_DATA_DESTINATION_FILE
     )
 
-    os.chmod(FIXTURE_DATA_FULLPATH, 0o777)
+    for filename in glob.glob(os.path.join(FIXTURES_TRAIN_SOURCE_DIR, '*')):
+        shutil.copy(filename, FIXTURE_TRAIN_DESTINATION_DIR)
+
+    os.chmod(FIXTURE_DESTINATION_DIR, 0o777)
+    os.chmod(FIXTURE_DATA_DESTINATION_FILE, 0o777)
+    os.chmod(FIXTURE_TRAIN_DESTINATION_DIR, 0o777)
 
 
 def destroy_fixtures():

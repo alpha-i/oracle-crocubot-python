@@ -1,5 +1,5 @@
 from unittest import TestCase
-from tests.helpers import (create_fixtures, destroy_fixtures, read_hdf5_into_dict_of_data_frames, FIXTURE_DATA_FULLPATH)
+from tests.helpers import (create_fixtures, destroy_fixtures, read_hdf5_into_dict_of_data_frames, FIXTURE_DATA_DESTINATION_FILE)
 import pandas as pd
 from alphai_crocubot_oracle.covariance import estimate_covariance, DEFAULT_NUM_REALISATIONS_MULTIPLICATION_FACTOR, \
     returns_minutes_after_market_open_data_frame
@@ -26,7 +26,8 @@ class TestCrocubot(TestCase):
 
         historical_universes = pd.DataFrame(columns=['start_date', 'end_date', 'assets'])
         historical_universes.loc[0] = [pd.Timestamp(start_date), pd.Timestamp(end_date), symbols]
-        data = read_hdf5_into_dict_of_data_frames(start_date, end_date, symbols, FIXTURE_DATA_FULLPATH, exchange_name,
+        data = read_hdf5_into_dict_of_data_frames(start_date, end_date, symbols, FIXTURE_DATA_DESTINATION_FILE,
+                                                  exchange_name,
                                                   fill_limit, resample_rule)
         return historical_universes, data
 
