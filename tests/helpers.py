@@ -14,6 +14,7 @@ from tests.hdf5_reader import read_feature_data_dict_from_hdf5
 DATA_FILENAME = 'sample_hdf5.h5'
 
 FIXTURES_SOURCE_DIR = os.path.join(os.path.dirname(__file__), 'resources')
+FIXTURES_DATA_SOURCE_DIR = os.path.join(FIXTURES_SOURCE_DIR, 'data')
 FIXTURES_TRAIN_SOURCE_DIR = os.path.join(FIXTURES_SOURCE_DIR, 'train')
 
 FIXTURE_DESTINATION_DIR = tempfile.TemporaryDirectory().name
@@ -25,13 +26,12 @@ FIXTURE_TRAIN_DESTINATION_DIR = os.path.join(FIXTURE_DESTINATION_DIR, 'train')
 
 def create_fixtures():
 
-    if not os.path.exists(FIXTURE_DESTINATION_DIR):
-        os.makedirs(FIXTURE_DESTINATION_DIR)
-        os.makedirs(FIXTURE_DATA_DESTINATION_DIR)
-        os.makedirs(FIXTURE_TRAIN_DESTINATION_DIR)
+    for dest_dir in [FIXTURE_DESTINATION_DIR, FIXTURE_DATA_DESTINATION_DIR, FIXTURE_TRAIN_DESTINATION_DIR]:
+        if not os.path.exists(dest_dir):
+            os.makedirs(dest_dir)
 
     shutil.copy(
-        os.path.join(FIXTURES_SOURCE_DIR, DATA_FILENAME),
+        os.path.join(FIXTURES_DATA_SOURCE_DIR, DATA_FILENAME),
         FIXTURE_DATA_DESTINATION_FILE
     )
 

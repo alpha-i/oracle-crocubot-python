@@ -59,7 +59,7 @@ class TrainFileManager:
         latest_calibration = None
         for calibration_file_name in sorted(calibration_files):
             calibration_timestamp = int(calibration_file_name[:self.TIMESTAMP_CHARS_NUMBER])
-            if execution_timestamp >= calibration_timestamp:
+            if execution_timestamp > calibration_timestamp:
                 latest_calibration = calibration_file_name.split('.')[0]
             else:
                 break
