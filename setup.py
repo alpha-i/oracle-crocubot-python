@@ -16,7 +16,7 @@ setup(
         'alphai_covariance==0.1.4',
         'alphai-data-sources>=1.0.1',
         'alphai_feature_generation>=1.2.0,<2.0.0',
-        'tensorflow>=1.4.0',
+        'tensorflow>=1.4.0,<1.5.0',
         'numpy>=1.12.0',
         'pandas==0.18.1',
         'pandas-market-calendars>=0.12',
