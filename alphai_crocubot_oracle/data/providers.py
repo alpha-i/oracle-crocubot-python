@@ -6,8 +6,6 @@ import numpy as np
 from alphai_data_sources.data_sources import DataSourceGenerator
 from alphai_data_sources.generator import BatchGenerator, BatchOptions
 
-from alphai_feature_generation.classifier import classify_labels
-
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 TrainData = namedtuple('TrainData', 'features labels')
@@ -123,11 +121,11 @@ class TrainDataProvider(AbstractTrainDataProvider):
 
 class TrainDataProviderForDataSource(AbstractTrainDataProvider):
 
-    def __init__(self, series_name, dtype, n_train_samples, batch_size, for_training,  bin_edges=None):
+    def __init__(self, series_name, dtype, n_train_samples, batch_size, for_training,  bin_distribution=None):
         self._batch_size = batch_size
         self._batch_generator = BatchGenerator()
         self._n_train_samples = n_train_samples
-        self._bin_edges = bin_edges
+        self._bin_distribution = bin_distribution
         self._dtype = dtype
         self._for_training = for_training
         self._noise_data = None
@@ -140,8 +138,8 @@ class TrainDataProviderForDataSource(AbstractTrainDataProvider):
 
         features, labels = self._batch_generator.get_batch(batch_options, self._data_source)
 
-        if self._bin_edges is not None:
-            labels = classify_labels(self._bin_edges, labels)
+        if self._bin_distribution and self._bin_distribution.bin_edges is not None:
+            labels = self._bin_distribution.classify_labels(labels)
 
         features = np.swapaxes(features, axis1=1, axis2=2)
         labels = np.swapaxes(labels, axis1=1, axis2=2)
@@ -149,7 +147,7 @@ class TrainDataProviderForDataSource(AbstractTrainDataProvider):
         # Kernel dimension, now that crocubot is 4D
         features = np.expand_dims(features, axis=-1)
 
-        if self._bin_edges is None:
+        if self._bin_distribution and self._bin_distribution.bin_edges is None:
             labels = np.expand_dims(labels, axis=-1)
             labels = np.swapaxes(labels, axis1=1, axis2=-1)
 

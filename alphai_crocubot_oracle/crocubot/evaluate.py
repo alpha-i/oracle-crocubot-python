@@ -9,7 +9,6 @@ import tensorflow as tf
 # FIXME once time_series is updated, uncomment the below and delete the copy in this file
 # from alphai_time_series.calculator import make_diagonal_covariance_matrices
 
-from alphai_feature_generation.classifier import declassify_labels
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel, Estimator
 from alphai_crocubot_oracle.crocubot.train import log_network_confidence
 
@@ -93,7 +92,7 @@ def forecast_means_and_variance(outputs, bin_distribution, tf_flags):
     for i in range(n_samples):
         for j in range(n_series):
             bin_passes = outputs[:, i, j, :]
-            temp_mean, temp_variance = declassify_labels(bin_distribution, bin_passes)
+            temp_mean, temp_variance = bin_distribution.declassify_labels(bin_passes)
             mean[i, j] = temp_mean
             variance[i, j] = temp_variance
 
