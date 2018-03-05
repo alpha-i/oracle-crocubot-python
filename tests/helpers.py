@@ -81,6 +81,10 @@ def default_oracle_config():
                     'local': False
                 },
             ],
+            'target_delta': {
+                'unit': 'days',
+                'value': 1
+            },
             'exchange_name': 'NYSE',
             'features_ndays': 10,
             'features_resample_minutes': 15,

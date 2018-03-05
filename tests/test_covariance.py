@@ -47,7 +47,10 @@ class TestCrocubot(TestCase):
             'features_start_market_minute': 60,
             'prediction_frequency_ndays': 1,
             'prediction_market_minute': 60,
-            'target_delta_ndays': 1,
+            'target_delta': {
+                'unit': 'days',
+                'value': 1
+            },
             'target_market_minute': 60,
             'n_classification_bins': 12,
             'nassets': 3,
@@ -61,7 +64,7 @@ class TestCrocubot(TestCase):
         estimation_method = "Ledoit"
         exchange_calendar = data_transformation.exchange_calendar
         ndays = data_transformation.features_ndays  # FIXME this is the only value that works now.
-        forecast_interval = data_transformation.target_delta_ndays
+        forecast_interval = data_transformation.target_delta.days
         target_market_minute = data_transformation.target_market_minute
         covariance_matrix = estimate_covariance(data, ndays, target_market_minute, estimation_method, exchange_calendar,
                                                 forecast_interval)
