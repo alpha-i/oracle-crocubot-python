@@ -5,6 +5,8 @@ import tensorflow as tf
 
 import alphai_crocubot_oracle.tensormaths as tm
 
+DEFAULT_N_FEATURES = 1
+
 ACTIVATION_FN_LINEAR = "linear"
 ACTIVATION_FN_SELU = "selu"
 ACTIVATION_FN_RELU = "relu"
@@ -40,7 +42,8 @@ class Topology(object):
 
     def __init__(self, n_series=DEFAULT_N_SERIES, n_timesteps=DEFAULT_TIMESTEPS,
                  n_forecasts=DEFAULT_N_FORECASTS, n_classification_bins=DEFAULT_BINS, layer_heights=None,
-                 layer_widths=None, layer_depths=None, activation_functions=None, layer_types=None, n_features=1,
+                 layer_widths=None, layer_depths=None, activation_functions=None, layer_types=None,
+                 n_features=DEFAULT_N_FEATURES,
                  conv_config=None):
         """
         Following info is required to construct a topology object
@@ -93,7 +96,6 @@ class Topology(object):
         self.n_series = n_series
         self.n_layers = len(layers) - 1  # n layers of neurons are connected by n-1 sets of weights
         self.n_timesteps = n_timesteps
-        self.n_features = n_features
         self.n_forecasts = n_forecasts
         self.n_classification_bins = n_classification_bins
         self.n_parameters = self._calculate_number_of_parameters(layers)
