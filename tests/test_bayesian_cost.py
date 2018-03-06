@@ -31,13 +31,7 @@ class TestBayesianCost(tf.test.TestCase):
 
         flags = get_default_flags()
 
-        layer_number = [
-            {"activation_func": "relu", "trainable": False, "height": 20, "width": 10, "cell_height": 1},
-            {"activation_func": "relu", "trainable": False, "height": 20, "width": 10, "cell_height": 1},
-            {"activation_func": "linear", "trainable": False, "height": 20, "width": 10, "cell_height": 1}
-        ]
-        topology = Topology(layer_number)
-
+        topology = Topology()
         self.model = CrocuBotModel(topology, flags, is_training=True)
 
         # case1 no error thrown
