@@ -94,6 +94,7 @@ class Topology(object):
         self._verify_layers(layers)
         self.layers = layers
         self.n_series = n_series
+        self.n_features = n_features
         self.n_layers = len(layers) - 1  # n layers of neurons are connected by n-1 sets of weights
         self.n_timesteps = n_timesteps
         self.n_forecasts = n_forecasts
