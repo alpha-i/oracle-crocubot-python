@@ -142,7 +142,6 @@ class CrocubotOracle(AbstractOracle):
 
         data_transformation_config["prediction_market_minute"] = self.scheduling.prediction_frequency.minutes_offset
         data_transformation_config["features_start_market_minute"] = self.scheduling.training_frequency.minutes_offset
-        data_transformation_config["target_delta_ndays"] = int(self.scheduling.prediction_horizon.days)
         data_transformation_config["target_market_minute"] = self.scheduling.prediction_frequency.minutes_offset
 
         self._target_feature = self._extract_target_feature(self._feature_list)
