@@ -130,8 +130,11 @@ oracle_configuration = OracleConfiguration(oracle_full_config)
 
 oracle = CrocubotOracle(oracle_configuration)
 
-scheduler = Scheduler(simulation_start, simulation_end, exchange, oracle.prediction_frequency,
-                      oracle.training_frequency, oracle.prediction_horizon)
+scheduler = Scheduler(simulation_start, simulation_end,
+                      exchange,
+                      oracle.prediction_frequency,
+                      oracle.training_frequency,
+                      oracle.prediction_horizon)
 
 controller_configuration = ControllerConfiguration({
     'start_date': simulation_start.strftime('%Y-%m-%d'),

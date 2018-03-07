@@ -136,17 +136,14 @@ class CrocubotOracle(AbstractOracle):
 
     def _init_data_transformation(self):
         data_transformation_config = self.config['data_transformation']
-
-        self._feature_list = data_transformation_config['feature_config_list']
-        self._n_features = len(self._feature_list)
-
         data_transformation_config["prediction_market_minute"] = self.scheduling.prediction_frequency.minutes_offset
         data_transformation_config["features_start_market_minute"] = self.scheduling.training_frequency.minutes_offset
         data_transformation_config["target_market_minute"] = self.scheduling.prediction_frequency.minutes_offset
 
-        self._target_feature = self._extract_target_feature(self._feature_list)
-
         self._data_transformation = FinancialDataTransformation(data_transformation_config)
+
+        self._target_feature = self._data_transformation.get_target_feature()
+        self._n_features = len(self._data_transformation.features)
 
     def train(self, data, execution_time):
         """
@@ -590,13 +587,6 @@ class CrocubotOracle(AbstractOracle):
             n_features=self._n_features,
             conv_config=conv_config
         )
-
-    def _extract_target_feature(self, feature_list):
-        for feature in feature_list:
-            if feature['is_target']:
-                return feature['name']
-
-        raise ValueError("You must specify at least one target feature")
 
     def _filter_features_from_data(self, data):
 
