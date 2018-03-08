@@ -16,7 +16,7 @@ from alphai_feature_generation.transformation import FinancialDataTransformation
 from alphai_feature_generation.universe import VolumeUniverseProvider
 
 from alphai_time_series.transform import gaussianise
-from alphai_delphi.oracle import AbstractOracle, PredictionResult
+from alphai_delphi.oracle.abstract_oracle import AbstractOracle, PredictionResult
 
 from alphai_crocubot_oracle.crocubot.helpers import TensorflowPath, TensorboardOptions
 from alphai_crocubot_oracle.data.providers import TrainDataProvider
@@ -46,6 +46,36 @@ ACCEPTED_FEATURES = ['open', 'high', 'low', 'close', 'volume']
 
 
 class CrocubotOracle(AbstractOracle):
+
+    def __init__(self,  calendar_name, scheduling_configuration, oracle_configuration):
+
+        super().__init__(calendar_name, scheduling_configuration, oracle_configuration)
+        logging.info('Initialising Crocubot Oracle.')
+
+        self._init_data_transformation()
+        self._init_universe_provider()
+
+        self._model_configuration = self.config['model']
+        self.network = self._model_configuration.get('network', DEFAULT_NETWORK)
+        self._covariance_ndays = self._model_configuration['covariance_ndays']
+        self._covariance_method = self._model_configuration['covariance_method']
+        self.use_historical_covariance = self._model_configuration.get('use_historical_covariance', False)
+        self._est_cov = None
+
+        self._train_path = self._model_configuration['train_path']
+        self._init_train_file_manager()
+
+        self._tensorflow_flags = build_tensorflow_flags(self._model_configuration)  # Perhaps use separate config dict here?
+
+        if self._tensorflow_flags.predict_single_shares:
+            n_correlated_series = self._model_configuration.get('n_correlated_series', DEFAULT_N_CORRELATED_SERIES)
+            self._n_input_series = int(np.minimum(n_correlated_series, self._model_configuration['n_series']))
+            self._n_forecasts = 1
+        else:
+            self._n_input_series = self._model_configuration['n_series']
+            self._n_forecasts = self._model_configuration['n_forecasts']
+
+        self._topology = None
 
     def _sanity_check(self):
         assert self.scheduling.prediction_delta.days >= self.config['universe']['ndays_window']
@@ -82,45 +112,6 @@ class CrocubotOracle(AbstractOracle):
     def load(self):
         pass
 
-    def __init__(self, config):
-        """
-        :param configuration: Dictionary containing all the parameters. Full specifications can be found at:
-        oracle-crocubot-python/docs/crocubot_options.md
-        """
-        super().__init__(config)
-        logging.info('Initialising Crocubot Oracle.')
-
-        self.config = self.update_configuration(self.config)
-        self.network = self.config.get('network', DEFAULT_NETWORK)
-        self._init_data_transformation()
-        self._init_universe_provider()
-
-        self._train_path = self.config['train_path']
-        self._covariance_method = self.config['covariance_method']
-
-        self._covariance_ndays = self.config['covariance_ndays']
-
-        self.use_historical_covariance = self.config.get('use_historical_covariance', False)
-
-        n_correlated_series = self.config.get('n_correlated_series', DEFAULT_N_CORRELATED_SERIES)
-
-        self._configuration = self.config
-
-        self._init_train_file_manager()
-
-        self._est_cov = None
-
-        self._tensorflow_flags = build_tensorflow_flags(self.config)  # Perhaps use separate config dict here?
-
-        if self._tensorflow_flags.predict_single_shares:
-            self._n_input_series = int(np.minimum(n_correlated_series, self.config['n_series']))
-            self._n_forecasts = 1
-        else:
-            self._n_input_series = self.config['n_series']
-            self._n_forecasts = self.config['n_forecasts']
-
-        self._topology = None
-
     def _init_train_file_manager(self):
         self._train_file_manager = TrainFileManager(
             self._train_path,
@@ -130,15 +121,29 @@ class CrocubotOracle(AbstractOracle):
         self._train_file_manager.ensure_path_exists()
 
     def _init_universe_provider(self):
-        universe_config = self.config['universe']
-        universe_config["exchange"] = self._data_transformation.exchange_calendar.name
-        self.universe_provider = VolumeUniverseProvider(universe_config)
+
+        self.universe_provider = VolumeUniverseProvider(
+            n_assets=self.config['universe']['n_assets'],
+            ndays_window=self.config['universe']['ndays_window'],
+            update_frequency=self.config['universe']['update_frequency'],
+            calendar_name=self._data_transformation.exchange_calendar.name,
+            dropna=self.config['universe']['dropna']
+        )
 
     def _init_data_transformation(self):
         data_transformation_config = self.config['data_transformation']
-        data_transformation_config["prediction_market_minute"] = self.scheduling.prediction_frequency.minutes_offset
+
+        data_transformation_config[FinancialDataTransformation.KEY_EXCHANGE] = self.calendar_name
+
         data_transformation_config["features_start_market_minute"] = self.scheduling.training_frequency.minutes_offset
+        data_transformation_config["prediction_market_minute"] = self.scheduling.prediction_frequency.minutes_offset
+        data_transformation_config["target_delta"] = self.prediction_horizon
         data_transformation_config["target_market_minute"] = self.scheduling.prediction_frequency.minutes_offset
+
+        data_transformation_config["n_classification_bins"] = self.config.model["n_classification_bins"]
+        data_transformation_config["classify_per_series"] = self.config.model["classify_per_series"]
+        data_transformation_config["normalise_per_series"] = self.config.model["normalise_per_series"]
+        data_transformation_config["n_assets"] = self.config.model["n_assets"]
 
         self._data_transformation = FinancialDataTransformation(data_transformation_config)
 
@@ -158,9 +163,6 @@ class CrocubotOracle(AbstractOracle):
             execution_time,
         ))
 
-        # FIXME These lines were agressively cutting the data. Batches drop drastically to < 10
-        # data = self._filter_features_from_data(data)
-        # data = self._preprocess_raw_data(data)
         universe = self.get_universe(data)
 
         self.verify_pricing_data(data)
@@ -425,16 +427,6 @@ class CrocubotOracle(AbstractOracle):
 
         return pd.DataFrame(data=cov, columns=symbols, index=symbols)
 
-    def update_configuration(self, config):
-        """ Pass on some config entries to data_transformation"""
-
-        config["data_transformation"]["n_classification_bins"] = config["n_classification_bins"]
-        config["data_transformation"]["nassets"] = config["nassets"]
-        config["data_transformation"]["classify_per_series"] = config["classify_per_series"]
-        config["data_transformation"]["normalise_per_series"] = config["normalise_per_series"]
-
-        return config
-
     def _preprocess_inputs(self, train_x_dict):
         """ Prepare training data to be fed into crocubot. """
 
@@ -556,11 +548,11 @@ class CrocubotOracle(AbstractOracle):
     def initialise_topology(self, n_timesteps):
         """ Set up the network topology based upon the configuration file, and shape of input data. """
 
-        layer_heights = self._configuration['layer_heights']
-        layer_widths = self._configuration['layer_widths']
+        layer_heights = self._model_configuration['layer_heights']
+        layer_widths = self._model_configuration['layer_widths']
         layer_depths = np.ones(len(layer_heights), dtype=np.int)
         default_layer_types = ['full'] * len(layer_heights)
-        layer_types = self._configuration.get('layer_types', default_layer_types)
+        layer_types = self._model_configuration.get('layer_types', default_layer_types)
 
         # Override input layer to match data
         layer_depths[0] = int(self._n_input_series)
@@ -569,21 +561,21 @@ class CrocubotOracle(AbstractOracle):
 
         # Setup convolutional layer configuration
         conv_config = {}
-        conv_config["kernel_size"] = self._configuration.get('kernel_size', DEFAULT_CONV_KERNEL_SIZE)
-        conv_config["n_kernels"] = self._configuration.get('n_kernels', DEFAULT_N_CONV_FILTERS)
-        conv_config["dilation_rates"] = self._configuration.get('dilation_rates', 1)
-        conv_config["strides"] = self._configuration.get('strides', 1)
+        conv_config["kernel_size"] = self._model_configuration.get('kernel_size', DEFAULT_CONV_KERNEL_SIZE)
+        conv_config["n_kernels"] = self._model_configuration.get('n_kernels', DEFAULT_N_CONV_FILTERS)
+        conv_config["dilation_rates"] = self._model_configuration.get('dilation_rates', 1)
+        conv_config["strides"] = self._model_configuration.get('strides', 1)
 
         self._topology = tp.Topology(
             n_series=self._n_input_series,
             n_timesteps=n_timesteps,
             n_forecasts=self._n_forecasts,
-            n_classification_bins=self._configuration['n_classification_bins'],
+            n_classification_bins=self._model_configuration['n_classification_bins'],
             layer_heights=layer_heights,
             layer_widths=layer_widths,
             layer_depths=layer_depths,
             layer_types=layer_types,
-            activation_functions=self._configuration['activation_functions'],
+            activation_functions=self._model_configuration['activation_functions'],
             n_features=self._n_features,
             conv_config=conv_config
         )

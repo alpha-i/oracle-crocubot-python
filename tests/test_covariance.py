@@ -1,3 +1,4 @@
+from datetime import timedelta
 from unittest import TestCase
 from tests.helpers import (create_fixtures, destroy_fixtures, read_hdf5_into_dict_of_data_frames, FIXTURE_DATA_FULLPATH)
 import pandas as pd
@@ -41,19 +42,16 @@ class TestCrocubot(TestCase):
                     'local': False,
                 },
             ],
-            'exchange_name': 'NYSE',
+            'calendar_name': 'NYSE',
             'features_ndays': 9,
             'features_resample_minutes': 15,
             'features_start_market_minute': 60,
             'prediction_frequency_ndays': 1,
             'prediction_market_minute': 60,
-            'target_delta': {
-                'unit': 'days',
-                'value': 1
-            },
+            'target_delta': timedelta(days=1),
             'target_market_minute': 60,
             'n_classification_bins': 12,
-            'nassets': 3,
+            'n_assets': 3,
             'classify_per_series': False,
             'normalise_per_series': False,
             'fill_limit': 5

@@ -2,8 +2,6 @@ import os
 from datetime import datetime, timedelta
 from unittest import TestCase
 
-from alphai_delphi.oracle.oracle_configuration import OracleConfiguration
-
 from alphai_crocubot_oracle import DATETIME_FORMAT_COMPACT
 from alphai_crocubot_oracle.oracle import TRAIN_FILE_NAME_TEMPLATE
 
@@ -15,7 +13,7 @@ from tests.helpers import (
     destroy_fixtures,
     read_hdf5_into_dict_of_data_frames,
     DummyCrocubotOracle,
-    default_scheduling_config)
+    default_scheduling_config, DEFAULT_CALENDAR_NAME)
 
 
 class TestCrocubot(TestCase):
@@ -48,22 +46,22 @@ class TestCrocubot(TestCase):
         data = self._prepare_data_for_test()
 
         oracle_configuration = default_oracle_config()
-        oracle_configuration['n_correlated_series'] = 1
+        oracle_configuration['model']['n_correlated_series'] = 1
 
-        configuration = OracleConfiguration({
-            'scheduling': default_scheduling_config(),
-            'oracle': oracle_configuration
-        })
+        oracle = DummyCrocubotOracle(
+            DEFAULT_CALENDAR_NAME,
+            oracle_configuration=oracle_configuration,
+            scheduling_configuration=default_scheduling_config()
 
-        model = DummyCrocubotOracle(configuration)
+        )
 
         current_timestamp = datetime(2014, 1, 20, 9) + timedelta(minutes=60)
-        target_timestamp = current_timestamp + model.prediction_horizon
+        target_timestamp = current_timestamp + oracle.prediction_horizon
 
-        model.train(data, current_timestamp)
+        oracle.train(data, current_timestamp)
 
         predict_data = self._prepare_data_for_test()
-        model.predict(predict_data, current_timestamp, target_timestamp)
+        oracle.predict(predict_data, current_timestamp, target_timestamp)
 
     def test_crocubot_train_and_save_file(self):
         train_time = datetime(2014, 1, 20, 9) + timedelta(minutes=60)
@@ -72,12 +70,12 @@ class TestCrocubot(TestCase):
         expected_train_path = os.path.join(FIXTURE_DESTINATION_DIR, train_filename)
 
         data = self._prepare_data_for_test()
-        configuration = OracleConfiguration({
-            'scheduling': default_scheduling_config(),
-            'oracle': default_oracle_config()
-        })
 
-        model = DummyCrocubotOracle(configuration)
+        model = DummyCrocubotOracle(
+            DEFAULT_CALENDAR_NAME,
+            oracle_configuration=default_oracle_config(),
+            scheduling_configuration=default_scheduling_config()
+        )
 
         current_time = datetime(2014, 1, 20, 9) + timedelta(minutes=60)
 
@@ -89,12 +87,12 @@ class TestCrocubot(TestCase):
 
     def test_crocubot_predict_without_train_file(self):
 
-        configuration = OracleConfiguration({
-            'scheduling': default_scheduling_config(),
-            'oracle': default_oracle_config()
-        })
+        model = DummyCrocubotOracle(
+            DEFAULT_CALENDAR_NAME,
+            oracle_configuration=default_oracle_config(),
+            scheduling_configuration=default_scheduling_config()
 
-        model = DummyCrocubotOracle(configuration)
+        )
 
         current_timestamp = datetime(2014, 1, 20, 9) + timedelta(minutes=60)
         target_timestamp = current_timestamp + model.prediction_horizon
