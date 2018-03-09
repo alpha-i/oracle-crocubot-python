@@ -10,7 +10,7 @@ setup(
     author_email='sreekumar.balan@alpha-i.co, christopher.bonnett@alpha-i.co, fergus.simpson@alpha-i.co',
     packages=find_packages(exclude=['doc', 'tests*']),
     install_requires=[
-        'alphai_delphi>=1.0.2,<2.0.0',
+        'alphai_delphi>=2.0.0,<3.0.0',
         'alphai_finance==2.0.0',
         'alphai-time-series>=0.0.4',
         'alphai_covariance==0.1.4',

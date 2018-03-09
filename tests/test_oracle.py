@@ -1,4 +1,5 @@
 import os
+import logging
 from datetime import datetime, timedelta
 from unittest import TestCase
 
@@ -14,6 +15,9 @@ from tests.helpers import (
     read_hdf5_into_dict_of_data_frames,
     DummyCrocubotOracle,
     default_scheduling_config, DEFAULT_CALENDAR_NAME)
+
+
+logging.basicConfig(level=logging.WARNING)
 
 
 class TestCrocubot(TestCase):
