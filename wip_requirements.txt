@@ -2,8 +2,8 @@ absl-py==0.1.11
 alphai-calendars==0.0.1
 alphai-covariance==0.1.4
 alphai-data-sources==1.0.1
--e git+git@github.com:alpha-i/tool-delphi-python.git@301d4cd83012200cdb8f083b69b99cfc1a2cfc67#egg=alphai_delphi
--e git+git@github.com:alpha-i/library-feature-generation.git@542c0e64049db3ea4f19ba2a61b1334dd70a89b4#egg=alphai_feature_generation
+alphai-delphi==1.1.8
+-e git+git@github.com:alpha-i/library-feature-generation.git@d5dfec6f80703036d2ca74e1d9a50c61d82960b3#egg=alphai_feature_generation
 alphai-finance==2.0.0
 alphai-time-series==0.0.4
 apipkg==1.4
@@ -47,6 +47,7 @@ pytest-xdist==1.22.2
 python-dateutil==2.6.1
 pyts==0.5
 pytz==2018.3
+PyYAML==3.12
 scikit-learn==0.19.1
 scipy==1.0.0
 seaborn==0.8.1

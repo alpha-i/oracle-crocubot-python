@@ -78,7 +78,7 @@ class CrocubotOracle(AbstractOracle):
         self._topology = None
 
     def _sanity_check(self):
-        assert self.scheduling.prediction_delta.days >= self.config['universe']['ndays_window']
+        assert self.prediction_delta.days >= self.config['universe']['ndays_window']
 
     def global_transform(self, data):
 
@@ -108,6 +108,10 @@ class CrocubotOracle(AbstractOracle):
     @property
     def target_feature(self):
         return self._target_feature
+
+    @property
+    def target_feature_name(self):
+        return self._target_feature.name
 
     def load(self):
         pass
@@ -413,7 +417,7 @@ class CrocubotOracle(AbstractOracle):
             minutes_after_open=self._data_transformation.target_market_minute,
             estimation_method=self._covariance_method,
             exchange_calendar=self._data_transformation.exchange_calendar,
-            forecast_interval_in_days=self._data_transformation.target_delta_ndays,
+            forecast_interval_in_days=self._data_transformation.target_delta.days,
             target_symbols=symbols
         )
         end_time = timer()

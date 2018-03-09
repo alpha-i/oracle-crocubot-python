@@ -67,8 +67,14 @@ class DummyCrocubotOracle(CrocubotOracle):
 
 def default_oracle_config():
     configuration = {
-        'prediction_delta': 10,
-        'training_delta': 20,
+        'prediction_delta': {
+            'unit': 'days',
+            'value': 10
+        },
+        'training_delta': {
+            'unit': 'days',
+            'value': 20
+        },
         'prediction_horizon': {
             'unit': 'days',
             'value': 1
