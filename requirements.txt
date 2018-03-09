@@ -5,7 +5,7 @@ alphai_finance==2.0.0
 alphai-time-series>=0.0.4
 alphai_covariance==0.1.4
 alphai-data-sources>=1.0.1
-alphai_feature_generation==1.4.0-dev-gym
+-e git+git@github.com:alpha-i/library-feature-generation.git@bf0e0da2846674143fcc6debeab0ccb78e7f30b8#egg=alphai_feature_generation
 tensorflow==1.4.0
 numpy>=1.12.0
 pyyaml
