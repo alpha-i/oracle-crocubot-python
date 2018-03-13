@@ -42,11 +42,11 @@ model:
     tf_type: 32
     random_seed: 0
     predict_single_shares: True
-    n_epochs: 200
+    n_epochs: 10
     n_retrain_epochs: 1
     n_training_samples: 15800
     learning_rate: 0.001
-    batch_size: 200
+    batch_size: 100
     cost_type: bayes
     n_train_passes: 1
     n_eval_passes: 1
