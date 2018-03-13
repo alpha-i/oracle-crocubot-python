@@ -79,7 +79,7 @@ wide_prior_std: 1.0
 narrow_prior_std: 0.001
 spike_slab_weighting: 0.25
 n_training_samples_benchmark: 1000
-nassets : 10
+n_assets : 10
 classify_per_series : False 
 normalise_per_series : True
 use_historical_covariance : True
@@ -123,8 +123,7 @@ oracle_configuration = OracleConfiguration(oracle_full_config)
 
 oracle = CrocubotOracle(oracle_configuration)
 
-scheduler = Scheduler(simulation_start, simulation_end, exchange, oracle.prediction_frequency,
-                      oracle.training_frequency, oracle.prediction_horizon)
+scheduler = Scheduler(simulation_start, simulation_end, exchange, oracle.prediction_frequency, oracle.training_frequency)
 
 controller_configuration = ControllerConfiguration({
     'start_date': simulation_start.strftime('%Y-%m-%d'),

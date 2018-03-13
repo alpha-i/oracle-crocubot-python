@@ -99,3 +99,4 @@ MNIST_data
 src
 
 run/
+.pytest_cache/
