@@ -2,7 +2,7 @@ import os
 import shutil
 import tempfile
 
-import pandas_market_calendars as mcal
+import alphai_calendars as mcal
 
 from alphai_feature_generation.cleaning import (
     convert_to_utc, select_trading_hours, fill_gaps_data_dict, resample_ohlcv)

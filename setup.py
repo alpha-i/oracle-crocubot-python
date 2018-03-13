@@ -15,7 +15,7 @@ setup(
         'alphai-time-series>=0.0.4',
         'alphai_covariance==0.1.4',
         'alphai-data-sources>=1.0.1',
-        'alphai_feature_generation==1.4.0-dev-gym',
+        'alphai_feature_generation>=2.0.0,<3.0.0',
         'tensorflow>=1.4.0',
         'numpy>=1.12.0',
         'pandas==0.18.1',
