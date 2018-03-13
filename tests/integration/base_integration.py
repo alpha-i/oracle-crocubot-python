@@ -13,7 +13,7 @@ ORACLE_CONFIGURATION_YML = """
 prediction_delta:
     unit: 'days'
     value: 100
-training_delta: 
+training_delta:
     unit: 'days'
     value: 200
 prediction_horizon:
@@ -31,7 +31,7 @@ data_transformation:
     features_resample_minutes: 15
     fill_limit: 5
     predict_the_market_close: true
-    
+
 model:
     train_path: {0}
     tensorboard_log_path: {0}
@@ -56,13 +56,13 @@ model:
     n_forecasts: 1
     n_classification_bins: 4
     layer_heights: [10, 10, 10, 10]
-    
+
     layer_widths: [1, 1, 1, 1]
-    
+
     layer_types: [full, full, full, full]
-    
+
     activation_functions: [relu, relu, relu, linear]
-    
+
     INITIAL_ALPHA: 0.05
     INITIAL_WEIGHT_UNCERTAINTY: 0.02
     INITIAL_BIAS_UNCERTAINTY: 0.02

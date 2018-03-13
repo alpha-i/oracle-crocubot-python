@@ -19,6 +19,7 @@ FIXTURE_DATA_FULLPATH = os.path.join(FIXTURE_DESTINATION_DIR, DATA_FILENAME)
 
 DEFAULT_CALENDAR_NAME = 'NYSE'
 
+
 def create_fixtures():
 
     if not os.path.exists(FIXTURE_DESTINATION_DIR):

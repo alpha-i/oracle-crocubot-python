@@ -65,7 +65,7 @@ class CrocubotOracle(AbstractOracle):
         self._train_path = self._model_configuration['train_path']
         self._init_train_file_manager()
 
-        self._tensorflow_flags = build_tensorflow_flags(self._model_configuration)  # Perhaps use separate config dict here?
+        self._tensorflow_flags = build_tensorflow_flags(self._model_configuration)
 
         if self._tensorflow_flags.predict_single_shares:
             n_correlated_series = self._model_configuration.get('n_correlated_series', DEFAULT_N_CORRELATED_SERIES)
@@ -135,21 +135,18 @@ class CrocubotOracle(AbstractOracle):
         )
 
     def _init_data_transformation(self):
-        data_transformation_config = self.config['data_transformation']
+        data_trans_conf = self.config['data_transformation']
+        data_trans_conf[FinancialDataTransformation.KEY_EXCHANGE] = self.calendar_name
+        data_trans_conf["features_start_market_minute"] = self.scheduling['training_frequency']['minutes_offset']
+        data_trans_conf["prediction_market_minute"] = self.scheduling['prediction_frequency']['minutes_offset']
+        data_trans_conf["target_delta"] = self.prediction_horizon
+        data_trans_conf["target_market_minute"] = self.scheduling['prediction_frequency']['minutes_offset']
+        data_trans_conf["n_classification_bins"] = self.config['model']["n_classification_bins"]
+        data_trans_conf["classify_per_series"] = self.config['model']["classify_per_series"]
+        data_trans_conf["normalise_per_series"] = self.config['model']["normalise_per_series"]
+        data_trans_conf["n_assets"] = self.config['model']["n_assets"]
 
-        data_transformation_config[FinancialDataTransformation.KEY_EXCHANGE] = self.calendar_name
-
-        data_transformation_config["features_start_market_minute"] = self.scheduling['training_frequency']['minutes_offset']
-        data_transformation_config["prediction_market_minute"] = self.scheduling['prediction_frequency']['minutes_offset']
-        data_transformation_config["target_delta"] = self.prediction_horizon
-        data_transformation_config["target_market_minute"] = self.scheduling['prediction_frequency']['minutes_offset']
-
-        data_transformation_config["n_classification_bins"] = self.config['model']["n_classification_bins"]
-        data_transformation_config["classify_per_series"] = self.config['model']["classify_per_series"]
-        data_transformation_config["normalise_per_series"] = self.config['model']["normalise_per_series"]
-        data_transformation_config["n_assets"] = self.config['model']["n_assets"]
-
-        self._data_transformation = FinancialDataTransformation(data_transformation_config)
+        self._data_transformation = FinancialDataTransformation(data_trans_conf)
 
         self._target_feature = self._data_transformation.get_target_feature()
         self._n_features = len(self._data_transformation.features)
