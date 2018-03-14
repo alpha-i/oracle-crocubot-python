@@ -5,9 +5,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# C extensions
-*.so
-
 # Distribution / packaging
 .Python
 env/
@@ -96,5 +93,10 @@ ENV/
 .ropeproject
 
 .idea/
+MNIST_data
+*/*.so
 .pytest_cache
 src
+
+run/
+.pytest_cache/

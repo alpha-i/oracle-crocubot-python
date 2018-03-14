@@ -5,8 +5,8 @@ from alphai_crocubot_oracle.topology import (
     DEFAULT_HEIGHT,
     DEFAULT_WIDTH,
     DEFAULT_N_SERIES,
-    DEFAULT_DEPTH
-)
+    DEFAULT_DEPTH,
+    DEFAULT_N_FEATURES)
 
 
 class TestTopology(unittest.TestCase):
@@ -48,12 +48,12 @@ class TestTopology(unittest.TestCase):
     def test_get_cell_shape(self):
 
         cell_shape = self.topology.get_cell_shape(0)
-        assert cell_shape == [1, self.topology.n_features]
+        assert cell_shape == [1, DEFAULT_N_FEATURES]
 
     def test_get_weight_shape(self):
 
         weight_shape = self.topology.get_weight_shape(0)
-        assert weight_shape == [self.topology.n_series, DEFAULT_N_SERIES, self.topology.n_features, DEFAULT_DEPTH,
+        assert weight_shape == [DEFAULT_N_SERIES, DEFAULT_N_SERIES, DEFAULT_N_FEATURES, DEFAULT_DEPTH,
                                 DEFAULT_HEIGHT, DEFAULT_WIDTH]
 
     def test_get_bias_shape(self):

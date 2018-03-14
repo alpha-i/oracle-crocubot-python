@@ -10,7 +10,7 @@ import alphai_crocubot_oracle.crocubot.train as crocubot_train
 from alphai_crocubot_oracle.crocubot.helpers import TensorflowPath, TensorboardOptions
 from alphai_crocubot_oracle.crocubot.model import CrocuBotModel
 from alphai_feature_generation.classifier import BinDistribution
-from alphai_crocubot_oracle.data.providers import TrainDataProviderForDataSource
+from alphai_crocubot_oracle.data.providers import TrainDataProviderForDataSource, TrainDataProvider
 from alphai_crocubot_oracle.helpers import printtime, execute_and_get_duration
 
 import examples.iotools as io
@@ -40,9 +40,8 @@ def run_timed_benchmark_time_series(series_name, tf_flags, do_training=True):
                 n_train_samples,
                 batch_size,
                 True,
-                bin_distribution.bin_edges
+                bin_distribution
             )
-
 
             train_x =  data_provider.get_batch(0)
             raw_train_data = TrainDataProvider(train_x, train_y, tf_flags.batch_size)
