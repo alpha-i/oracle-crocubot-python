@@ -19,7 +19,6 @@ from alphai_time_series.transform import gaussianise
 from alphai_delphi.oracle.abstract_oracle import AbstractOracle, PredictionResult
 
 from alphai_crocubot_oracle.crocubot.helpers import TensorflowPath, TensorboardOptions
-from alphai_crocubot_oracle.data.providers import TrainDataProvider
 
 
 import alphai_crocubot_oracle.crocubot.train as crocubot
