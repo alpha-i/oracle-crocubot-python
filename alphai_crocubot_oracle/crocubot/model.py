@@ -447,7 +447,7 @@ class Estimator:
 
         return activation_function(signal)
 
-    def fully_connected_layer(self, signal, layer_number, iteration):
+    def fully_connected_layer(self, x, layer_number, iteration):
         """ Propoagates signal through a fully connected set of weights
 
         :param signal:
@@ -459,7 +459,11 @@ class Estimator:
         weights = self._model.compute_weights(layer_number, iteration)
         biases = self._model.compute_biases(layer_number, iteration)
 
-        return tf.tensordot(signal, weights, axes=3) + biases
+        x = tf.tensordot(x, weights, axes=3) + biases
+
+        activation_function = self._model.topology.get_activation_function(layer_number)
+
+        return activation_function(x)
 
     def residual_layer(self, signal, input_signal):
         """ TBC: add learnable weight
