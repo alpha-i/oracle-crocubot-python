@@ -1,3 +1,6 @@
+# TODO this tensormath is used to load the activation function inside the Topology.
+# TODO create an activation function provider service
+
 import tensorflow as tf
 import numpy as np
 from alphai_time_series.transform import gaussianise

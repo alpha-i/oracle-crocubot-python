@@ -23,7 +23,6 @@ data_source_generator = DataSourceGenerator()
 batch_generator = BatchGenerator()
 model_metrics = Metrics()
 
-
 FLAGS = tf.app.flags.FLAGS
 TIME_LIMIT = 600
 D_TYPE = 'float32'
@@ -32,18 +31,15 @@ D_TYPE = 'float32'
 def run_timed_benchmark_mnist(series_name, do_training):
 
     topology = load_default_topology(series_name)
-
     batch_options = BatchOptions(batch_size=200,
                                  batch_number=0,
                                  train=do_training,
                                  dtype=D_TYPE)
 
     data_source = data_source_generator.make_data_source(series_name)
-
     _, labels = io.load_batch(batch_options, data_source)
 
     start_time = timer()
-
     execution_time = datetime.datetime.now()
 
     if do_training:
@@ -61,8 +57,10 @@ def run_timed_benchmark_mnist(series_name, do_training):
     eval_time = timer() - mid_time
 
     print('Metrics:')
-    print_MNIST_accuracy(metrics)
+    accuracy = print_MNIST_accuracy(metrics)
     print_time_info(train_time, eval_time)
+
+    return accuracy, metrics
 
 
 def print_time_info(train_time, eval_time):
@@ -131,10 +129,10 @@ def evaluate_network(topology, series_name, bin_dist):  # bin_dist not used in M
     binned_outputs = eval.eval_neural_net(test_features, topology, save_file)
     n_samples = binned_outputs.shape[1]
 
-    if series_name == 'mnist':
+    if series_name in {'mnist', 'mnist_reshaped'}:
         binned_outputs = np.mean(binned_outputs, axis=0)  # Average over passes
-        predicted_indices = np.argmax(binned_outputs, axis=2)
-        true_indices = np.argmax(test_labels, axis=2)
+        predicted_indices = np.argmax(binned_outputs, axis=-1).flatten()
+        true_indices = np.argmax(test_labels, axis=-1).flatten()
 
         print("Example forecasts:", binned_outputs[0:5, 0, :])
         print("Example outcomes", test_labels[0:5, 0, :])
@@ -162,6 +160,7 @@ def evaluate_network(topology, series_name, bin_dist):  # bin_dist not used in M
         metrics["median_probability"] = median_probability
         metrics["mean_p_success"] = np.mean(np.stack(p_success))
         metrics["mean_p_fail"] = np.mean(np.stack(p_fail))
+        metrics["mean_p"] = np.mean(np.stack(forecasts))
         metrics["min_p_fail"] = np.min(np.stack(p_fail))
 
         return metrics
@@ -177,26 +176,64 @@ def load_default_topology(series_name):
     """The input and output layers must adhere to the dimensions of the features and labels.
     """
 
+    layer_types = ['full', 'full', 'full', 'full']
+    layer_heights = None,
+    layer_widths = None,
+    activation_functions = None
+    n_features = 1
+
     if series_name == 'low_noise':
         n_input_series = 1
-        n_features_per_series = 100
+        n_timesteps = 100
         n_classification_bins = 12
         n_output_series = 1
     elif series_name == 'stochastic_walk':
         n_input_series = 10
-        n_features_per_series = 100
+        n_timesteps = 100
         n_classification_bins = 12
         n_output_series = 10
     elif series_name == 'mnist':
+        if FLAGS.use_convolution:
+            layer_types  = ['conv1d', 'full', 'full', 'full']
+            layer_heights = [784, 400, 400, 10]
+            layer_widths = [1, 1, 1, 1]
+            activation_functions = ['linear', 'relu', 'relu', 'relu', 'linear']
+        else:
+            layer_types = ['full', 'full', 'full', 'full']
+            layer_heights = [784, 400, 400, 10]
+            layer_widths = [1, 1, 1, 1]
+            activation_functions = ['linear', 'relu', 'relu', 'linear']
         n_input_series = 1
-        n_features_per_series = 784
+        n_timesteps = 784
+        n_classification_bins = 10
+        n_output_series = 1
+    elif series_name == 'mnist_reshaped':
+        if FLAGS.use_convolution:
+            layer_types = ['conv3d', 'pool2d', 'conv3d', 'pool2d', 'full', 'full', 'full']
+            layer_heights = [28, 28, 28, 400, 400, 400,  10]
+            layer_widths = [28, 28, 28, 1, 1,  1, 1]
+
+            activation_functions = ['linear', 'relu', 'relu', 'relu',  'relu', 'relu', 'linear']
+        else:
+            layer_types = ['full', 'full', 'full', 'full', 'full']
+            layer_heights = [28, 28, 28, 400, 10]
+            layer_widths = [28, 28, 28, 1, 1]
+            activation_functions = ['linear', 'relu', 'relu', 'relu', 'linear']
+        n_input_series = 1
+        n_features = 28
+        n_timesteps = 28
         n_classification_bins = 10
         n_output_series = 1
     else:
         raise NotImplementedError
 
-    return topo.Topology(layers=None, n_series=n_input_series, n_features_per_series=n_features_per_series, n_forecasts=n_output_series,
-                         n_classification_bins=n_classification_bins)
+    topology = topo.Topology(n_series=n_input_series, n_timesteps=n_timesteps,
+                             n_forecasts=n_output_series,
+                             n_classification_bins=n_classification_bins, layer_types=layer_types,
+                             layer_heights=layer_heights, layer_widths=layer_widths,
+                             activation_functions=activation_functions, n_features=n_features)
+
+    return topology
 
 
 def print_MNIST_accuracy(metrics):
@@ -213,6 +250,7 @@ def print_MNIST_accuracy(metrics):
     print('Log Likelihood per sample of ', metrics["log_likelihood_per_sample"])
     print('Theoretical limit for given accuracy ', theoretical_max_log_likelihood_per_sample)
     print('Median probability assigned to true outcome:', metrics["median_probability"])
+    print('Mean probability assigned to forecasts:', metrics["mean_p"])
     print('Mean probability assigned to successful forecast:', metrics["mean_p_success"])
     print('Mean probability assigned to unsuccessful forecast:', metrics["mean_p_fail"])
     print('Min probability assigned to unsuccessful forecast:', metrics["min_p_fail"])
@@ -220,10 +258,10 @@ def print_MNIST_accuracy(metrics):
     return accuracy
 
 
-def run_mnist_test(train_path, tensorboard_log_path, use_full_train_set=True):
+def run_mnist_test(train_path, tensorboard_log_path, method='GDO', use_full_train_set=True, reshape_to_2d=False):
 
     if use_full_train_set:
-        n_training_samples = 50000
+        n_training_samples = 60000
         n_epochs = 10
     else:
         n_training_samples = 500
@@ -231,11 +269,12 @@ def run_mnist_test(train_path, tensorboard_log_path, use_full_train_set=True):
 
     config = load_default_config()
     config["n_epochs"] = n_epochs
-    config["learning_rate"] = 3e-3   # Use high learning rate for testing purposes
+    config["learning_rate"] = 1e-3   # Use high learning rate for testing purposes
     config["cost_type"] = 'bayes'  # 'bayes'; 'softmax'; 'hellinger'
     config['batch_size'] = 200
     config['n_training_samples_benchmark'] = n_training_samples
     config['n_series'] = 1
+    config['optimisation_method'] = method
     config['n_features_per_series'] = 784
     config['resume_training'] = False  # Make sure we start from scratch
     config['activation_functions'] = ['linear', 'selu', 'selu']
@@ -243,8 +282,9 @@ def run_mnist_test(train_path, tensorboard_log_path, use_full_train_set=True):
     config['train_path'] = train_path
     config['model_save_path'] = train_path
     config['n_retrain_epochs'] = 5
-    config['n_train_passes'] = 16
-    config['n_eval_passes'] = 16
+    config['n_train_passes'] = 1
+    config['n_eval_passes'] = 40
+    config['use_convolution'] = False
 
     fl.set_training_flags(config)
     # this flag is only used in benchmark.
@@ -252,7 +292,13 @@ def run_mnist_test(train_path, tensorboard_log_path, use_full_train_set=True):
                                 """Number of samples for benchmarking.""")
     FLAGS._parse_flags()
     print("Epochs to evaluate:", FLAGS.n_epochs)
-    run_timed_benchmark_mnist(series_name="mnist", do_training=True)
+
+    if reshape_to_2d:
+        series_name = "mnist_reshaped"
+    else:
+        series_name = "mnist"
+
+    return run_timed_benchmark_mnist(series_name=series_name, do_training=True)
 
 
 def run_stochastic_test(train_path, tensorboard_log_path):
@@ -273,6 +319,7 @@ def run_stochastic_test(train_path, tensorboard_log_path):
     config['train_path'] = train_path
     config['model_save_path'] = train_path
     config['n_retrain_epochs'] = 5
+    config['use_convolution'] = False
 
     fl.set_training_flags(config)
     # this flag is only used in benchmark.
@@ -334,15 +381,15 @@ def load_default_config():
 
         # Initial conditions
         'INITIAL_ALPHA': 0.8,
-        'INITIAL_WEIGHT_UNCERTAINTY': 0.05,
-        'INITIAL_BIAS_UNCERTAINTY': 0.005,
-        'INITIAL_WEIGHT_DISPLACEMENT': 0.02,
-        'INITIAL_BIAS_DISPLACEMENT': 0.0005,
+        'INITIAL_WEIGHT_UNCERTAINTY': 0.02,
+        'INITIAL_BIAS_UNCERTAINTY': 0.02,
+        'INITIAL_WEIGHT_DISPLACEMENT': 0.1,
+        'INITIAL_BIAS_DISPLACEMENT': 0.1,
         'USE_PERFECT_NOISE': False,
 
         # Priors
-        'double_gaussian_weights_prior': False,
-        'wide_prior_std': 1.0,
+        'double_gaussian_weights_prior': True,
+        'wide_prior_std': 0.8,
         'narrow_prior_std': 0.001,
         'spike_slab_weighting': 0.5
     }
@@ -361,4 +408,4 @@ if __name__ == '__main__':
     tensorboard_log_path = '/tmp/'
 
     # run_stochastic_test(train_path, tensorboard_log_path)
-    run_mnist_test(train_path, tensorboard_log_path,  use_full_train_set=False)
+    run_mnist_test(train_path, tensorboard_log_path,  use_full_train_set=True)

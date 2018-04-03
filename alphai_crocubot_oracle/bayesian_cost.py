@@ -9,6 +9,8 @@ It is used during the train of the model, implemented in the module alphai_crocu
 import tensorflow as tf
 import alphai_crocubot_oracle.tensormaths as tm
 
+N_BATCHES_SUPPRESSED_PRIOR = 1000  # How many batches over which we gradually introduce the prior
+
 
 class BayesianCost(object):
 
@@ -31,32 +33,90 @@ class BayesianCost(object):
         self._spike_std_dvn = tf.cast(spike_std_dvn,  tm.DEFAULT_TF_TYPE)
         self._spike_slab_weighting = tf.cast(spike_slab_weighting,  tm.DEFAULT_TF_TYPE)
 
-    def get_bayesian_cost(self, prediction, truth):
+    def get_bayesian_cost(self, prediction, truth, global_step=None):
+        """
+
+        :param prediction:
+        :param truth:
+        :param global_step: Used to suppress the prior during the early phases of learning
+        :return:
+        """
         log_pw, log_qw = self.calculate_priors()
         log_likelihood = self.calculate_likelihood(truth, prediction)
 
-        return (log_qw - log_pw) * self._epoch_fraction - log_likelihood
+        prior_strength = self.calculate_prior_strength(global_step)
 
-    def calculate_priors(self):
+        return (log_qw - log_pw) * self._epoch_fraction * prior_strength - log_likelihood
+
+    def calculate_prior_strength(self, train_steps):
+
+        if train_steps is None:
+            prior_strength = tf.cast(1.0, tf.float32)
+        else:
+            step_ratio = train_steps / N_BATCHES_SUPPRESSED_PRIOR
+            one = tf.cast(1.0, tf.float32)
+            step = tf.cast(step_ratio, tf.float32)
+            prior_strength = tf.minimum(one, step)
+
+        return prior_strength
+
+    def get_hellinger_cost(self, features, truth, n_passes, estimator):
+        """ Perform similar sum to bayesian cost, but different weighting over different passes. """
+
+        costs = []
+        for i in range(n_passes):
+            prediction = estimator.forward_pass(features, iteration=i)
+            prediction = tf.nn.log_softmax(prediction, dim=-1)
+
+            log_likelihood = self.calculate_likelihood(truth, prediction)
+            log_pw, log_qw = self.calculate_priors(iteration=i)
+
+            single_pass_cost = (log_qw - log_pw) * self._epoch_fraction - log_likelihood
+            costs.append(single_pass_cost)
+
+        stack_of_passes = tf.stack(costs, axis=0)
+        return - tf.reduce_logsumexp(- 0.5 * stack_of_passes, axis=0)
+
+    def calculate_output_prior(self, prediction):
+        """
+
+        :param prediction:
+        :return:
+        """
+        log_py = 0.5 * tf.reduce_sum(prediction + tf.log(1.0 - tf.exp(prediction)))
+
+        return log_py
+
+    def calculate_priors(self, iteration=0):
         log_pw = 0.
         log_qw = 0.
 
         for layer in range(self.topology.n_layers):
-            mu_w = self._model.get_variable(layer, self._model.VAR_WEIGHT_MU)
-            rho_w = self._model.get_variable(layer, self._model.VAR_WEIGHT_RHO)
-            mu_b = self._model.get_variable(layer, self._model.VAR_BIAS_MU)
-            rho_b = self._model.get_variable(layer, self._model.VAR_BIAS_RHO)
+            layer_type = self.topology.layers[layer]["type"]
+            if layer_type == 'full':
+                mu_w = self._model.get_variable(layer, self._model.VAR_WEIGHT_MU)
+                rho_w = self._model.get_variable(layer, self._model.VAR_WEIGHT_RHO)
+                mu_b = self._model.get_variable(layer, self._model.VAR_BIAS_MU)
+                rho_b = self._model.get_variable(layer, self._model.VAR_BIAS_RHO)
 
-            # Only want to consider independent weights, not the full set, so do_tile_weights=False
-            weights = self._model.compute_weights(layer, iteration=0)
-            biases = self._model.compute_biases(layer, iteration=0)
+                if self._model._flags.n_train_passes == 1:  # Exploit common random numbers
+                    weights = self._model.compute_weights(layer, iteration=iteration)
+                    biases = self._model.compute_biases(layer, iteration=iteration)
 
-            log_pw += self.calculate_log_weight_prior(weights, layer)  # not needed if we're using many passes
-            log_pw += self.calculate_log_bias_prior(biases, layer)
-            log_pw += self.calculate_log_hyperprior(layer)
+                    log_qw += self.calculate_log_q_prior(weights, mu_w, rho_w)
+                    log_qw += self.calculate_log_q_prior(biases, mu_b, rho_b)
 
-            log_qw += self.calculate_log_q_prior(weights, mu_w, rho_w)
-            log_qw += self.calculate_log_q_prior(biases, mu_b, rho_b)
+                else:  # Use mean and rho to estimate expectation of weights and biases
+                    mu_w = self._model.get_variable(layer, self._model.VAR_WEIGHT_MU)
+                    mu_b = self._model.get_variable(layer, self._model.VAR_BIAS_MU)
+                    sigma_w = tf.nn.softplus(self._model.get_variable(layer, self._model.VAR_WEIGHT_RHO))
+                    sigma_b = tf.nn.softplus(self._model.get_variable(layer, self._model.VAR_BIAS_RHO))
+                    weights = tf.abs(mu_w) + sigma_w
+                    biases = tf.abs(mu_b) + sigma_b
+
+                log_pw += self.calculate_log_weight_prior(weights, layer)
+                log_pw += self.calculate_log_bias_prior(biases, layer)
+                log_pw += self.calculate_log_hyperprior(layer)
 
         return log_pw, log_qw
 

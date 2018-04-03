@@ -5,24 +5,14 @@ from alphai_crocubot_oracle.topology import (
     DEFAULT_HEIGHT,
     DEFAULT_WIDTH,
     DEFAULT_N_SERIES,
-    DEFAULT_FEAT_PER_SERIES
-)
+    DEFAULT_DEPTH,
+    DEFAULT_N_FEATURES)
 
 
 class TestTopology(unittest.TestCase):
 
     def setUp(self):
         self.topology = Topology()
-
-    def test_layer_contructor(self):
-        # There are currently two methods for constructing a topology.
-        # Here we test passing the predefined list of layers
-        layers = [{"activation_func": "relu", "trainable": False, "height": 20, "width": 10, "cell_height": 1},
-                  {"activation_func": "relu", "trainable": False, "height": 20, "width": 10, "cell_height": 1},
-                  {"activation_func": "linear", "trainable": False, "height": 20, "width": 10, "cell_height": 1}]
-
-        new_topology = Topology(layers)
-        assert isinstance(new_topology, Topology)
 
     def test_positive_num_units(self):
 
@@ -58,14 +48,15 @@ class TestTopology(unittest.TestCase):
     def test_get_cell_shape(self):
 
         cell_shape = self.topology.get_cell_shape(0)
-        assert cell_shape == [1, 10]
+        assert cell_shape == [1, DEFAULT_N_FEATURES]
 
     def test_get_weight_shape(self):
 
         weight_shape = self.topology.get_weight_shape(0)
-        assert weight_shape == [DEFAULT_N_SERIES, DEFAULT_FEAT_PER_SERIES, DEFAULT_HEIGHT, DEFAULT_WIDTH]
+        assert weight_shape == [DEFAULT_N_SERIES, DEFAULT_N_SERIES, DEFAULT_N_FEATURES, DEFAULT_DEPTH,
+                                DEFAULT_HEIGHT, DEFAULT_WIDTH]
 
     def test_get_bias_shape(self):
 
         bias_shape = self.topology.get_bias_shape(0)
-        assert bias_shape == [DEFAULT_HEIGHT, DEFAULT_WIDTH]
+        assert bias_shape == [DEFAULT_DEPTH, DEFAULT_HEIGHT, DEFAULT_WIDTH]
