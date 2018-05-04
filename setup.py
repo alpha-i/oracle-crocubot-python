@@ -4,13 +4,13 @@ from setuptools import find_packages
 
 setup(
     name='alphai_crocubot_oracle',
-    version='4.0.1',
+    version='4.0.2',
     description='Alpha-I Crocubot',
     author='Sreekumar Thaithara Balan, Christopher Bonnett, Fergus Simpson',
     author_email='sreekumar.balan@alpha-i.co, christopher.bonnett@alpha-i.co, fergus.simpson@alpha-i.co',
     packages=find_packages(exclude=['doc', 'tests*']),
     install_requires=[
-        'alphai_delphi>=2.0.0,<3.0.0',
+        'alphai_delphi>=3.0.0,<4.0.0',
         'alphai_finance==2.0.0',
         'alphai-time-series>=0.0.4',
         'alphai_covariance==0.1.4',

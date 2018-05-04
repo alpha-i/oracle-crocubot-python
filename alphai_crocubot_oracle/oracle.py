@@ -233,7 +233,7 @@ class CrocubotOracle(AbstractOracle):
     def _get_train_template(self):
         return "{}_train_" + self.network
 
-    def predict(self, data, current_timestamp, target_timestamp):
+    def predict(self, data, current_timestamp):
         """
         Main method that gives us a prediction after the training phase is done
 
@@ -246,12 +246,9 @@ class CrocubotOracle(AbstractOracle):
         :return: Mean vector or covariance matrix together with the timestamp of the prediction
         :rtype: PredictionResult
         """
-        # data = self._filter_features_from_data(data)
         universe = self.get_universe(data)
 
         data = self._filter_universe_from_data_for_prediction(data, current_timestamp, universe)
-
-        # data = self._preprocess_raw_data(data)
 
         if self._topology is None:
             logging.warning('Not ready for prediction - safer to run train first')
@@ -260,6 +257,7 @@ class CrocubotOracle(AbstractOracle):
 
         self.verify_pricing_data(data)
         latest_train_file = self._train_file_manager.latest_train_filename(current_timestamp)
+
         predict_x, symbols, prediction_timestamp, target_timestamp = self._data_transformation.create_predict_data(data)
 
         logging.info('Predicting mean values.')
