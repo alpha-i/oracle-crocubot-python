@@ -3,6 +3,9 @@ import logging
 from datetime import datetime, timedelta
 from unittest import TestCase
 
+import pytz
+from alphai_delphi.oracle.abstract_oracle import PredictionResult
+
 from alphai_crocubot_oracle import DATETIME_FORMAT_COMPACT
 from alphai_crocubot_oracle.oracle import TRAIN_FILE_NAME_TEMPLATE
 
@@ -59,16 +62,19 @@ class TestCrocubot(TestCase):
 
         )
 
-        current_timestamp = datetime(2014, 1, 20, 9) + timedelta(minutes=60)
+        current_timestamp = datetime(2014, 2, 27, 14, 30, tzinfo=pytz.UTC) + timedelta(minutes=60)
         target_timestamp = current_timestamp + oracle.prediction_horizon
 
         oracle.train(data, current_timestamp)
 
         predict_data = self._prepare_data_for_test()
-        oracle.predict(predict_data, current_timestamp, target_timestamp)
+        prediction_result = oracle.predict(predict_data, current_timestamp)
+
+        assert isinstance(prediction_result, PredictionResult)
+        assert prediction_result.target_timestamp == target_timestamp
 
     def test_crocubot_train_and_save_file(self):
-        train_time = datetime(2014, 1, 20, 9) + timedelta(minutes=60)
+        train_time = datetime(2014, 2, 27, 14, 30, tzinfo=pytz.UTC) + timedelta(minutes=60)
         train_filename = TRAIN_FILE_NAME_TEMPLATE.format(train_time.strftime(DATETIME_FORMAT_COMPACT))
 
         expected_train_path = os.path.join(FIXTURE_DESTINATION_DIR, train_filename)
@@ -81,7 +87,7 @@ class TestCrocubot(TestCase):
             scheduling_configuration=default_scheduling_config()
         )
 
-        current_time = datetime(2014, 1, 20, 9) + timedelta(minutes=60)
+        current_time = datetime(2014, 2, 27, 14, 30, tzinfo=pytz.UTC) + timedelta(minutes=60)
 
         model.train(data, current_time)
 
@@ -99,13 +105,11 @@ class TestCrocubot(TestCase):
         )
 
         current_timestamp = datetime(2014, 1, 20, 9) + timedelta(minutes=60)
-        target_timestamp = current_timestamp + model.prediction_horizon
 
         predict_data = self._prepare_data_for_test()
         self.assertRaises(
             ValueError,
             model.predict,
             predict_data,
-            current_timestamp,
-            target_timestamp
+            current_timestamp
         )

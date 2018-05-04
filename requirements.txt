@@ -1,6 +1,6 @@
---extra-index-url https://pypi.fury.io/reW6hdjFCrSbpo3ehrBu/alpha-i/
+--extra-index-url https://pypi.fury.io/zNzsk7gQsYY335HLzW9x/alpha-i/
 
-alphai_delphi>=2.1.0,<3.0.0
+alphai_delphi>=3.0.0,<4.0.0
 alphai_finance==2.0.0
 alphai-time-series>=0.0.4
 alphai_covariance==0.1.4
